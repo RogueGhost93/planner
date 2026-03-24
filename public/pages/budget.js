@@ -1,25 +1,437 @@
 /**
- * Modul: Budget
- * Zweck: Seite für das Budget-Modul
- * Abhängigkeiten: /api.js
+ * Modul: Budget-Tracker (Budget)
+ * Zweck: Monatsübersicht, Kategorie-Balkendiagramm (Canvas), Transaktionsliste,
+ *        CRUD, CSV-Export
+ * Abhängigkeiten: /api.js, /router.js (window.oikos)
  */
 
 import { api } from '/api.js';
 
-/**
- * @param {HTMLElement} container
- * @param {{ user: object }} context
- */
+// --------------------------------------------------------
+// Konstanten
+// --------------------------------------------------------
+
+const CATEGORIES = [
+  'Lebensmittel', 'Miete', 'Versicherung', 'Mobilität',
+  'Freizeit', 'Kleidung', 'Gesundheit', 'Bildung', 'Sonstiges',
+];
+
+const MONTH_NAMES = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+                     'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+// --------------------------------------------------------
+// State
+// --------------------------------------------------------
+
+let state = {
+  month:    '',   // YYYY-MM
+  entries:  [],
+  summary:  null,
+};
+
+// --------------------------------------------------------
+// Formatierung
+// --------------------------------------------------------
+
+function formatAmount(n) {
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n);
+}
+
+function formatMonthLabel(ym) {
+  const [y, m] = ym.split('-');
+  return `${MONTH_NAMES[parseInt(m, 10) - 1]} ${y}`;
+}
+
+function addMonths(ym, n) {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// --------------------------------------------------------
+// API
+// --------------------------------------------------------
+
+async function loadMonth(month) {
+  const [entriesRes, summaryRes] = await Promise.all([
+    api.get(`/budget?month=${month}`),
+    api.get(`/budget/summary?month=${month}`),
+  ]);
+  state.month   = month;
+  state.entries = entriesRes.data;
+  state.summary = summaryRes.data;
+}
+
+// --------------------------------------------------------
+// Entry Point
+// --------------------------------------------------------
+
 export async function render(container, { user }) {
+  const today = new Date();
+  state.month = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
   container.innerHTML = `
-    <div class="page">
-      <div class="page__header">
-        <h1 class="page__title">Budget</h1>
+    <div class="budget-page">
+      <div class="budget-nav">
+        <button class="btn btn--icon" id="budget-prev" aria-label="Vorheriger Monat">
+          <i data-lucide="chevron-left"></i>
+        </button>
+        <button class="budget-nav__today" id="budget-today">Aktuell</button>
+        <span class="budget-nav__label" id="budget-label"></span>
+        <button class="btn btn--primary btn--icon" id="budget-add" aria-label="Eintrag hinzufügen">
+          <i data-lucide="plus"></i>
+        </button>
+        <button class="btn btn--icon" id="budget-next" aria-label="Nächster Monat">
+          <i data-lucide="chevron-right"></i>
+        </button>
       </div>
-      <div class="empty-state">
-        <div class="empty-state__title">Kommt bald.</div>
-        <div class="empty-state__description">Dieses Modul wird in Phase 2 implementiert.</div>
+      <div id="budget-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="padding:2rem;text-align:center;color:var(--color-text-disabled);">Lade…</div>
       </div>
     </div>
   `;
+
+  if (window.lucide) lucide.createIcons();
+
+  await loadMonth(state.month);
+  renderBody();
+  wireNav();
+}
+
+// --------------------------------------------------------
+// Navigation
+// --------------------------------------------------------
+
+function wireNav() {
+  document.getElementById('budget-prev').addEventListener('click', async () => {
+    await loadMonth(addMonths(state.month, -1));
+    renderBody();
+    updateLabel();
+  });
+  document.getElementById('budget-next').addEventListener('click', async () => {
+    await loadMonth(addMonths(state.month, 1));
+    renderBody();
+    updateLabel();
+  });
+  document.getElementById('budget-today').addEventListener('click', async () => {
+    const today = new Date();
+    const m = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    if (m === state.month) return;
+    await loadMonth(m);
+    renderBody();
+    updateLabel();
+  });
+  document.getElementById('budget-add').addEventListener('click', () => openModal({ mode: 'create' }));
+  updateLabel();
+}
+
+function updateLabel() {
+  const lbl = document.getElementById('budget-label');
+  if (lbl) lbl.textContent = formatMonthLabel(state.month);
+}
+
+// --------------------------------------------------------
+// Body
+// --------------------------------------------------------
+
+function renderBody() {
+  const body = document.getElementById('budget-body');
+  if (!body) return;
+  updateLabel();
+
+  const s = state.summary;
+  const balanceClass = s.balance >= 0 ? 'budget-summary-card--balance-positive' : 'budget-summary-card--balance-negative';
+
+  body.innerHTML = `
+    <!-- Zusammenfassung -->
+    <div class="budget-summary">
+      <div class="budget-summary-card budget-summary-card--income">
+        <div class="budget-summary-card__label">Einnahmen</div>
+        <div class="budget-summary-card__amount">${formatAmount(s.income)}</div>
+      </div>
+      <div class="budget-summary-card budget-summary-card--expenses">
+        <div class="budget-summary-card__label">Ausgaben</div>
+        <div class="budget-summary-card__amount">${formatAmount(Math.abs(s.expenses))}</div>
+      </div>
+      <div class="budget-summary-card ${balanceClass}">
+        <div class="budget-summary-card__label">Saldo</div>
+        <div class="budget-summary-card__amount">${formatAmount(s.balance)}</div>
+      </div>
+    </div>
+
+    <!-- Kategorie-Balken -->
+    ${s.byCategory.length ? `
+    <div class="budget-chart-section">
+      <div class="budget-chart-section__title">Nach Kategorie</div>
+      <div class="budget-chart">
+        ${renderCategoryBars(s.byCategory)}
+      </div>
+    </div>` : ''}
+
+    <!-- Transaktionsliste -->
+    <div class="budget-list-section">
+      <div class="budget-list-header">
+        <span class="budget-list-header__title">Transaktionen</span>
+        ${state.entries.length ? `
+        <a href="/api/v1/budget/export?month=${state.month}" class="btn btn--secondary"
+           style="font-size:var(--text-sm);padding:var(--space-1) var(--space-3);">
+          <i data-lucide="download" style="width:14px;height:14px;margin-right:4px;"></i>CSV
+        </a>` : ''}
+      </div>
+      <div class="budget-list" id="budget-list">
+        ${renderEntries()}
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) lucide.createIcons();
+
+  document.getElementById('budget-list')?.addEventListener('click', async (e) => {
+    const delBtn = e.target.closest('[data-action="delete"]');
+    if (delBtn) { await deleteEntry(parseInt(delBtn.dataset.id, 10)); return; }
+
+    const item = e.target.closest('.budget-entry[data-id]');
+    if (item && !e.target.closest('[data-action]')) {
+      const entry = state.entries.find((e) => e.id === parseInt(item.dataset.id, 10));
+      if (entry) openModal({ mode: 'edit', entry });
+    }
+  });
+}
+
+function renderCategoryBars(byCategory) {
+  const maxAbs = Math.max(...byCategory.map((c) => Math.abs(c.total)), 1);
+
+  return byCategory.map((c) => {
+    const isExpense = c.total < 0;
+    const pct       = Math.round((Math.abs(c.total) / maxAbs) * 100);
+    const cls       = isExpense ? 'budget-bar-row__fill--expenses' : 'budget-bar-row__fill--income';
+
+    return `
+      <div class="budget-bar-row">
+        <div class="budget-bar-row__label" title="${escHtml(c.category)}">${escHtml(c.category)}</div>
+        <div class="budget-bar-row__track">
+          <div class="budget-bar-row__fill ${cls}" style="width:${pct}%;"></div>
+        </div>
+        <div class="budget-bar-row__amount" style="color:${isExpense ? 'var(--color-danger)' : 'var(--color-success)'};">
+          ${formatAmount(c.total)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderEntries() {
+  if (!state.entries.length) {
+    return `<div class="budget-empty">
+      <i data-lucide="receipt" style="width:48px;height:48px;color:var(--color-text-disabled);margin-bottom:var(--space-3);"></i>
+      <div style="font-size:var(--text-base);font-weight:600;">Keine Einträge</div>
+      <div style="font-size:var(--text-sm);margin-top:var(--space-1);">Noch keine Transaktionen für diesen Monat.</div>
+    </div>`;
+  }
+
+  return state.entries.map((e) => {
+    const isIncome  = e.amount > 0;
+    const amtClass  = isIncome ? 'budget-entry__amount--income' : 'budget-entry__amount--expenses';
+    const indClass  = isIncome ? 'budget-entry__indicator--income' : 'budget-entry__indicator--expenses';
+    const sign      = isIncome ? '+' : '';
+    const date      = formatEntryDate(e.date);
+
+    return `
+      <div class="budget-entry" data-id="${e.id}">
+        <div class="budget-entry__indicator ${indClass}"></div>
+        <div class="budget-entry__body">
+          <div class="budget-entry__title">${escHtml(e.title)}</div>
+          <div class="budget-entry__meta">${date} · ${escHtml(e.category)}${e.is_recurring ? ' 🔁' : ''}</div>
+        </div>
+        <div class="budget-entry__amount ${amtClass}">${sign}${formatAmount(e.amount)}</div>
+        <button class="budget-entry__delete" data-action="delete" data-id="${e.id}" title="Löschen">
+          <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+        </button>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatEntryDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.`;
+}
+
+// --------------------------------------------------------
+// Modal
+// --------------------------------------------------------
+
+function openModal({ mode, entry = null }) {
+  document.getElementById('budget-modal-overlay')?.remove();
+
+  const isEdit = mode === 'edit';
+  const today  = new Date().toISOString().slice(0, 10);
+
+  const isExpense  = isEdit ? entry.amount < 0 : true; // Standard: Ausgabe
+  const absAmount  = isEdit ? Math.abs(entry.amount).toFixed(2) : '';
+
+  const catOpts = CATEGORIES.map((c) =>
+    `<option value="${c}" ${isEdit && entry.category === c ? 'selected' : ''}>${c}</option>`
+  ).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id        = 'budget-modal-overlay';
+  overlay.className = 'budget-modal-overlay';
+  overlay.innerHTML = `
+    <div class="budget-modal" role="dialog" aria-modal="true">
+      <div class="budget-modal__header">
+        <h2 class="budget-modal__title">${isEdit ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}</h2>
+        <button class="budget-modal__close" id="bm-close" aria-label="Schließen">
+          <i data-lucide="x" style="width:16px;height:16px;"></i>
+        </button>
+      </div>
+      <div class="budget-modal__body">
+        <!-- Einnahme / Ausgabe Toggle -->
+        <div class="amount-type-toggle">
+          <button class="amount-type-btn amount-type-btn--expenses ${isExpense ? 'amount-type-btn--active' : ''}"
+                  id="type-expense" type="button">Ausgabe</button>
+          <button class="amount-type-btn amount-type-btn--income ${!isExpense ? 'amount-type-btn--active' : ''}"
+                  id="type-income" type="button">Einnahme</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bm-title">Titel *</label>
+          <input type="text" class="form-input" id="bm-title"
+                 placeholder="z.B. REWE Einkauf" value="${escHtml(isEdit ? entry.title : '')}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bm-amount">Betrag (€) *</label>
+          <input type="number" class="form-input" id="bm-amount"
+                 placeholder="0,00" step="0.01" min="0"
+                 value="${absAmount}">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bm-category">Kategorie</label>
+          <select class="form-input" id="bm-category">${catOpts}</select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="bm-date">Datum *</label>
+          <input type="date" class="form-input" id="bm-date"
+                 value="${isEdit ? entry.date : today}">
+        </div>
+
+        <div class="form-group">
+          <label class="allday-toggle">
+            <input type="checkbox" id="bm-recurring" ${isEdit && entry.is_recurring ? 'checked' : ''}>
+            <span class="allday-toggle__label">Wiederkehrend</span>
+          </label>
+        </div>
+      </div>
+      <div class="budget-modal__footer">
+        ${isEdit ? `<button class="btn btn--danger btn--icon" id="bm-delete" title="Löschen">
+          <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+        </button>` : '<div></div>'}
+        <div class="budget-modal__footer-actions">
+          <button class="btn btn--secondary" id="bm-cancel">Abbrechen</button>
+          <button class="btn btn--primary" id="bm-save">${isEdit ? 'Speichern' : 'Hinzufügen'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  if (window.lucide) lucide.createIcons();
+
+  // Typ-Toggle
+  let currentType = isExpense ? 'expense' : 'income';
+  overlay.querySelector('#type-expense').addEventListener('click', () => {
+    currentType = 'expense';
+    overlay.querySelector('#type-expense').classList.add('amount-type-btn--active');
+    overlay.querySelector('#type-income').classList.remove('amount-type-btn--active');
+  });
+  overlay.querySelector('#type-income').addEventListener('click', () => {
+    currentType = 'income';
+    overlay.querySelector('#type-income').classList.add('amount-type-btn--active');
+    overlay.querySelector('#type-expense').classList.remove('amount-type-btn--active');
+  });
+
+  overlay.querySelector('#bm-close').addEventListener('click',  () => overlay.remove());
+  overlay.querySelector('#bm-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelector('#bm-delete')?.addEventListener('click', async () => {
+    if (!confirm(`"${entry.title}" wirklich löschen?`)) return;
+    overlay.remove();
+    await deleteEntry(entry.id);
+  });
+
+  overlay.querySelector('#bm-save').addEventListener('click', async () => {
+    const saveBtn    = overlay.querySelector('#bm-save');
+    const title      = overlay.querySelector('#bm-title').value.trim();
+    const absVal     = parseFloat(overlay.querySelector('#bm-amount').value);
+    const category   = overlay.querySelector('#bm-category').value;
+    const date       = overlay.querySelector('#bm-date').value;
+    const recurring  = overlay.querySelector('#bm-recurring').checked ? 1 : 0;
+
+    if (!title)           { window.oikos?.showToast('Titel ist erforderlich', 'error'); return; }
+    if (isNaN(absVal) || absVal <= 0) { window.oikos?.showToast('Gültigen Betrag eingeben', 'error'); return; }
+    if (!date)            { window.oikos?.showToast('Datum ist erforderlich', 'error'); return; }
+
+    const amount = currentType === 'expense' ? -absVal : absVal;
+
+    saveBtn.disabled    = true;
+    saveBtn.textContent = '…';
+
+    try {
+      const body = { title, amount, category, date, is_recurring: recurring };
+      if (mode === 'create') {
+        const res = await api.post('/budget', body);
+        state.entries.unshift(res.data);
+      } else {
+        const res = await api.put(`/budget/${entry.id}`, body);
+        const idx = state.entries.findIndex((e) => e.id === entry.id);
+        if (idx !== -1) state.entries[idx] = res.data;
+      }
+      // Zusammenfassung neu laden
+      const sumRes  = await api.get(`/budget/summary?month=${state.month}`);
+      state.summary = sumRes.data;
+
+      overlay.remove();
+      renderBody();
+      window.oikos?.showToast(mode === 'create' ? 'Eintrag hinzugefügt' : 'Eintrag gespeichert', 'success');
+    } catch (err) {
+      window.oikos?.showToast(err.data?.error ?? 'Fehler', 'error');
+      saveBtn.disabled    = false;
+      saveBtn.textContent = isEdit ? 'Speichern' : 'Hinzufügen';
+    }
+  });
+
+  overlay.querySelector('#bm-title').focus();
+}
+
+// --------------------------------------------------------
+// Eintrag löschen
+// --------------------------------------------------------
+
+async function deleteEntry(id) {
+  if (!confirm('Eintrag wirklich löschen?')) return;
+  try {
+    await api.delete(`/budget/${id}`);
+    state.entries = state.entries.filter((e) => e.id !== id);
+    const sumRes  = await api.get(`/budget/summary?month=${state.month}`);
+    state.summary = sumRes.data;
+    renderBody();
+    window.oikos?.showToast('Eintrag gelöscht', 'success');
+  } catch (err) {
+    window.oikos?.showToast(err.data?.error ?? 'Fehler', 'error');
+  }
+}
+
+// --------------------------------------------------------
+// Hilfsfunktion
+// --------------------------------------------------------
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }

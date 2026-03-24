@@ -13,7 +13,8 @@
     "test:shopping": "node --experimental-sqlite test-shopping.js",
     "test:meals": "node --experimental-sqlite test-meals.js",
     "test:calendar": "node --experimental-sqlite test-calendar.js",
-    "test": "node --experimental-sqlite test-db.js && node --experimental-sqlite test-dashboard.js && node --experimental-sqlite test-tasks.js && node --experimental-sqlite test-shopping.js && node --experimental-sqlite test-meals.js && node --experimental-sqlite test-calendar.js"
+    "test:ncb": "node --experimental-sqlite test-notes-contacts-budget.js",
+    "test": "node --experimental-sqlite test-db.js && node --experimental-sqlite test-dashboard.js && node --experimental-sqlite test-tasks.js && node --experimental-sqlite test-shopping.js && node --experimental-sqlite test-meals.js && node --experimental-sqlite test-calendar.js && node --experimental-sqlite test-notes-contacts-budget.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

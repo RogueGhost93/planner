@@ -1,13 +1,286 @@
 /**
  * Modul: Budget-Tracker (Budget)
- * Zweck: REST-API-Routen für Einnahmen und Ausgaben
+ * Zweck: REST-API-Routen für Einnahmen/Ausgaben, Monatsübersicht, CSV-Export
  * Abhängigkeiten: express, server/db.js, server/auth.js
  */
 
-const express = require('express');
-const router = express.Router();
+'use strict';
 
-// Platzhalter — wird in Phase 3 implementiert
-router.get('/', (req, res) => res.json({ data: [] }));
+const express = require('express');
+const router  = express.Router();
+const db      = require('../db');
+
+const VALID_CATEGORIES = [
+  'Lebensmittel', 'Miete', 'Versicherung', 'Mobilität',
+  'Freizeit', 'Kleidung', 'Gesundheit', 'Bildung', 'Sonstiges',
+];
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// --------------------------------------------------------
+// Statische Routen vor /:id
+// --------------------------------------------------------
+
+/**
+ * GET /api/v1/budget/summary
+ * Monatsübersicht: Einnahmen, Ausgaben, Saldo, Aufschlüsselung nach Kategorie.
+ * Query: ?month=YYYY-MM  (default: aktueller Monat)
+ * Response: { data: { month, income, expenses, balance, byCategory: [] } }
+ */
+router.get('/summary', (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 7); // YYYY-MM
+    const month = req.query.month || today;
+
+    if (!/^\d{4}-\d{2}$/.test(month))
+      return res.status(400).json({ error: 'month muss YYYY-MM sein', code: 400 });
+
+    const from = `${month}-01`;
+    const to   = `${month}-31`;
+
+    const totals = db.get().prepare(`
+      SELECT
+        SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
+        SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS expenses,
+        SUM(amount) AS balance
+      FROM budget_entries
+      WHERE date BETWEEN ? AND ?
+    `).get(from, to);
+
+    const byCategory = db.get().prepare(`
+      SELECT category,
+             SUM(CASE WHEN amount > 0 THEN amount ELSE 0 END) AS income,
+             SUM(CASE WHEN amount < 0 THEN amount ELSE 0 END) AS expenses,
+             SUM(amount) AS total
+      FROM budget_entries
+      WHERE date BETWEEN ? AND ?
+      GROUP BY category
+      ORDER BY ABS(SUM(amount)) DESC
+    `).all(from, to);
+
+    res.json({
+      data: {
+        month,
+        income:     totals.income   || 0,
+        expenses:   totals.expenses || 0,
+        balance:    totals.balance  || 0,
+        byCategory,
+      },
+    });
+  } catch (err) {
+    console.error('[budget/GET /summary]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
+
+/**
+ * GET /api/v1/budget/export
+ * Monatseinträge als CSV-Download.
+ * Query: ?month=YYYY-MM
+ * Response: text/csv
+ */
+router.get('/export', (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 7);
+    const month = req.query.month || today;
+
+    if (!/^\d{4}-\d{2}$/.test(month))
+      return res.status(400).json({ error: 'month muss YYYY-MM sein', code: 400 });
+
+    const from    = `${month}-01`;
+    const to      = `${month}-31`;
+    const entries = db.get().prepare(`
+      SELECT b.*, u.display_name AS creator_name
+      FROM budget_entries b
+      LEFT JOIN users u ON u.id = b.created_by
+      WHERE b.date BETWEEN ? AND ?
+      ORDER BY b.date ASC
+    `).all(from, to);
+
+    const header = 'Datum,Titel,Betrag,Kategorie,Wiederkehrend,Erstellt von\n';
+    const rows   = entries.map((e) =>
+      [
+        e.date,
+        `"${(e.title || '').replace(/"/g, '""')}"`,
+        e.amount.toFixed(2).replace('.', ','),
+        e.category,
+        e.is_recurring ? 'Ja' : 'Nein',
+        `"${(e.creator_name || '').replace(/"/g, '""')}"`,
+      ].join(',')
+    ).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="budget-${month}.csv"`);
+    res.send('\uFEFF' + header + rows); // BOM für Excel
+  } catch (err) {
+    console.error('[budget/GET /export]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
+
+/**
+ * GET /api/v1/budget/meta
+ * Kategorien-Liste für Dropdowns.
+ * Response: { data: { categories } }
+ */
+router.get('/meta', (req, res) => {
+  res.json({ data: { categories: VALID_CATEGORIES } });
+});
+
+// --------------------------------------------------------
+// CRUD-Routen
+// --------------------------------------------------------
+
+/**
+ * GET /api/v1/budget
+ * Einträge eines Monats abrufen.
+ * Query: ?month=YYYY-MM&category=<cat>
+ * Response: { data: Entry[] }
+ */
+router.get('/', (req, res) => {
+  try {
+    const today = new Date().toISOString().slice(0, 7);
+    const month = req.query.month || today;
+
+    if (!/^\d{4}-\d{2}$/.test(month))
+      return res.status(400).json({ error: 'month muss YYYY-MM sein', code: 400 });
+
+    const from   = `${month}-01`;
+    const to     = `${month}-31`;
+    let sql      = `
+      SELECT b.*, u.display_name AS creator_name
+      FROM budget_entries b
+      LEFT JOIN users u ON u.id = b.created_by
+      WHERE b.date BETWEEN ? AND ?
+    `;
+    const params = [from, to];
+
+    if (req.query.category && VALID_CATEGORIES.includes(req.query.category)) {
+      sql += ' AND b.category = ?';
+      params.push(req.query.category);
+    }
+
+    sql += ' ORDER BY b.date DESC, b.created_at DESC';
+
+    const entries = db.get().prepare(sql).all(...params);
+    res.json({ data: entries });
+  } catch (err) {
+    console.error('[budget/GET /]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
+
+/**
+ * POST /api/v1/budget
+ * Neuen Eintrag anlegen.
+ * Body: { title, amount, category?, date, is_recurring?, recurrence_rule? }
+ * Response: { data: Entry }
+ */
+router.post('/', (req, res) => {
+  try {
+    const {
+      title, amount, category = 'Sonstiges',
+      date, is_recurring = 0, recurrence_rule = null,
+    } = req.body;
+
+    if (!title || !title.trim())
+      return res.status(400).json({ error: 'Titel ist erforderlich', code: 400 });
+    if (amount === undefined || amount === null || isNaN(Number(amount)))
+      return res.status(400).json({ error: 'Betrag (Zahl) ist erforderlich', code: 400 });
+    if (!date || !DATE_RE.test(date))
+      return res.status(400).json({ error: 'Gültiges Datum (YYYY-MM-DD) erforderlich', code: 400 });
+    if (!VALID_CATEGORIES.includes(category))
+      return res.status(400).json({ error: `Ungültige Kategorie: ${category}`, code: 400 });
+
+    const result = db.get().prepare(`
+      INSERT INTO budget_entries (title, amount, category, date, is_recurring, recurrence_rule, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      title.trim(), Number(amount), category, date,
+      is_recurring ? 1 : 0, recurrence_rule || null,
+      req.session.userId
+    );
+
+    const entry = db.get().prepare(`
+      SELECT b.*, u.display_name AS creator_name
+      FROM budget_entries b LEFT JOIN users u ON u.id = b.created_by
+      WHERE b.id = ?
+    `).get(result.lastInsertRowid);
+
+    res.status(201).json({ data: entry });
+  } catch (err) {
+    console.error('[budget/POST /]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
+
+/**
+ * PUT /api/v1/budget/:id
+ * Eintrag bearbeiten.
+ * Body: alle Felder optional
+ * Response: { data: Entry }
+ */
+router.put('/:id', (req, res) => {
+  try {
+    const id    = parseInt(req.params.id, 10);
+    const entry = db.get().prepare('SELECT * FROM budget_entries WHERE id = ?').get(id);
+    if (!entry) return res.status(404).json({ error: 'Eintrag nicht gefunden', code: 404 });
+
+    const { title, amount, category, date, is_recurring, recurrence_rule } = req.body;
+
+    if (amount !== undefined && isNaN(Number(amount)))
+      return res.status(400).json({ error: 'Betrag muss eine Zahl sein', code: 400 });
+    if (date !== undefined && !DATE_RE.test(date))
+      return res.status(400).json({ error: 'Ungültiges Datum', code: 400 });
+    if (category !== undefined && !VALID_CATEGORIES.includes(category))
+      return res.status(400).json({ error: `Ungültige Kategorie: ${category}`, code: 400 });
+
+    db.get().prepare(`
+      UPDATE budget_entries
+      SET title           = COALESCE(?, title),
+          amount          = COALESCE(?, amount),
+          category        = COALESCE(?, category),
+          date            = COALESCE(?, date),
+          is_recurring    = COALESCE(?, is_recurring),
+          recurrence_rule = ?
+      WHERE id = ?
+    `).run(
+      title?.trim() ?? null,
+      amount !== undefined ? Number(amount) : null,
+      category ?? null,
+      date ?? null,
+      is_recurring !== undefined ? (is_recurring ? 1 : 0) : null,
+      recurrence_rule !== undefined ? (recurrence_rule || null) : entry.recurrence_rule,
+      id
+    );
+
+    const updated = db.get().prepare(`
+      SELECT b.*, u.display_name AS creator_name
+      FROM budget_entries b LEFT JOIN users u ON u.id = b.created_by WHERE b.id = ?
+    `).get(id);
+
+    res.json({ data: updated });
+  } catch (err) {
+    console.error('[budget/PUT /:id]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
+
+/**
+ * DELETE /api/v1/budget/:id
+ * Eintrag löschen.
+ * Response: 204 No Content
+ */
+router.delete('/:id', (req, res) => {
+  try {
+    const id     = parseInt(req.params.id, 10);
+    const result = db.get().prepare('DELETE FROM budget_entries WHERE id = ?').run(id);
+    if (result.changes === 0)
+      return res.status(404).json({ error: 'Eintrag nicht gefunden', code: 404 });
+    res.status(204).end();
+  } catch (err) {
+    console.error('[budget/DELETE /:id]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
 
 module.exports = router;
