@@ -1,13 +1,287 @@
 /**
  * Modul: Einkaufslisten (Shopping)
- * Zweck: REST-API-Routen für Einkaufslisten und -artikel
- * Abhängigkeiten: express, server/db.js, server/auth.js
+ * Zweck: REST-API-Routen für Einkaufslisten, Artikel, Autocomplete
+ * Abhängigkeiten: express, server/db.js
+ *
+ * Routen-Reihenfolge: Statische Pfade (/suggestions, /items/:id) müssen
+ * vor dynamischen (/:listId) registriert sein, damit Express korrekt matcht.
  */
 
-const express = require('express');
-const router = express.Router();
+'use strict';
 
-// Platzhalter — wird in Phase 2 implementiert
-router.get('/', (req, res) => res.json({ data: [] }));
+const express = require('express');
+const router  = express.Router();
+const db      = require('../db');
+
+// --------------------------------------------------------
+// Konstanten
+// --------------------------------------------------------
+
+const ITEM_CATEGORIES = [
+  'Obst & Gemüse', 'Backwaren', 'Milchprodukte', 'Fleisch & Fisch',
+  'Tiefkühl', 'Getränke', 'Haushalt', 'Drogerie', 'Sonstiges',
+];
+
+// --------------------------------------------------------
+// GET /api/v1/shopping/suggestions?q=…
+// Autocomplete-Vorschläge aus bisherigen Artikelnamen.
+// Response: { data: string[] }
+// --------------------------------------------------------
+router.get('/suggestions', (req, res) => {
+  try {
+    const q = (req.query.q ?? '').trim();
+    if (q.length < 1) return res.json({ data: [] });
+
+    const rows = db.get().prepare(`
+      SELECT DISTINCT name FROM shopping_items
+      WHERE name LIKE ? COLLATE NOCASE
+      ORDER BY name ASC
+      LIMIT 8
+    `).all(`${q}%`);
+
+    res.json({ data: rows.map((r) => r.name) });
+  } catch (err) {
+    console.error('[Shopping] suggestions Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// PATCH /api/v1/shopping/items/:itemId
+// Artikel aktualisieren (is_checked, name, quantity, category).
+// Body: { is_checked?, name?, quantity?, category? }
+// Response: { data: ShoppingItem }
+// --------------------------------------------------------
+router.patch('/items/:itemId', (req, res) => {
+  try {
+    const item = db.get()
+      .prepare('SELECT * FROM shopping_items WHERE id = ?')
+      .get(req.params.itemId);
+    if (!item) return res.status(404).json({ error: 'Artikel nicht gefunden.', code: 404 });
+
+    const {
+      is_checked = item.is_checked,
+      name       = item.name,
+      quantity   = item.quantity,
+      category   = item.category,
+    } = req.body;
+
+    if (!name?.trim()) return res.status(400).json({ error: 'name darf nicht leer sein.', code: 400 });
+    if (category && !ITEM_CATEGORIES.includes(category))
+      return res.status(400).json({ error: 'Ungültige Kategorie.', code: 400 });
+
+    db.get().prepare(`
+      UPDATE shopping_items
+      SET is_checked = ?, name = ?, quantity = ?, category = ?
+      WHERE id = ?
+    `).run(is_checked ? 1 : 0, name.trim(), quantity ?? null, category, req.params.itemId);
+
+    const updated = db.get()
+      .prepare('SELECT * FROM shopping_items WHERE id = ?')
+      .get(req.params.itemId);
+    res.json({ data: updated });
+  } catch (err) {
+    console.error('[Shopping] PATCH items/:id Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// DELETE /api/v1/shopping/items/:itemId
+// Einzelnen Artikel löschen.
+// Response: { ok: true }
+// --------------------------------------------------------
+router.delete('/items/:itemId', (req, res) => {
+  try {
+    const result = db.get()
+      .prepare('DELETE FROM shopping_items WHERE id = ?')
+      .run(req.params.itemId);
+    if (result.changes === 0)
+      return res.status(404).json({ error: 'Artikel nicht gefunden.', code: 404 });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Shopping] DELETE items/:id Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// GET /api/v1/shopping
+// Alle Einkaufslisten mit Artikel-Zähler.
+// Response: { data: ShoppingList[] }
+// --------------------------------------------------------
+router.get('/', (req, res) => {
+  try {
+    const lists = db.get().prepare(`
+      SELECT
+        sl.*,
+        COUNT(si.id)                                          AS item_total,
+        SUM(CASE WHEN si.is_checked = 1 THEN 1 ELSE 0 END)   AS item_checked
+      FROM shopping_lists sl
+      LEFT JOIN shopping_items si ON si.list_id = sl.id
+      GROUP BY sl.id
+      ORDER BY sl.created_at ASC
+    `).all();
+    res.json({ data: lists });
+  } catch (err) {
+    console.error('[Shopping] GET / Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// POST /api/v1/shopping
+// Neue Einkaufsliste erstellen.
+// Body: { name }
+// Response: { data: ShoppingList }
+// --------------------------------------------------------
+router.post('/', (req, res) => {
+  try {
+    const name = req.body.name?.trim();
+    if (!name) return res.status(400).json({ error: 'name ist erforderlich.', code: 400 });
+
+    const result = db.get()
+      .prepare('INSERT INTO shopping_lists (name, created_by) VALUES (?, ?)')
+      .run(name, req.session.userId);
+
+    const list = db.get()
+      .prepare('SELECT * FROM shopping_lists WHERE id = ?')
+      .get(result.lastInsertRowid);
+    res.status(201).json({ data: list });
+  } catch (err) {
+    console.error('[Shopping] POST / Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// PUT /api/v1/shopping/:listId
+// Einkaufsliste umbenennen.
+// Body: { name }
+// Response: { data: ShoppingList }
+// --------------------------------------------------------
+router.put('/:listId', (req, res) => {
+  try {
+    const name = req.body.name?.trim();
+    if (!name) return res.status(400).json({ error: 'name ist erforderlich.', code: 400 });
+
+    const result = db.get()
+      .prepare('UPDATE shopping_lists SET name = ? WHERE id = ?')
+      .run(name, req.params.listId);
+    if (result.changes === 0)
+      return res.status(404).json({ error: 'Liste nicht gefunden.', code: 404 });
+
+    const list = db.get()
+      .prepare('SELECT * FROM shopping_lists WHERE id = ?')
+      .get(req.params.listId);
+    res.json({ data: list });
+  } catch (err) {
+    console.error('[Shopping] PUT /:listId Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// DELETE /api/v1/shopping/:listId
+// Liste und alle Artikel löschen (CASCADE).
+// Response: { ok: true }
+// --------------------------------------------------------
+router.delete('/:listId', (req, res) => {
+  try {
+    const result = db.get()
+      .prepare('DELETE FROM shopping_lists WHERE id = ?')
+      .run(req.params.listId);
+    if (result.changes === 0)
+      return res.status(404).json({ error: 'Liste nicht gefunden.', code: 404 });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Shopping] DELETE /:listId Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// GET /api/v1/shopping/:listId/items
+// Alle Artikel einer Liste, sortiert nach Supermarkt-Gang-Logik.
+// Abgehakte Artikel ans Ende innerhalb ihrer Kategorie.
+// Response: { data: ShoppingItem[], list: ShoppingList }
+// --------------------------------------------------------
+router.get('/:listId/items', (req, res) => {
+  try {
+    const list = db.get()
+      .prepare('SELECT * FROM shopping_lists WHERE id = ?')
+      .get(req.params.listId);
+    if (!list) return res.status(404).json({ error: 'Liste nicht gefunden.', code: 404 });
+
+    const categoryOrder = ITEM_CATEGORIES.map((c, i) => `WHEN '${c}' THEN ${i}`).join(' ');
+
+    const items = db.get().prepare(`
+      SELECT * FROM shopping_items
+      WHERE list_id = ?
+      ORDER BY
+        CASE category ${categoryOrder} ELSE ${ITEM_CATEGORIES.length} END,
+        is_checked ASC,
+        created_at ASC
+    `).all(req.params.listId);
+
+    res.json({ data: items, list });
+  } catch (err) {
+    console.error('[Shopping] GET /:listId/items Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// POST /api/v1/shopping/:listId/items
+// Artikel zur Liste hinzufügen.
+// Body: { name, quantity?, category? }
+// Response: { data: ShoppingItem }
+// --------------------------------------------------------
+router.post('/:listId/items', (req, res) => {
+  try {
+    const list = db.get()
+      .prepare('SELECT id FROM shopping_lists WHERE id = ?')
+      .get(req.params.listId);
+    if (!list) return res.status(404).json({ error: 'Liste nicht gefunden.', code: 404 });
+
+    const name     = req.body.name?.trim();
+    const quantity = req.body.quantity?.trim() || null;
+    const category = req.body.category || 'Sonstiges';
+
+    if (!name) return res.status(400).json({ error: 'name ist erforderlich.', code: 400 });
+    if (!ITEM_CATEGORIES.includes(category))
+      return res.status(400).json({ error: 'Ungültige Kategorie.', code: 400 });
+
+    const result = db.get().prepare(`
+      INSERT INTO shopping_items (list_id, name, quantity, category)
+      VALUES (?, ?, ?, ?)
+    `).run(req.params.listId, name, quantity, category);
+
+    const item = db.get()
+      .prepare('SELECT * FROM shopping_items WHERE id = ?')
+      .get(result.lastInsertRowid);
+    res.status(201).json({ data: item });
+  } catch (err) {
+    console.error('[Shopping] POST /:listId/items Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// DELETE /api/v1/shopping/:listId/items/checked
+// Alle abgehakten Artikel aus einer Liste löschen.
+// Response: { deleted: number }
+// --------------------------------------------------------
+router.delete('/:listId/items/checked', (req, res) => {
+  try {
+    const result = db.get().prepare(`
+      DELETE FROM shopping_items WHERE list_id = ? AND is_checked = 1
+    `).run(req.params.listId);
+    res.json({ deleted: result.changes });
+  } catch (err) {
+    console.error('[Shopping] DELETE /:listId/items/checked Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
 
 module.exports = router;
