@@ -7,7 +7,9 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "setup": "node setup.js",
-    "test:db": "node --experimental-sqlite test-db.js"
+    "test:db": "node --experimental-sqlite test-db.js",
+    "test:dashboard": "node --experimental-sqlite test-dashboard.js",
+    "test": "node --experimental-sqlite test-db.js && node --experimental-sqlite test-dashboard.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",

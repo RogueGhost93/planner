@@ -1,0 +1,121 @@
+/**
+ * Modul: Dashboard
+ * Zweck: Aggregierter Endpoint — liefert Daten aller Dashboard-Widgets in einem Request
+ * Abhängigkeiten: express, server/db.js
+ */
+
+'use strict';
+
+const express = require('express');
+const router = express.Router();
+const db = require('../db');
+
+/**
+ * GET /api/v1/dashboard
+ * Liefert aggregierte Daten für alle Dashboard-Widgets.
+ * Jedes Widget-Objekt hat ein eigenes `error`-Feld falls die Abfrage fehlschlägt —
+ * so bricht ein fehlerhaftes Widget nicht das gesamte Dashboard.
+ *
+ * Response: {
+ *   upcomingEvents: CalendarEvent[],   // Nächste 5 Termine
+ *   urgentTasks:    Task[],            // High/Urgent mit Fälligkeit ≤ 48h
+ *   todayMeals:     Meal[],            // Mahlzeiten für heute
+ *   pinnedNotes:    Note[],            // Angepinnte Notizen (max. 3)
+ *   users:          User[]             // Alle User (für Avatar-Farben)
+ * }
+ */
+router.get('/', (req, res) => {
+  const d = db.get();
+  const result = {};
+
+  // Heute und +48h als ISO-Strings
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const deadline48h = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString();
+
+  // Anstehende Termine (nächste 5, ab jetzt)
+  try {
+    result.upcomingEvents = d.prepare(`
+      SELECT
+        ce.*,
+        u.display_name  AS assigned_name,
+        u.avatar_color  AS assigned_color
+      FROM calendar_events ce
+      LEFT JOIN users u ON ce.assigned_to = u.id
+      WHERE ce.start_datetime >= ?
+      ORDER BY ce.start_datetime ASC
+      LIMIT 5
+    `).all(now.toISOString());
+  } catch (err) {
+    console.error('[Dashboard] upcomingEvents-Fehler:', err.message);
+    result.upcomingEvents = [];
+  }
+
+  // Dringende Aufgaben: high/urgent + fällig in ≤ 48h + nicht erledigt
+  try {
+    result.urgentTasks = d.prepare(`
+      SELECT
+        t.*,
+        u.display_name AS assigned_name,
+        u.avatar_color AS assigned_color
+      FROM tasks t
+      LEFT JOIN users u ON t.assigned_to = u.id
+      WHERE t.priority IN ('high', 'urgent')
+        AND t.status != 'done'
+        AND (t.due_date IS NULL OR t.due_date <= ?)
+      ORDER BY
+        CASE t.priority WHEN 'urgent' THEN 0 ELSE 1 END,
+        t.due_date ASC NULLS LAST
+      LIMIT 10
+    `).all(deadline48h.slice(0, 10));
+  } catch (err) {
+    console.error('[Dashboard] urgentTasks-Fehler:', err.message);
+    result.urgentTasks = [];
+  }
+
+  // Heutiges Essen
+  try {
+    result.todayMeals = d.prepare(`
+      SELECT * FROM meals
+      WHERE date = ?
+      ORDER BY
+        CASE meal_type
+          WHEN 'breakfast' THEN 0
+          WHEN 'lunch'     THEN 1
+          WHEN 'dinner'    THEN 2
+          WHEN 'snack'     THEN 3
+        END
+    `).all(todayStr);
+  } catch (err) {
+    console.error('[Dashboard] todayMeals-Fehler:', err.message);
+    result.todayMeals = [];
+  }
+
+  // Angepinnte Notizen (max. 3)
+  try {
+    result.pinnedNotes = d.prepare(`
+      SELECT n.*, u.display_name AS author_name, u.avatar_color AS author_color
+      FROM notes n
+      LEFT JOIN users u ON n.created_by = u.id
+      WHERE n.pinned = 1
+      ORDER BY n.updated_at DESC
+      LIMIT 3
+    `).all();
+  } catch (err) {
+    console.error('[Dashboard] pinnedNotes-Fehler:', err.message);
+    result.pinnedNotes = [];
+  }
+
+  // Alle User (für Avatar-Farben in Widgets)
+  try {
+    result.users = d.prepare(
+      'SELECT id, display_name, avatar_color FROM users ORDER BY display_name'
+    ).all();
+  } catch (err) {
+    result.users = [];
+  }
+
+  res.json(result);
+});
+
+module.exports = router;

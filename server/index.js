@@ -79,6 +79,7 @@ app.use('/api/v1/auth', authRouter);
 
 // Alle weiteren API-Routen erfordern Authentifizierung
 app.use('/api/v1', requireAuth);
+app.use('/api/v1/dashboard', require('./routes/dashboard'));
 app.use('/api/v1/tasks', require('./routes/tasks'));
 app.use('/api/v1/shopping', require('./routes/shopping'));
 app.use('/api/v1/meals', require('./routes/meals'));
