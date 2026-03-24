@@ -9,7 +9,8 @@
     "setup": "node setup.js",
     "test:db": "node --experimental-sqlite test-db.js",
     "test:dashboard": "node --experimental-sqlite test-dashboard.js",
-    "test": "node --experimental-sqlite test-db.js && node --experimental-sqlite test-dashboard.js"
+    "test:tasks": "node --experimental-sqlite test-tasks.js",
+    "test": "node --experimental-sqlite test-db.js && node --experimental-sqlite test-dashboard.js && node --experimental-sqlite test-tasks.js"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
