@@ -24,6 +24,7 @@ const APP_SHELL = [
   '/api.js',
   '/router.js',
   '/sw-register.js',
+  '/lucide.min.js',
   '/styles/tokens.css',
   '/styles/reset.css',
   '/styles/layout.css',

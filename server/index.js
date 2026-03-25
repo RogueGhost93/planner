@@ -34,10 +34,8 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        // Alpine.js CDN
+        // Alpine.js CDN (optional, falls verwendet)
         'https://cdn.jsdelivr.net',
-        // Lucide Icons CDN
-        'https://unpkg.com',
       ],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", 'data:', 'https://openweathermap.org'],
