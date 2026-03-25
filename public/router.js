@@ -62,13 +62,15 @@ async function navigate(path, pushState = true) {
       const result = await auth.me();
       currentUser = result.user;
     } catch {
-      navigateTo('/login', true);
+      currentPath = null; // Reset damit navigate('/login') nicht geblockt wird
+      navigate('/login');
       return;
     }
   }
 
   if (!route.requiresAuth && currentUser && path === '/login') {
-    navigateTo('/', true);
+    currentPath = null;
+    navigate('/');
     return;
   }
 
