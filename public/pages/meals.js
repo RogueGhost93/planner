@@ -74,9 +74,16 @@ function formatDayDate(dateStr) {
 // --------------------------------------------------------
 
 async function loadWeek(week) {
-  const res = await api.get(`/meals?week=${week}`);
-  state.meals       = res.data;
-  state.currentWeek = getMondayOf(week);
+  try {
+    const res = await api.get(`/meals?week=${week}`);
+    state.meals       = res.data;
+    state.currentWeek = getMondayOf(week);
+  } catch (err) {
+    console.error('[Meals] loadWeek Fehler:', err);
+    state.meals       = [];
+    state.currentWeek = getMondayOf(week);
+    window.oikos?.showToast('Essensplan konnte nicht geladen werden.', 'danger');
+  }
 }
 
 async function loadLists() {

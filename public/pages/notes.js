@@ -58,8 +58,14 @@ export async function render(container, { user }) {
 
   if (window.lucide) lucide.createIcons();
 
-  const res  = await api.get('/notes');
-  state.notes = res.data;
+  try {
+    const res  = await api.get('/notes');
+    state.notes = res.data;
+  } catch (err) {
+    console.error('[Notes] Laden fehlgeschlagen:', err);
+    state.notes = [];
+    window.oikos?.showToast('Notizen konnten nicht geladen werden.', 'danger');
+  }
   renderGrid();
 
   _container.querySelector('#notes-add-btn').addEventListener('click', () => openModal({ mode: 'create' }));

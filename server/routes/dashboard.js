@@ -25,6 +25,7 @@ const db = require('../db');
  * }
  */
 router.get('/', (req, res) => {
+  try {
   const d = db.get();
   const result = {};
 
@@ -116,6 +117,10 @@ router.get('/', (req, res) => {
   }
 
   res.json(result);
+  } catch (err) {
+    console.error('[Dashboard] Kritischer Fehler:', err.message);
+    res.status(500).json({ error: 'Dashboard konnte nicht geladen werden.', code: 500 });
+  }
 });
 
 module.exports = router;

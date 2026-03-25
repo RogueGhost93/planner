@@ -124,8 +124,14 @@ function eventsOnDay(dateStr) {
 // --------------------------------------------------------
 
 async function loadRange(from, to) {
-  const res      = await api.get(`/calendar?from=${from}&to=${to}`);
-  state.events   = res.data;
+  try {
+    const res      = await api.get(`/calendar?from=${from}&to=${to}`);
+    state.events   = res.data;
+  } catch (err) {
+    console.error('[Calendar] loadRange Fehler:', err);
+    state.events = [];
+    window.oikos?.showToast('Termine konnten nicht geladen werden.', 'danger');
+  }
   state.rangeFrom = from;
   state.rangeTo   = to;
 }

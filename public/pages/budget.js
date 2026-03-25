@@ -54,13 +54,21 @@ function addMonths(ym, n) {
 // --------------------------------------------------------
 
 async function loadMonth(month) {
-  const [entriesRes, summaryRes] = await Promise.all([
-    api.get(`/budget?month=${month}`),
-    api.get(`/budget/summary?month=${month}`),
-  ]);
-  state.month   = month;
-  state.entries = entriesRes.data;
-  state.summary = summaryRes.data;
+  try {
+    const [entriesRes, summaryRes] = await Promise.all([
+      api.get(`/budget?month=${month}`),
+      api.get(`/budget/summary?month=${month}`),
+    ]);
+    state.month   = month;
+    state.entries = entriesRes.data;
+    state.summary = summaryRes.data;
+  } catch (err) {
+    console.error('[Budget] loadMonth Fehler:', err);
+    state.month   = month;
+    state.entries = [];
+    state.summary = { income: 0, expenses: 0, balance: 0, by_category: [] };
+    window.oikos?.showToast('Budget konnte nicht geladen werden.', 'danger');
+  }
 }
 
 // --------------------------------------------------------

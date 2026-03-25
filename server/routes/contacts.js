@@ -151,8 +151,13 @@ router.delete('/:id', (req, res) => {
  * Kategorien-Liste für Dropdowns.
  * Response: { data: { categories } }
  */
-router.get('/meta', (req, res) => {
-  res.json({ data: { categories: VALID_CATEGORIES } });
+router.get('/meta', (_req, res) => {
+  try {
+    res.json({ data: { categories: VALID_CATEGORIES } });
+  } catch (err) {
+    console.error('[contacts/GET /meta]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
 });
 
 module.exports = router;

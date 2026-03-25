@@ -351,8 +351,14 @@ function updateListCounter(listId, totalDelta, checkedDelta) {
 // --------------------------------------------------------
 
 async function loadLists() {
-  const data   = await api.get('/shopping');
-  state.lists  = data.data ?? [];
+  try {
+    const data   = await api.get('/shopping');
+    state.lists  = data.data ?? [];
+  } catch (err) {
+    console.error('[Shopping] loadLists Fehler:', err);
+    state.lists = [];
+    window.oikos?.showToast('Listen konnten nicht geladen werden.', 'danger');
+  }
 }
 
 async function loadItems(listId) {
@@ -366,9 +372,11 @@ async function switchList(listId, container) {
   renderTabs(container);
   try {
     await loadItems(listId);
-  } catch {
+  } catch (err) {
+    console.error('[Shopping] loadItems Fehler:', err);
     state.items = [];
     state.activeList = state.lists.find((l) => l.id === listId) ?? null;
+    window.oikos?.showToast('Artikel konnten nicht geladen werden.', 'danger');
   }
   renderListContent(container);
   wireListContentEvents(container);
