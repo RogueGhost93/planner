@@ -87,7 +87,7 @@ Kein Cloud-Zwang. Keine Datenweitergabe. Kein Tracking.
   </tr>
 </table>
 
-<sub>Dark Mode wird automatisch über die Systemeinstellung des Geräts aktiviert.</sub>
+<sub>Dark Mode: Automatisch via Systemeinstellung oder manuell umschaltbar unter Einstellungen → Design.</sub>
 
 </div>
 
@@ -98,14 +98,14 @@ Kein Cloud-Zwang. Keine Datenweitergabe. Kein Tracking.
 | | Modul | Highlights |
 |---|---|---|
 | 📋 | **Dashboard** | Wetter-Widget, anstehende Termine, dringende Aufgaben, Essen heute, Pinnwand-Vorschau |
-| ✅ | **Aufgaben** | Listenansicht + Kanban, Teilaufgaben, Swipe-Gesten, wiederkehrende Aufgaben (RRULE) |
+| ✅ | **Aufgaben** | Listenansicht + Kanban, Teilaufgaben, Swipe-Gesten, Wiederholungen (täglich/wöchentlich/monatlich) |
 | 🛒 | **Einkauf** | Mehrere Listen, automatische Kategorie-Sortierung, Integration mit Essensplan |
 | 🍽️ | **Essensplan** | Wochenansicht, Zutatenverwaltung, Zutaten → Einkaufsliste mit einem Klick |
-| 📅 | **Kalender** | Monats-/Wochen-/Tages-/Agenda-Ansicht, Google Calendar & Apple Calendar Sync |
+| 📅 | **Kalender** | 4 Ansichten (Monat/Woche/Tag/Agenda), wiederkehrende Termine, Google & Apple Sync |
 | 📌 | **Pinnwand** | Farbige Sticky Notes, Markdown-Light (fett, kursiv, Listen) |
 | 👥 | **Kontakte** | Wichtige Familien-Kontakte, Direktanruf (`tel:`), Maps-Links |
 | 💰 | **Budget** | Einnahmen/Ausgaben, Kategorien, Monatsvergleich, CSV-Export |
-| ⚙️ | **Einstellungen** | Passwort ändern, Kalender-Sync verwalten, Familienmitglieder anlegen |
+| ⚙️ | **Einstellungen** | Dark Mode (System/Hell/Dunkel), Passwort ändern, Kalender-Sync, Familienmitglieder |
 
 ---
 
@@ -400,11 +400,12 @@ docker compose up -d
 ## Sicherheit
 
 - Sessions: `httpOnly`, `SameSite=Strict`, `Secure` in Produktion, 7 Tage TTL
-- CSRF-Schutz via Double Submit Cookie auf allen schreibenden Requests
+- CSRF-Schutz via Double Submit Cookie (`crypto.timingSafeEqual`) auf allen schreibenden Requests
 - Passwörter mit bcrypt (Cost Factor 12) gehasht
-- Login-Rate-Limit: 5 Versuche/Minute
-- API-Rate-Limit: 300 Requests/Minute pro IP
-- Content Security Policy via Helmet
+- Login-Rate-Limit: 5 Versuche/Minute, API-Rate-Limit: 300 Requests/Minute pro IP
+- Content Security Policy via Helmet (strikte CSP, HSTS, X-Frame-Options)
+- Zentrale Input-Validation auf allen Endpoints (Längenlimits, Typ-Prüfung, Enum-Whitelists)
+- Parametrisierte SQL-Queries (kein String-Concatenation, kein `eval()`)
 - Datenbank optional mit SQLCipher AES-256 verschlüsselt (im Docker-Container)
 - Kein API-Endpoint ohne Session-Auth erreichbar (außer `/api/v1/auth/login`)
 
@@ -412,4 +413,4 @@ docker compose up -d
 
 ## Lizenz
 
-[MIT](./LICENSE) © 2025 ulsklyc
+[MIT](./LICENSE) © 2025–2026 ulsklyc
