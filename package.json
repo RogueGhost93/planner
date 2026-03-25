@@ -1,7 +1,7 @@
 {
   "name": "oikos",
   "version": "1.0.0",
-  "description": "Selbstgehostete Familienplaner-Web-App",
+  "description": "Selbstgehosteter Familienplaner — Kalender, Aufgaben, Einkauf, Essensplan, Budget und mehr. Privat, offen, ohne Abo.",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

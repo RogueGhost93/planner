@@ -1,392 +1,598 @@
 <div align="center">
 
-# 🏠 Oikos
+<br>
 
-**Selbstgehosteter Familienplaner — privat, offen, ohne Abonnement**
+# Oikos
 
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org)
-[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com)
-[![SQLite](https://img.shields.io/badge/SQLite-SQLCipher%20verschlüsselt-003B57?logo=sqlite&logoColor=white)](https://www.zetetic.net/sqlcipher/)
-[![PWA](https://img.shields.io/badge/PWA-offline--fähig-5A0FC8?logo=pwa&logoColor=white)](https://web.dev/progressive-web-apps/)
-[![Lizenz: MIT](https://img.shields.io/badge/Lizenz-MIT-yellow.svg)](./LICENSE)
+### Der Familienplaner, der bei dir zuhause bleibt.
 
-Alle Daten bleiben auf deinem eigenen Server.
-Kein Cloud-Zwang. Keine Datenweitergabe. Kein Tracking.
+Oikos ist eine selbstgehostete Web-App, die den Alltag deiner Familie organisiert —
+vom Einkaufszettel bis zum Kalender, vom Essensplan bis zum Budget.
+Alles auf deinem eigenen Server. Ohne Cloud. Ohne Abo. Ohne Tracking.
 
-[Screenshots](#screenshots) · [Module](#module) · [Schnellstart](#schnellstart) · [Konfiguration](#konfiguration) · [Kalender-Sync](#kalender-synchronisation) · [Sicherheit](#sicherheit)
+<br>
+
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com)
+[![SQLite](https://img.shields.io/badge/SQLite-verschl%C3%BCsselt-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://www.zetetic.net/sqlcipher/)
+[![PWA](https://img.shields.io/badge/PWA-offline--f%C3%A4hig-5A0FC8?style=flat-square)](https://web.dev/progressive-web-apps/)
+[![Lizenz](https://img.shields.io/badge/Lizenz-MIT-green?style=flat-square)](./LICENSE)
+
+<br>
+
+[Funktionen](#-was-kann-oikos) · [Screenshots](#-screenshots) · [Installation](#-installation) · [Konfiguration](#-konfiguration) · [FAQ](#-faq)
+
+<br>
 
 </div>
 
 ---
+
+<br>
+
+## Warum Oikos?
+
+Die meisten Familienplaner sind Cloud-Dienste: Deine Termine, Einkaufslisten und Finanzdaten liegen auf fremden Servern. Oikos dreht das um.
+
+| | Cloud-Dienste | Oikos |
+|:---|:---|:---|
+| **Deine Daten** | Auf fremden Servern | Auf deinem Server, verschlüsselt |
+| **Kosten** | Monatliches Abo | Einmal einrichten, dauerhaft kostenlos |
+| **Datenschutz** | Tracking, Werbung, Analyse | Kein Tracking. Keine Telemetrie. Nichts. |
+| **Verfügbarkeit** | Abhängig vom Anbieter | Du hast die Kontrolle |
+| **Zugang** | App Store nötig | Browser reicht (PWA, installierbar) |
+
+> **Der Name:** *Oikos* (griechisch: *oikos*) bedeutet „Haus" oder „Haushalt" — der Ursprung des Wortes *Ökonomie*. Passend für eine App, die deinen Haushalt organisiert.
+
+<br>
+
+---
+
+<br>
+
+## Was kann Oikos?
+
+<table>
+  <tr>
+    <td width="60">
+      <div align="center"><strong>Modul</strong></div>
+    </td>
+    <td><strong>Beschreibung</strong></td>
+  </tr>
+  <tr>
+    <td align="center">Dashboard</td>
+    <td>Dein Tagesstart auf einen Blick: Wetter, anstehende Termine, dringende Aufgaben, heutiges Essen und angepinnte Notizen. Alles in einem personalisierten Feed.</td>
+  </tr>
+  <tr>
+    <td align="center">Aufgaben</td>
+    <td>Aufgaben erstellen, priorisieren und Familienmitgliedern zuweisen. Mit Teilaufgaben, Wiederholungen (täglich/wöchentlich/monatlich), Statusfiltern und Swipe-Gesten auf dem Handy.</td>
+  </tr>
+  <tr>
+    <td align="center">Einkauf</td>
+    <td>Mehrere Einkaufslisten parallel führen (REWE, dm, Baumarkt ...). Artikel werden automatisch nach Supermarkt-Kategorien gruppiert — wie ein digitaler Einkaufszettel, den die ganze Familie gemeinsam befüllt.</td>
+  </tr>
+  <tr>
+    <td align="center">Essensplan</td>
+    <td>Wochenplan für Frühstück, Mittag, Abend und Snacks. Zutaten pro Mahlzeit erfassen und mit einem Klick auf die Einkaufsliste übernehmen.</td>
+  </tr>
+  <tr>
+    <td align="center">Kalender</td>
+    <td>Familienkalender mit vier Ansichten (Monat, Woche, Tag, Agenda). Farbcodiert pro Person. Wiederkehrende Termine. Optional mit Google Calendar und Apple iCloud synchronisierbar.</td>
+  </tr>
+  <tr>
+    <td align="center">Pinnwand</td>
+    <td>Farbige Sticky Notes im Masonry-Grid. Für schnelle Erinnerungen, Nachrichten an die Familie oder Ideen. Mit Markdown-Light (fett, kursiv, Listen).</td>
+  </tr>
+  <tr>
+    <td align="center">Kontakte</td>
+    <td>Wichtige Kontakte der Familie — Kinderarzt, Schule, Handwerker, Versicherung. Mit Direktanruf per Tap, E-Mail-Links und Kartennavigation.</td>
+  </tr>
+  <tr>
+    <td align="center">Budget</td>
+    <td>Einnahmen und Ausgaben tracken, nach Kategorien auswerten, Monate vergleichen. Mit wiederkehrenden Buchungen (Miete, Gehalt) und CSV-Export.</td>
+  </tr>
+  <tr>
+    <td align="center">Einstellungen</td>
+    <td>Dark Mode (System / Hell / Dunkel), Passwort ändern, Kalender-Sync verwalten, Familienmitglieder anlegen.</td>
+  </tr>
+</table>
+
+<br>
+
+---
+
+<br>
 
 ## Screenshots
 
 <div align="center">
 
-### ☀️ Light Mode
+### Light Mode
 
 <table>
   <tr>
     <td align="center">
-      <img src="public/screenshots/dashboard.png" width="160" alt="Dashboard" /><br/>
+      <img src="public/screenshots/dashboard.png" width="180" alt="Dashboard" /><br/>
       <sub><b>Dashboard</b></sub><br/>
-      <sub>Wetter · Termine · Aufgaben · Essen</sub>
+      <sub>Wetter, Termine, Aufgaben, Essen</sub>
     </td>
     <td align="center">
-      <img src="public/screenshots/tasks.png" width="160" alt="Aufgaben" /><br/>
+      <img src="public/screenshots/tasks.png" width="180" alt="Aufgaben" /><br/>
       <sub><b>Aufgaben</b></sub><br/>
-      <sub>Prioritäten · Zuweisung · Filter</sub>
+      <sub>Prioritäten, Zuweisung, Filter</sub>
     </td>
     <td align="center">
-      <img src="public/screenshots/calendar.png" width="160" alt="Kalender" /><br/>
+      <img src="public/screenshots/calendar.png" width="180" alt="Kalender" /><br/>
       <sub><b>Kalender</b></sub><br/>
-      <sub>Monatsansicht · Google & Apple Sync</sub>
+      <sub>Monatsansicht, Tagesdetails</sub>
     </td>
+  </tr>
+  <tr>
     <td align="center">
-      <img src="public/screenshots/shopping.png" width="160" alt="Einkaufsliste" /><br/>
+      <img src="public/screenshots/shopping.png" width="180" alt="Einkaufsliste" /><br/>
       <sub><b>Einkauf</b></sub><br/>
-      <sub>Mehrere Listen · Kategorien · Fortschritt</sub>
+      <sub>Mehrere Listen, Kategorien</sub>
     </td>
     <td align="center">
-      <img src="public/screenshots/meals.png" width="160" alt="Essensplan" /><br/>
+      <img src="public/screenshots/meals.png" width="180" alt="Essensplan" /><br/>
       <sub><b>Essensplan</b></sub><br/>
-      <sub>Wochenplan · Zutaten · → Einkaufsliste</sub>
+      <sub>Wochenplan, Zutaten</sub>
+    </td>
+    <td align="center">
+      &nbsp;
     </td>
   </tr>
 </table>
 
-### 🌙 Dark Mode
+<br>
+
+### Dark Mode
 
 <table>
   <tr>
     <td align="center">
-      <img src="public/screenshots/dashboard-dark.png" width="160" alt="Dashboard Dark" /><br/>
-      <sub><b>Dashboard</b></sub><br/>
-      <sub>Wetter · Termine · Aufgaben · Essen</sub>
+      <img src="public/screenshots/dashboard-dark.png" width="180" alt="Dashboard Dark" /><br/>
+      <sub><b>Dashboard</b></sub>
     </td>
     <td align="center">
-      <img src="public/screenshots/tasks-dark.png" width="160" alt="Aufgaben Dark" /><br/>
-      <sub><b>Aufgaben</b></sub><br/>
-      <sub>Prioritäten · Zuweisung · Filter</sub>
+      <img src="public/screenshots/tasks-dark.png" width="180" alt="Aufgaben Dark" /><br/>
+      <sub><b>Aufgaben</b></sub>
     </td>
     <td align="center">
-      <img src="public/screenshots/calendar-dark.png" width="160" alt="Kalender Dark" /><br/>
-      <sub><b>Kalender</b></sub><br/>
-      <sub>Monatsansicht · Google & Apple Sync</sub>
+      <img src="public/screenshots/calendar-dark.png" width="180" alt="Kalender Dark" /><br/>
+      <sub><b>Kalender</b></sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="public/screenshots/shopping-dark.png" width="180" alt="Einkaufsliste Dark" /><br/>
+      <sub><b>Einkauf</b></sub>
     </td>
     <td align="center">
-      <img src="public/screenshots/shopping-dark.png" width="160" alt="Einkaufsliste Dark" /><br/>
-      <sub><b>Einkauf</b></sub><br/>
-      <sub>Mehrere Listen · Kategorien · Fortschritt</sub>
+      <img src="public/screenshots/meals-dark.png" width="180" alt="Essensplan Dark" /><br/>
+      <sub><b>Essensplan</b></sub>
     </td>
     <td align="center">
-      <img src="public/screenshots/meals-dark.png" width="160" alt="Essensplan Dark" /><br/>
-      <sub><b>Essensplan</b></sub><br/>
-      <sub>Wochenplan · Zutaten · → Einkaufsliste</sub>
+      &nbsp;
     </td>
   </tr>
 </table>
 
-<sub>Dark Mode: Automatisch via Systemeinstellung oder manuell umschaltbar unter Einstellungen → Design.</sub>
+<sub>Dark Mode folgt automatisch deiner Systemeinstellung oder lässt sich manuell unter Einstellungen umschalten.</sub>
 
 </div>
 
----
-
-## Module
-
-| | Modul | Highlights |
-|---|---|---|
-| 📋 | **Dashboard** | Wetter-Widget, anstehende Termine, dringende Aufgaben, Essen heute, Pinnwand-Vorschau |
-| ✅ | **Aufgaben** | Listenansicht + Kanban, Teilaufgaben, Swipe-Gesten, Wiederholungen (täglich/wöchentlich/monatlich) |
-| 🛒 | **Einkauf** | Mehrere Listen, automatische Kategorie-Sortierung, Integration mit Essensplan |
-| 🍽️ | **Essensplan** | Wochenansicht, Zutatenverwaltung, Zutaten → Einkaufsliste mit einem Klick |
-| 📅 | **Kalender** | 4 Ansichten (Monat/Woche/Tag/Agenda), wiederkehrende Termine, Google & Apple Sync |
-| 📌 | **Pinnwand** | Farbige Sticky Notes, Markdown-Light (fett, kursiv, Listen) |
-| 👥 | **Kontakte** | Wichtige Familien-Kontakte, Direktanruf (`tel:`), Maps-Links |
-| 💰 | **Budget** | Einnahmen/Ausgaben, Kategorien, Monatsvergleich, CSV-Export |
-| ⚙️ | **Einstellungen** | Dark Mode (System/Hell/Dunkel), Passwort ändern, Kalender-Sync, Familienmitglieder |
+<br>
 
 ---
 
-## Tech Stack
+<br>
 
-**Backend:** Node.js · Express · SQLite/SQLCipher · express-session · bcrypt
+## Technik auf einen Blick
 
-**Frontend:** Vanilla JavaScript (ES-Module) · Kein Framework · Kein Build-Step
+Oikos setzt bewusst auf einen minimalen, wartungsarmen Stack — keine 200 npm-Pakete, kein Build-Step, kein Framework-Lock-in.
 
-**Deployment:** Docker · Nginx Reverse Proxy · PWA (Service Worker + Manifest)
+| Schicht | Technologie |
+|:---|:---|
+| **Server** | Node.js + Express.js |
+| **Datenbank** | SQLite mit SQLCipher-Verschlüsselung (AES-256) |
+| **Frontend** | Vanilla JavaScript (ES-Module), eigenes CSS — kein React, kein Vue, kein Bundler |
+| **Auth** | Session-basiert, bcrypt-Passwort-Hashing, CSRF-Schutz |
+| **Deployment** | Docker (ein Container, ein Volume) |
+| **PWA** | Service Worker + Manifest — installierbar auf Homescreen, offline-fähig |
+| **Kalender-Sync** | Google Calendar API v3 (OAuth) + Apple iCloud CalDAV (optional) |
 
-**Optional:** Google Calendar API v3 (OAuth 2.0) · Apple iCloud CalDAV (tsdav)
+<br>
 
 ---
+
+<br>
 
 ## Installation
 
+> **Zeitaufwand:** ca. 10–15 Minuten, auch wenn du Docker zum ersten Mal nutzt.
+
 ### Voraussetzungen
 
-- **Docker** und **Docker Compose** (auf dem Server installiert)
-- Einen Linux-Server oder eine lokale Linux-Maschine
-- Für den produktiven Betrieb: eine Domain und einen Reverse Proxy mit SSL (empfohlen: [Nginx Proxy Manager](https://nginxproxymanager.com))
+Du brauchst einen Linux-Server (oder eine lokale Linux-Maschine / VM / Raspberry Pi) mit:
+
+- **Docker** und **Docker Compose** — [Installationsanleitung (offizielle Docs)](https://docs.docker.com/engine/install/)
+- **Git** — ist auf den meisten Linux-Distributionen vorinstalliert (`git --version` zum Prüfen)
+
+> **Noch keinen Server?** Ein günstiger VPS (z.B. bei Hetzner, Netcup oder Oracle Cloud Free Tier) reicht völlig aus. Oikos braucht minimal 512 MB RAM und 1 CPU-Kern.
 
 ---
 
-### Schritt 1 — Repository klonen
+### Schritt 1 — Repository herunterladen
+
+Öffne ein Terminal auf deinem Server und führe aus:
 
 ```bash
 git clone https://github.com/ulsklyc/oikos.git
 cd oikos
 ```
 
+<details>
+<summary><strong>Was passiert hier?</strong></summary>
+
+`git clone` lädt den gesamten Quellcode von GitHub auf deinen Server herunter.
+`cd oikos` wechselt in das heruntergeladene Verzeichnis.
+
+</details>
+
 ---
 
-### Schritt 2 — Umgebungsvariablen konfigurieren
+### Schritt 2 — Konfiguration anlegen
 
 ```bash
 cp .env.example .env
 ```
 
-Die `.env`-Datei mit einem Texteditor öffnen und mindestens diese Felder ausfüllen:
+Jetzt die `.env`-Datei bearbeiten — z.B. mit `nano`:
+
+```bash
+nano .env
+```
+
+Mindestens diese zwei Felder musst du ausfüllen:
 
 ```env
-# Zufälliger String mit mindestens 32 Zeichen — z.B. generieren mit:
-# openssl rand -base64 32
+# Ein langer, zufälliger String. Wird zum Signieren von Sessions verwendet.
+# So generierst du einen im Terminal:
+#   openssl rand -base64 32
 SESSION_SECRET=hier_einen_langen_zufaelligen_string_eintragen
 
-# Verschlüsselungsschlüssel für die Datenbank (AES-256)
-# Leer lassen = keine Verschlüsselung (nicht empfohlen für Produktion)
+# Verschlüsselungsschlüssel für die Datenbank (AES-256).
+# Ebenfalls mit openssl generieren. Leer lassen = keine Verschlüsselung.
 DB_ENCRYPTION_KEY=hier_einen_starken_schluessel_eintragen
 ```
 
-> **Tipp:** Zufällige Schlüssel lassen sich einfach im Terminal generieren:
-> ```bash
-> openssl rand -base64 32
-> ```
+<details>
+<summary><strong>Schlüssel generieren — so geht's</strong></summary>
 
-> Alle verfügbaren Variablen: [Konfigurationsreferenz](#konfiguration)
+Führe diesen Befehl zweimal aus und kopiere die Ausgabe jeweils in die `.env`:
+
+```bash
+openssl rand -base64 32
+```
+
+Das erzeugt eine zufällige Zeichenfolge wie `K7xQ3m+r9Fz1bY4p...` — perfekt als Secret.
+
+</details>
+
+<details>
+<summary><strong>Was bedeuten die anderen Felder in der .env?</strong></summary>
+
+Die `.env.example` enthält noch weitere Optionen (Wetter, Kalender-Sync etc.). Diese sind alle **optional** und werden weiter unten im Abschnitt [Konfiguration](#-konfiguration) erklärt. Für den Start brauchst du nur die zwei Pflichtfelder.
+
+</details>
+
+Speichern in nano: `Strg+O`, `Enter`, `Strg+X`.
 
 ---
 
-### Schritt 3 — Container bauen und starten
+### Schritt 3 — App starten
 
 ```bash
 docker compose up -d --build
 ```
 
-> Der erste Build dauert **2–3 Minuten**, da SQLCipher gegen better-sqlite3 kompiliert wird. Folgende Builds sind deutlich schneller (Docker-Layer-Cache).
+Der erste Build kompiliert SQLCipher und dauert **2–3 Minuten**. Alle weiteren Starts sind deutlich schneller.
 
-Den Status des Containers prüfen:
+Prüfe, ob der Container läuft:
 
 ```bash
 docker compose ps
-docker compose logs oikos --tail=20
 ```
 
-Der Server ist bereit, wenn in den Logs erscheint:
+Du solltest sehen, dass der Container `oikos` den Status `Up` hat. Falls etwas nicht stimmt:
+
+```bash
+docker compose logs oikos --tail=30
+```
+
+Wenn in den Logs steht:
+
 ```
 [Oikos] Server läuft auf Port 3000
 ```
 
+...ist alles bereit.
+
 ---
 
-### Schritt 4 — Admin-Account anlegen
+### Schritt 4 — Ersten Benutzer anlegen
 
 ```bash
 docker compose exec oikos node setup.js
 ```
 
-Das interaktive Script fragt nach **Benutzername**, **Anzeigename** und **Passwort**. Dieser erste Account erhält Admin-Rechte und kann später weitere Familienmitglieder anlegen.
+Das Script fragt dich interaktiv nach:
+- **Benutzername** — zum Einloggen (z.B. `mama`, `papa`, `lisa`)
+- **Anzeigename** — wird in der App angezeigt (z.B. `Lisa Müller`)
+- **Passwort** — mindestens 6 Zeichen
+
+Dieser erste Account bekommt automatisch **Admin-Rechte** und kann später weitere Familienmitglieder anlegen.
 
 ---
 
-### Schritt 5 — App öffnen und einloggen
+### Schritt 5 — App öffnen
 
-Ohne Reverse Proxy (lokaler Test):
+Im Browser aufrufen:
 
 ```
-http://localhost:3000
+http://<deine-server-ip>:3000
 ```
 
-> **Wichtig bei direktem HTTP-Zugriff ohne Reverse Proxy:**
-> Da `NODE_ENV=production` gesetzt ist, erwartet der Server standardmäßig HTTPS für Session-Cookies. Beim Zugriff per `http://` muss daher in der `.env` folgende Zeile ergänzt werden:
->
+Logge dich mit dem gerade erstellten Account ein — fertig!
+
+> **Hinweis für lokalen Zugriff ohne HTTPS:**
+> Im Produktionsmodus erwartet Oikos standardmäßig HTTPS für sichere Cookies. Wenn du die App zunächst ohne Reverse Proxy testen möchtest, füge in der `.env` hinzu:
 > ```env
 > SESSION_SECURE=false
 > ```
+> Dann Container neu starten: `docker compose down && docker compose up -d`
 >
-> Danach Container neu starten: `docker compose down && docker compose up -d`
-> Diese Einstellung **unbedingt entfernen**, sobald ein Reverse Proxy mit SSL eingerichtet ist.
+> **Entferne diese Zeile wieder**, sobald du HTTPS eingerichtet hast (siehe nächster Schritt).
 
 ---
 
-### Schritt 6 — Reverse Proxy mit SSL einrichten (Produktion)
+### Schritt 6 — HTTPS einrichten (empfohlen)
 
-Für den produktiven Betrieb sollte Oikos hinter einem Nginx Reverse Proxy mit SSL betrieben werden.
+Für den dauerhaften Betrieb sollte Oikos hinter einem Reverse Proxy mit SSL laufen. Das schützt Passwörter und Sessions auf dem Transportweg.
 
-**Mit Nginx Proxy Manager:**
+<details>
+<summary><strong>Variante A: Nginx Proxy Manager (empfohlen für Einsteiger)</strong></summary>
 
-1. Neuen Proxy Host anlegen: `oikos.deine-domain.de` → `localhost:3000`
-2. SSL-Zertifikat via Let's Encrypt ausstellen
-3. Im Feld „Advanced" den Inhalt aus [`nginx.conf.example`](./nginx.conf.example) eintragen
+[Nginx Proxy Manager](https://nginxproxymanager.com) ist ein benutzerfreundlicher Reverse Proxy mit Web-Oberfläche.
 
-**Wichtig:** Der Header `X-Forwarded-Proto` muss gesetzt sein (ist in der Beispielkonfiguration enthalten). Ohne ihn weiß der Server nicht, dass er hinter HTTPS läuft, und setzt Cookies nicht korrekt.
+1. **Nginx Proxy Manager installieren** (falls noch nicht vorhanden) — [Anleitung](https://nginxproxymanager.com/guide/)
+2. Neuen **Proxy Host** anlegen:
+   - Domain: `oikos.deine-domain.de`
+   - Forward Hostname: `deine-server-ip` (oder `localhost` wenn auf demselben Server)
+   - Forward Port: `3000`
+3. Reiter **SSL**: Let's Encrypt Zertifikat ausstellen lassen (kostenlos, automatisch)
+4. Reiter **Advanced**: Den Inhalt von [`nginx.conf.example`](./nginx.conf.example) einfügen
 
-Sobald SSL aktiv ist: `SESSION_SECURE=false` aus der `.env` entfernen und Container neu starten.
+**Wichtig:** Der Header `X-Forwarded-Proto` muss gesetzt sein (ist in der Beispielkonfiguration enthalten). Ohne ihn erkennt Oikos nicht, dass die Verbindung per HTTPS läuft.
+
+</details>
+
+<details>
+<summary><strong>Variante B: Nginx manuell konfigurieren</strong></summary>
+
+Kopiere die Datei [`nginx.conf.example`](./nginx.conf.example) und passe die Domain an:
+
+```bash
+sudo cp nginx.conf.example /etc/nginx/sites-available/oikos
+sudo ln -s /etc/nginx/sites-available/oikos /etc/nginx/sites-enabled/
+# Domain in der Datei anpassen:
+sudo nano /etc/nginx/sites-available/oikos
+```
+
+Für SSL-Zertifikate mit Let's Encrypt:
+
+```bash
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d oikos.deine-domain.de
+```
+
+Nginx neu laden:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+</details>
+
+Sobald HTTPS läuft: `SESSION_SECURE=false` aus der `.env` **entfernen** und Container neu starten.
+
+<br>
 
 ---
+
+<br>
 
 ## Konfiguration
 
 ### Pflichtfelder
 
-| Variable | Beschreibung |
-|---|---|
-| `SESSION_SECRET` | Zufälliger String ≥ 32 Zeichen für Session-Signing |
-| `DB_ENCRYPTION_KEY` | SQLCipher AES-256-Schlüssel (leer lassen = keine Verschlüsselung) |
+| Variable | Beschreibung | Beispiel |
+|:---|:---|:---|
+| `SESSION_SECRET` | Zufälliger String (mind. 32 Zeichen) zum Signieren von Sessions | `openssl rand -base64 32` |
+| `DB_ENCRYPTION_KEY` | SQLCipher-Schlüssel (AES-256) — leer = keine Verschlüsselung | `openssl rand -base64 32` |
+
+### Wetter-Widget
+
+Das Dashboard zeigt ein Wetter-Widget, wenn ein API-Key konfiguriert ist. Kostenlos registrieren bei [openweathermap.org](https://openweathermap.org/api):
+
+```env
+OPENWEATHER_API_KEY=dein_api_key_hier
+OPENWEATHER_CITY=Berlin
+OPENWEATHER_UNITS=metric   # metric = Celsius, imperial = Fahrenheit
+OPENWEATHER_LANG=de
+```
 
 ### Sicherheit
 
 | Variable | Standard | Beschreibung |
-|---|---|---|
-| `SESSION_SECURE` | *(nicht gesetzt)* | `false` setzen wenn kein HTTPS-Reverse-Proxy vorhanden (direktes HTTP) |
-| `RATE_LIMIT_MAX_ATTEMPTS` | `5` | Max. Login-Versuche pro Minute pro IP |
-
-### Wetter-Widget
-
-Kostenlosen API-Key bei [openweathermap.org](https://openweathermap.org/api) registrieren:
-
-```env
-OPENWEATHER_API_KEY=dein_api_key
-OPENWEATHER_CITY=Berlin
-OPENWEATHER_UNITS=metric   # metric = °C, imperial = °F
-OPENWEATHER_LANG=de
-```
+|:---|:---|:---|
+| `SESSION_SECURE` | *(nicht gesetzt)* | Auf `false` setzen wenn kein HTTPS verfügbar (nur zum Testen!) |
+| `RATE_LIMIT_MAX_ATTEMPTS` | `5` | Max. fehlgeschlagene Login-Versuche pro Minute |
 
 ### Weitere Optionen
 
 | Variable | Standard | Beschreibung |
-|---|---|---|
-| `PORT` | `3000` | Server-Port |
-| `NODE_ENV` | `production` | Umgebung (nicht ändern) |
-| `DB_PATH` | `/data/oikos.db` | Pfad zur SQLite-Datei im Container |
-| `SYNC_INTERVAL_MINUTES` | `15` | Automatischer Kalender-Sync-Intervall |
+|:---|:---|:---|
+| `PORT` | `3000` | Server-Port im Container |
+| `DB_PATH` | `/data/oikos.db` | Datenbankpfad im Container |
+| `SYNC_INTERVAL_MINUTES` | `15` | Kalender-Sync-Intervall (in Minuten) |
 
-Vollständige Vorlage: [`.env.example`](./.env.example)
+Die vollständige Vorlage mit allen Optionen findest du in [`.env.example`](./.env.example).
+
+<br>
 
 ---
 
+<br>
+
 ## Kalender-Synchronisation
+
+Oikos kann sich mit externen Kalendern synchronisieren, damit Termine aus Google Calendar oder Apple iCloud automatisch in der App erscheinen — und umgekehrt.
 
 ### Google Calendar
 
 <details>
-<summary>Einrichtung anzeigen</summary>
+<summary><strong>Schritt-für-Schritt-Anleitung</strong></summary>
 
-#### Google Cloud Console vorbereiten
+#### 1. Google Cloud Projekt anlegen
 
-1. Projekt unter [console.cloud.google.com](https://console.cloud.google.com) anlegen
-2. **Google Calendar API** aktivieren
-3. **OAuth 2.0-Client-ID** erstellen (Typ: „Webanwendung")
-4. Autorisierte Redirect-URI eintragen:
-   ```
-   https://oikos.deine-domain.de/api/v1/calendar/google/callback
-   ```
-5. In `.env` eintragen:
-   ```env
-   GOOGLE_CLIENT_ID=...
-   GOOGLE_CLIENT_SECRET=...
-   GOOGLE_REDIRECT_URI=https://oikos.deine-domain.de/api/v1/calendar/google/callback
-   ```
-6. Container neu starten: `docker compose up -d`
+1. Gehe zu [console.cloud.google.com](https://console.cloud.google.com) und erstelle ein neues Projekt
+2. Aktiviere die **Google Calendar API** unter „APIs & Dienste" → „Bibliothek"
+3. Unter „APIs & Dienste" → „Anmeldedaten" → **OAuth 2.0-Client-ID erstellen**
+   - Anwendungstyp: „Webanwendung"
+   - Autorisierte Redirect-URI:
+     ```
+     https://oikos.deine-domain.de/api/v1/calendar/google/callback
+     ```
+4. Client-ID und Client-Secret kopieren
 
-#### Verbindung herstellen
+#### 2. In Oikos konfigurieren
 
-1. Mit einem **Admin**-Konto einloggen
-2. **Einstellungen → Kalender-Synchronisation → Mit Google verbinden**
-3. Google-Konto autorisieren → automatische Weiterleitung zurück
+In der `.env` eintragen:
 
-**Sync-Verhalten:**
-- Erster Sync: Events der letzten 3 Monate + nächsten 12 Monate
-- Folge-Syncs: nur Änderungen via Google syncToken (effizient)
-- Outbound: neue lokale Termine werden nach Google übertragen
-- Konflikt: Google gewinnt bei gleichzeitiger Änderung
+```env
+GOOGLE_CLIENT_ID=deine-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=dein-client-secret
+GOOGLE_REDIRECT_URI=https://oikos.deine-domain.de/api/v1/calendar/google/callback
+```
+
+Container neu starten: `docker compose up -d`
+
+#### 3. Verbindung herstellen
+
+1. In Oikos einloggen (Admin-Account)
+2. **Einstellungen** → **Kalender-Synchronisation** → **Mit Google verbinden**
+3. Google-Konto auswählen und autorisieren
+4. Automatische Weiterleitung zurück zu Oikos
+
+#### So funktioniert der Sync
+
+- **Erster Sync:** Termine der letzten 3 Monate und nächsten 12 Monate werden importiert
+- **Folge-Syncs:** Nur Änderungen werden abgeglichen (effizient via Google syncToken)
+- **Neue lokale Termine** werden auch nach Google übertragen (bidirektional)
+- **Bei Konflikten** gewinnt Google — lokale Ergänzungen bleiben erhalten
 
 </details>
 
-### Apple Calendar (iCloud CalDAV)
+### Apple Calendar (iCloud)
 
 <details>
-<summary>Einrichtung anzeigen</summary>
+<summary><strong>Schritt-für-Schritt-Anleitung</strong></summary>
 
-#### App-spezifisches Passwort erstellen
+#### 1. App-spezifisches Passwort erstellen
 
-1. [appleid.apple.com](https://appleid.apple.com) → „Anmeldung und Sicherheit" → „App-spezifische Passwörter"
-2. Neues Passwort für „Oikos" erstellen
-3. In `.env` eintragen:
-   ```env
-   APPLE_CALDAV_URL=https://caldav.icloud.com
-   APPLE_USERNAME=deine@apple-id.de
-   APPLE_APP_SPECIFIC_PASSWORD=xxxx-xxxx-xxxx-xxxx
-   ```
-4. Container neu starten: `docker compose up -d`
+Apple erfordert ein eigenes Passwort für Drittanbieter-Apps:
 
-Der Sync-Button erscheint automatisch in den Einstellungen.
+1. Gehe zu [appleid.apple.com](https://appleid.apple.com)
+2. Unter „Anmeldung und Sicherheit" → „App-spezifische Passwörter" → „Passwort generieren"
+3. Label eingeben (z.B. „Oikos")
+4. Das generierte Passwort kopieren (Format: `xxxx-xxxx-xxxx-xxxx`)
+
+#### 2. In Oikos konfigurieren
+
+In der `.env` eintragen:
+
+```env
+APPLE_CALDAV_URL=https://caldav.icloud.com
+APPLE_USERNAME=deine@apple-id.de
+APPLE_APP_SPECIFIC_PASSWORD=xxxx-xxxx-xxxx-xxxx
+```
+
+Container neu starten: `docker compose up -d`
+
+Der Sync-Button erscheint dann automatisch in den Einstellungen.
 
 </details>
+
+<br>
 
 ---
 
-## Familienmitglieder
+<br>
 
-Neue Mitglieder können nur Admins anlegen — es gibt keinen öffentlichen Registrierungs-Endpoint.
+## Familienmitglieder verwalten
 
-**Im Browser:** Einstellungen → Familienmitglieder → Mitglied hinzufügen
+Neue Accounts können **nur Admins** anlegen — es gibt absichtlich keine öffentliche Registrierung.
 
-**Per Script** (z.B. für weiteren Admin):
+**In der App:** Einstellungen → Familienmitglieder → Mitglied hinzufügen
+
+**Per Terminal** (z.B. für einen weiteren Admin):
+
 ```bash
 docker compose exec oikos node setup.js
 ```
 
+<br>
+
 ---
+
+<br>
 
 ## Updates
 
 ```bash
+cd oikos
 git pull
 docker compose up -d --build
 ```
 
-Datenbank-Migrationen laufen automatisch beim Start — kein manueller Eingriff nötig. Alle Daten im Volume `oikos_data` bleiben erhalten.
+Das war's. Datenbank-Migrationen laufen automatisch beim Start. Alle Daten im Docker-Volume bleiben erhalten.
 
-> **Empfehlung:** Vor jedem Update ein Backup erstellen — siehe [Datensicherung](#datensicherung).
+> **Empfehlung:** Vor jedem Update ein Backup erstellen.
 
----
-
-## Entwicklung
-
-```bash
-npm install
-cp .env.example .env
-# SESSION_SECRET setzen — DB_ENCRYPTION_KEY weglassen (kein SQLCipher lokal)
-npm run dev        # Server mit Auto-Reload
-```
-
-```bash
-npm test           # 146 Tests, 7 Suiten (In-Memory-SQLite, keine laufende App nötig)
-```
+<br>
 
 ---
+
+<br>
 
 ## Datensicherung
 
+### Backup erstellen
+
 ```bash
-# Backup erstellen
 docker run --rm \
   -v oikos_oikos_data:/data \
   -v $(pwd):/backup \
   alpine tar czf /backup/oikos-backup-$(date +%Y%m%d).tar.gz /data
+```
 
-# Backup wiederherstellen
+Das erstellt eine komprimierte Sicherung der gesamten Datenbank im aktuellen Verzeichnis.
+
+### Backup wiederherstellen
+
+```bash
 docker compose down
 docker run --rm \
   -v oikos_oikos_data:/data \
@@ -395,22 +601,124 @@ docker run --rm \
 docker compose up -d
 ```
 
+> Ersetze `YYYYMMDD` durch das Datum deines Backups (z.B. `20260326`).
+
+<br>
+
 ---
+
+<br>
+
+## Lokale Entwicklung
+
+Falls du Oikos weiterentwickeln oder anpassen möchtest:
+
+```bash
+git clone https://github.com/ulsklyc/oikos.git
+cd oikos
+npm install
+cp .env.example .env
+# In der .env: SESSION_SECRET setzen, DB_ENCRYPTION_KEY leer lassen
+npm run dev        # Server starten mit Auto-Reload bei Dateiänderungen
+```
+
+Tests ausführen:
+
+```bash
+npm test           # 146 Tests, 7 Suiten (In-Memory-SQLite, kein laufender Server nötig)
+```
+
+<br>
+
+---
+
+<br>
 
 ## Sicherheit
 
-- Sessions: `httpOnly`, `SameSite=Strict`, `Secure` in Produktion, 7 Tage TTL
-- CSRF-Schutz via Double Submit Cookie (`crypto.timingSafeEqual`) auf allen schreibenden Requests
-- Passwörter mit bcrypt (Cost Factor 12) gehasht
-- Login-Rate-Limit: 5 Versuche/Minute, API-Rate-Limit: 300 Requests/Minute pro IP
-- Content Security Policy via Helmet (strikte CSP, HSTS, X-Frame-Options)
-- Zentrale Input-Validation auf allen Endpoints (Längenlimits, Typ-Prüfung, Enum-Whitelists)
-- Parametrisierte SQL-Queries (kein String-Concatenation, kein `eval()`)
-- Datenbank optional mit SQLCipher AES-256 verschlüsselt (im Docker-Container)
-- Kein API-Endpoint ohne Session-Auth erreichbar (außer `/api/v1/auth/login`)
+Oikos nimmt den Schutz deiner Familiendaten ernst:
+
+| Maßnahme | Details |
+|:---|:---|
+| **Verschlüsselte Datenbank** | SQLCipher (AES-256) — Daten sind auch bei Serverzugriff geschützt |
+| **Sichere Passwörter** | bcrypt mit Cost Factor 12 — kein Klartext, nie |
+| **Session-Schutz** | `httpOnly`, `SameSite=Strict`, `Secure`-Cookies, 7 Tage Ablauf |
+| **CSRF-Schutz** | Double Submit Cookie mit `crypto.timingSafeEqual` |
+| **Rate Limiting** | 5 Login-Versuche/Minute, dann 15 Min. Sperre |
+| **Input-Validation** | Zentrale Validierung auf allen Endpoints (Länge, Typ, Whitelist) |
+| **SQL-Injection-Schutz** | Parametrisierte Queries überall — kein String-Zusammenbau |
+| **Security Headers** | CSP, HSTS, X-Frame-Options via Helmet |
+| **Kein offener Zugang** | Jeder API-Endpoint erfordert Authentifizierung (außer Login) |
+
+<br>
 
 ---
 
-## Lizenz
+<br>
 
-[MIT](./LICENSE) © 2025–2026 ulsklyc
+## FAQ
+
+<details>
+<summary><strong>Brauche ich Docker-Erfahrung?</strong></summary>
+
+Nein. Die Installation besteht aus 6 Befehlen, die du einfach kopieren und einfügen kannst. Docker sorgt dafür, dass alles in einem isolierten Container läuft — du musst nichts manuell installieren oder konfigurieren.
+
+</details>
+
+<details>
+<summary><strong>Kann ich Oikos auf einem Raspberry Pi betreiben?</strong></summary>
+
+Ja. Oikos läuft auf jedem System, das Docker unterstützt — einschließlich Raspberry Pi 4 (ARM64). Der Build dauert dort etwas länger (~5 Min), aber die App selbst läuft flüssig.
+
+</details>
+
+<details>
+<summary><strong>Ist Oikos auch auf dem Handy nutzbar?</strong></summary>
+
+Ja, Oikos ist eine Progressive Web App (PWA). Du kannst sie im Browser nutzen oder auf deinen Homescreen installieren — sie verhält sich dann wie eine native App, inklusive Offline-Grundfunktionen.
+
+</details>
+
+<details>
+<summary><strong>Wie viele Familienmitglieder werden unterstützt?</strong></summary>
+
+Oikos ist für 2–6 Personen konzipiert. Technisch gibt es kein festes Limit, aber das UI ist für kleine Familien und WGs optimiert.
+
+</details>
+
+<details>
+<summary><strong>Ist die Kalender-Synchronisation Pflicht?</strong></summary>
+
+Nein. Der integrierte Kalender funktioniert komplett eigenständig. Google- und Apple-Sync sind optionale Zusatzfunktionen.
+
+</details>
+
+<details>
+<summary><strong>Was passiert mit meinen Daten bei einem Update?</strong></summary>
+
+Deine Daten liegen in einem Docker-Volume und bleiben bei Updates erhalten. Datenbank-Migrationen laufen automatisch beim Start. Trotzdem empfehlen wir vor jedem Update ein Backup.
+
+</details>
+
+<details>
+<summary><strong>Kann ich das Design anpassen?</strong></summary>
+
+Ja. Oikos verwendet CSS Custom Properties (Design Tokens) für Farben, Abstände und Schriften. Diese kannst du in `public/styles/tokens.css` nach deinem Geschmack anpassen — ohne Build-Step.
+
+</details>
+
+<br>
+
+---
+
+<br>
+
+<div align="center">
+
+**Oikos** wird mit Sorgfalt entwickelt und ist Open Source.
+
+Feedback, Ideen und Beiträge sind willkommen — erstelle einfach ein [Issue](https://github.com/ulsklyc/oikos/issues).
+
+[MIT-Lizenz](./LICENSE) · Made with care
+
+</div>
