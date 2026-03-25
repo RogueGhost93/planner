@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     make \
     g++ \
     libsqlcipher-dev \
+    su-exec \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -17,11 +18,14 @@ RUN npm ci --omit=dev
 # Anwendungscode
 COPY . .
 
-# Daten-Volume-Verzeichnis mit korrektem Besitzer (vor USER node!)
-RUN mkdir -p /data && chown node:node /data
+# Daten-Volume-Verzeichnis anlegen (Permissions werden zur Laufzeit gesetzt)
+RUN mkdir -p /data
+
+# Entrypoint: korrigiert /data-Permissions und startet als node-User
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 3000
 
-USER node
-
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "server/index.js"]
