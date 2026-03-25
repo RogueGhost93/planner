@@ -58,6 +58,7 @@ function validateTaskInput(body, isCreate = true) {
     v.oneOf(body.category,  VALID_CATEGORIES, 'category'),
     v.date(body.due_date,   'due_date'),
     v.time(body.due_time,   'due_time'),
+    v.rrule(body.recurrence_rule, 'recurrence_rule'),
   ]);
 }
 

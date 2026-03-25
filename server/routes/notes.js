@@ -9,8 +9,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
-
-const COLOR_RE = /^#[0-9A-Fa-f]{6}$/;
+const { str, color, collectErrors, MAX_TEXT, MAX_TITLE } = require('../middleware/validate');
 
 /**
  * GET /api/v1/notes
@@ -40,17 +39,17 @@ router.get('/', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const { content, title = null, color = '#FFEB3B', pinned = 0 } = req.body;
-
-    if (!content || !content.trim())
-      return res.status(400).json({ error: 'Inhalt ist erforderlich', code: 400 });
-    if (!COLOR_RE.test(color))
-      return res.status(400).json({ error: 'Farbe muss #RRGGBB sein', code: 400 });
+    const { pinned = 0 } = req.body;
+    const vContent = str(req.body.content, 'Inhalt', { max: MAX_TEXT });
+    const vTitle   = str(req.body.title,   'Titel',  { max: MAX_TITLE, required: false });
+    const vColor   = color(req.body.color || '#FFEB3B', 'Farbe');
+    const errors   = collectErrors([vContent, vTitle, vColor]);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const result = db.get().prepare(`
       INSERT INTO notes (content, title, color, pinned, created_by)
       VALUES (?, ?, ?, ?, ?)
-    `).run(content.trim(), title?.trim() || null, color, pinned ? 1 : 0, req.session.userId);
+    `).run(vContent.value, vTitle.value, vColor.value, pinned ? 1 : 0, req.session.userId);
 
     const note = db.get().prepare(`
       SELECT n.*, u.display_name AS creator_name, u.avatar_color AS creator_color
@@ -77,10 +76,13 @@ router.put('/:id', (req, res) => {
     const note = db.get().prepare('SELECT * FROM notes WHERE id = ?').get(id);
     if (!note) return res.status(404).json({ error: 'Notiz nicht gefunden', code: 404 });
 
-    const { content, title, color, pinned } = req.body;
-
-    if (color !== undefined && !COLOR_RE.test(color))
-      return res.status(400).json({ error: 'Farbe muss #RRGGBB sein', code: 400 });
+    const { pinned } = req.body;
+    const checks = [];
+    if (req.body.content !== undefined) checks.push(str(req.body.content, 'Inhalt', { max: MAX_TEXT, required: false }));
+    if (req.body.title !== undefined)   checks.push(str(req.body.title,   'Titel',  { max: MAX_TITLE, required: false }));
+    if (req.body.color !== undefined)   checks.push(color(req.body.color, 'Farbe'));
+    const errors = collectErrors(checks);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     db.get().prepare(`
       UPDATE notes
@@ -90,9 +92,9 @@ router.put('/:id', (req, res) => {
           pinned  = COALESCE(?, pinned)
       WHERE id = ?
     `).run(
-      content?.trim() ?? null,
-      title !== undefined ? (title?.trim() || null) : note.title,
-      color ?? null,
+      req.body.content?.trim() ?? null,
+      req.body.title !== undefined ? (req.body.title?.trim() || null) : note.title,
+      req.body.color ?? null,
       pinned !== undefined ? (pinned ? 1 : 0) : null,
       id
     );

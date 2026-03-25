@@ -9,6 +9,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
+const { str, oneOf, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT } = require('../middleware/validate');
 
 const VALID_CATEGORIES = ['Arzt', 'Schule/Kita', 'Behörde', 'Versicherung',
                            'Handwerker', 'Notfall', 'Sonstiges'];
@@ -55,21 +56,20 @@ router.get('/', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const {
-      name, category = 'Sonstiges',
-      phone = null, email = null, address = null, notes = null,
-    } = req.body;
-
-    if (!name || !name.trim())
-      return res.status(400).json({ error: 'Name ist erforderlich', code: 400 });
-    if (!VALID_CATEGORIES.includes(category))
-      return res.status(400).json({ error: `Ungültige Kategorie: ${category}`, code: 400 });
+    const vName    = str(req.body.name,     'Name',    { max: MAX_TITLE });
+    const vCat     = oneOf(req.body.category || 'Sonstiges', VALID_CATEGORIES, 'Kategorie');
+    const vPhone   = str(req.body.phone,   'Telefon', { max: MAX_SHORT, required: false });
+    const vEmail   = str(req.body.email,   'E-Mail',  { max: MAX_TITLE, required: false });
+    const vAddress = str(req.body.address, 'Adresse', { max: MAX_TEXT,  required: false });
+    const vNotes   = str(req.body.notes,   'Notizen', { max: MAX_TEXT,  required: false });
+    const errors   = collectErrors([vName, vCat, vPhone, vEmail, vAddress, vNotes]);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const result = db.get().prepare(`
       INSERT INTO contacts (name, category, phone, email, address, notes)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(name.trim(), category, phone || null, email || null,
-           address || null, notes || null);
+    `).run(vName.value, vCat.value || 'Sonstiges', vPhone.value, vEmail.value,
+           vAddress.value, vNotes.value);
 
     const contact = db.get().prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ data: contact });
@@ -91,10 +91,15 @@ router.put('/:id', (req, res) => {
     const contact = db.get().prepare('SELECT * FROM contacts WHERE id = ?').get(id);
     if (!contact) return res.status(404).json({ error: 'Kontakt nicht gefunden', code: 404 });
 
-    const { name, category, phone, email, address, notes } = req.body;
-
-    if (category !== undefined && !VALID_CATEGORIES.includes(category))
-      return res.status(400).json({ error: `Ungültige Kategorie: ${category}`, code: 400 });
+    const checks = [];
+    if (req.body.name     !== undefined) checks.push(str(req.body.name,     'Name',    { max: MAX_TITLE, required: false }));
+    if (req.body.category !== undefined) checks.push(oneOf(req.body.category, VALID_CATEGORIES, 'Kategorie'));
+    if (req.body.phone    !== undefined) checks.push(str(req.body.phone,    'Telefon', { max: MAX_SHORT, required: false }));
+    if (req.body.email    !== undefined) checks.push(str(req.body.email,    'E-Mail',  { max: MAX_TITLE, required: false }));
+    if (req.body.address  !== undefined) checks.push(str(req.body.address,  'Adresse', { max: MAX_TEXT,  required: false }));
+    if (req.body.notes    !== undefined) checks.push(str(req.body.notes,    'Notizen', { max: MAX_TEXT,  required: false }));
+    const errors = collectErrors(checks);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     db.get().prepare(`
       UPDATE contacts
@@ -106,12 +111,12 @@ router.put('/:id', (req, res) => {
           notes    = ?
       WHERE id = ?
     `).run(
-      name?.trim() ?? null,
-      category ?? null,
-      phone   !== undefined ? (phone   || null) : contact.phone,
-      email   !== undefined ? (email   || null) : contact.email,
-      address !== undefined ? (address || null) : contact.address,
-      notes   !== undefined ? (notes   || null) : contact.notes,
+      req.body.name?.trim() ?? null,
+      req.body.category ?? null,
+      req.body.phone   !== undefined ? (req.body.phone?.trim()   || null) : contact.phone,
+      req.body.email   !== undefined ? (req.body.email?.trim()   || null) : contact.email,
+      req.body.address !== undefined ? (req.body.address?.trim() || null) : contact.address,
+      req.body.notes   !== undefined ? (req.body.notes?.trim()   || null) : contact.notes,
       id
     );
 

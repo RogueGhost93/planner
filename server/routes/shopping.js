@@ -12,6 +12,7 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
+const { str, oneOf, collectErrors, MAX_TITLE, MAX_SHORT } = require('../middleware/validate');
 
 // --------------------------------------------------------
 // Konstanten
@@ -137,12 +138,12 @@ router.get('/', (req, res) => {
 // --------------------------------------------------------
 router.post('/', (req, res) => {
   try {
-    const name = req.body.name?.trim();
-    if (!name) return res.status(400).json({ error: 'name ist erforderlich.', code: 400 });
+    const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
+    if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
 
     const result = db.get()
       .prepare('INSERT INTO shopping_lists (name, created_by) VALUES (?, ?)')
-      .run(name, req.session.userId);
+      .run(vName.value, req.session.userId);
 
     const list = db.get()
       .prepare('SELECT * FROM shopping_lists WHERE id = ?')
@@ -162,12 +163,12 @@ router.post('/', (req, res) => {
 // --------------------------------------------------------
 router.put('/:listId', (req, res) => {
   try {
-    const name = req.body.name?.trim();
-    if (!name) return res.status(400).json({ error: 'name ist erforderlich.', code: 400 });
+    const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
+    if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
 
     const result = db.get()
       .prepare('UPDATE shopping_lists SET name = ? WHERE id = ?')
-      .run(name, req.params.listId);
+      .run(vName.value, req.params.listId);
     if (result.changes === 0)
       return res.status(404).json({ error: 'Liste nicht gefunden.', code: 404 });
 
@@ -244,18 +245,16 @@ router.post('/:listId/items', (req, res) => {
       .get(req.params.listId);
     if (!list) return res.status(404).json({ error: 'Liste nicht gefunden.', code: 404 });
 
-    const name     = req.body.name?.trim();
-    const quantity = req.body.quantity?.trim() || null;
-    const category = req.body.category || 'Sonstiges';
-
-    if (!name) return res.status(400).json({ error: 'name ist erforderlich.', code: 400 });
-    if (!ITEM_CATEGORIES.includes(category))
-      return res.status(400).json({ error: 'Ungültige Kategorie.', code: 400 });
+    const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
+    const vQty  = str(req.body.quantity, 'Menge', { max: MAX_SHORT, required: false });
+    const vCat  = oneOf(req.body.category || 'Sonstiges', ITEM_CATEGORIES, 'Kategorie');
+    const errors = collectErrors([vName, vQty, vCat]);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const result = db.get().prepare(`
       INSERT INTO shopping_items (list_id, name, quantity, category)
       VALUES (?, ?, ?, ?)
-    `).run(req.params.listId, name, quantity, category);
+    `).run(req.params.listId, vName.value, vQty.value, vCat.value || 'Sonstiges');
 
     const item = db.get()
       .prepare('SELECT * FROM shopping_items WHERE id = ?')

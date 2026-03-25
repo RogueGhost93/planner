@@ -9,9 +9,9 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
+const { str, oneOf, date, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT } = require('../middleware/validate');
 
 const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
-const DATE_RE          = /^\d{4}-\d{2}-\d{2}$/;
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -148,20 +148,20 @@ router.get('/', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const { date, meal_type, title, notes = null, ingredients = [] } = req.body;
-
-    if (!date || !DATE_RE.test(date))
-      return res.status(400).json({ error: 'Gültiges Datum (YYYY-MM-DD) erforderlich', code: 400 });
-    if (!meal_type || !VALID_MEAL_TYPES.includes(meal_type))
-      return res.status(400).json({ error: `meal_type muss einer von: ${VALID_MEAL_TYPES.join(', ')} sein`, code: 400 });
-    if (!title || !title.trim())
-      return res.status(400).json({ error: 'Titel ist erforderlich', code: 400 });
+    const { ingredients = [] } = req.body;
+    const vDate  = date(req.body.date, 'Datum', true);
+    const vType  = oneOf(req.body.meal_type, VALID_MEAL_TYPES, 'Mahlzeit-Typ');
+    const vTitle = str(req.body.title, 'Titel', { max: MAX_TITLE });
+    const vNotes = str(req.body.notes, 'Notizen', { max: MAX_TEXT, required: false });
+    const errors = collectErrors([vDate, vType, vTitle, vNotes]);
+    if (!req.body.meal_type) errors.push('Mahlzeit-Typ ist erforderlich.');
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const meal = db.transaction(() => {
       const result = db.get().prepare(`
         INSERT INTO meals (date, meal_type, title, notes, created_by)
         VALUES (?, ?, ?, ?, ?)
-      `).run(date, meal_type, title.trim(), notes || null, req.session.userId);
+      `).run(vDate.value, vType.value, vTitle.value, vNotes.value, req.session.userId);
 
       const mealId = result.lastInsertRowid;
 
@@ -170,9 +170,9 @@ router.post('/', (req, res) => {
       `);
 
       for (const ing of ingredients) {
-        if (ing.name && ing.name.trim()) {
-          insertIng.run(mealId, ing.name.trim(), ing.quantity?.trim() || null);
-        }
+        const name = String(ing.name || '').trim().slice(0, MAX_TITLE);
+        const qty  = String(ing.quantity || '').trim().slice(0, MAX_SHORT) || null;
+        if (name) insertIng.run(mealId, name, qty);
       }
 
       return db.get().prepare(`
@@ -207,12 +207,13 @@ router.put('/:id', (req, res) => {
     const meal = db.get().prepare('SELECT * FROM meals WHERE id = ?').get(id);
     if (!meal) return res.status(404).json({ error: 'Mahlzeit nicht gefunden', code: 404 });
 
-    const { date, meal_type, title, notes } = req.body;
-
-    if (date !== undefined && !DATE_RE.test(date))
-      return res.status(400).json({ error: 'Ungültiges Datum', code: 400 });
-    if (meal_type !== undefined && !VALID_MEAL_TYPES.includes(meal_type))
-      return res.status(400).json({ error: 'Ungültiger meal_type', code: 400 });
+    const checks = [];
+    if (req.body.date      !== undefined) checks.push(date(req.body.date, 'Datum'));
+    if (req.body.meal_type !== undefined) checks.push(oneOf(req.body.meal_type, VALID_MEAL_TYPES, 'Mahlzeit-Typ'));
+    if (req.body.title     !== undefined) checks.push(str(req.body.title, 'Titel', { max: MAX_TITLE, required: false }));
+    if (req.body.notes     !== undefined) checks.push(str(req.body.notes, 'Notizen', { max: MAX_TEXT, required: false }));
+    const errors = collectErrors(checks);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     db.get().prepare(`
       UPDATE meals
@@ -222,10 +223,10 @@ router.put('/:id', (req, res) => {
           notes     = ?
       WHERE id = ?
     `).run(
-      date      ?? null,
-      meal_type ?? null,
-      title?.trim() ?? null,
-      notes !== undefined ? (notes || null) : meal.notes,
+      req.body.date      ?? null,
+      req.body.meal_type ?? null,
+      req.body.title?.trim() ?? null,
+      req.body.notes !== undefined ? (req.body.notes || null) : meal.notes,
       id
     );
 

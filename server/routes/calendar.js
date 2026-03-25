@@ -13,11 +13,9 @@ const db             = require('../db');
 const googleCalendar = require('../services/google-calendar');
 const appleCalendar  = require('../services/apple-calendar');
 const { requireAdmin } = require('../auth');
+const { str, color, datetime, rrule, collectErrors, MAX_TITLE, MAX_TEXT, DATE_RE, DATETIME_RE } = require('../middleware/validate');
 
 const VALID_SOURCES = ['local', 'google', 'apple'];
-const DATETIME_RE   = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?Z?)?$/;
-const DATE_RE       = /^\d{4}-\d{2}-\d{2}$/;
-const COLOR_RE      = /^#[0-9A-Fa-f]{6}$/;
 
 // --------------------------------------------------------
 // GET /api/v1/calendar
@@ -260,26 +258,17 @@ router.get('/:id', (req, res) => {
 // --------------------------------------------------------
 router.post('/', (req, res) => {
   try {
-    const {
-      title,
-      description    = null,
-      start_datetime,
-      end_datetime   = null,
-      all_day        = 0,
-      location       = null,
-      color          = '#007AFF',
-      assigned_to    = null,
-      recurrence_rule = null,
-    } = req.body;
+    const vTitle = str(req.body.title, 'Titel', { max: MAX_TITLE });
+    const vDesc  = str(req.body.description, 'Beschreibung', { max: MAX_TEXT, required: false });
+    const vStart = datetime(req.body.start_datetime, 'Startdatum', true);
+    const vEnd   = datetime(req.body.end_datetime, 'Enddatum');
+    const vColor = color(req.body.color || '#007AFF', 'Farbe');
+    const vLoc   = str(req.body.location, 'Ort', { max: MAX_TITLE, required: false });
+    const vRrule = rrule(req.body.recurrence_rule, 'Wiederholung');
+    const errors = collectErrors([vTitle, vDesc, vStart, vEnd, vColor, vLoc, vRrule]);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
-    if (!title || !title.trim())
-      return res.status(400).json({ error: 'Titel ist erforderlich', code: 400 });
-    if (!start_datetime || !DATETIME_RE.test(start_datetime))
-      return res.status(400).json({ error: 'Gültiges start_datetime erforderlich', code: 400 });
-    if (end_datetime && !DATETIME_RE.test(end_datetime))
-      return res.status(400).json({ error: 'Ungültiges end_datetime', code: 400 });
-    if (color && !COLOR_RE.test(color))
-      return res.status(400).json({ error: 'Farbe muss #RRGGBB sein', code: 400 });
+    const { all_day = 0, assigned_to = null } = req.body;
 
     if (assigned_to) {
       const user = db.get().prepare('SELECT id FROM users WHERE id = ?').get(assigned_to);
@@ -292,11 +281,11 @@ router.post('/', (req, res) => {
          location, color, assigned_to, created_by, recurrence_rule)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      title.trim(), description || null,
-      start_datetime, end_datetime || null,
-      all_day ? 1 : 0, location || null,
-      color, assigned_to || null,
-      req.session.userId, recurrence_rule || null
+      vTitle.value, vDesc.value,
+      vStart.value, vEnd.value,
+      all_day ? 1 : 0, vLoc.value,
+      vColor.value, assigned_to || null,
+      req.session.userId, vRrule.value
     );
 
     const event = db.get().prepare(`
@@ -329,19 +318,21 @@ router.put('/:id', (req, res) => {
     const event = db.get().prepare('SELECT * FROM calendar_events WHERE id = ?').get(id);
     if (!event) return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
 
+    const checks = [];
+    if (req.body.title          !== undefined) checks.push(str(req.body.title, 'Titel', { max: MAX_TITLE, required: false }));
+    if (req.body.description    !== undefined) checks.push(str(req.body.description, 'Beschreibung', { max: MAX_TEXT, required: false }));
+    if (req.body.start_datetime !== undefined) checks.push(datetime(req.body.start_datetime, 'Startdatum'));
+    if (req.body.end_datetime   !== undefined) checks.push(datetime(req.body.end_datetime, 'Enddatum'));
+    if (req.body.color          !== undefined) checks.push(color(req.body.color, 'Farbe'));
+    if (req.body.location       !== undefined) checks.push(str(req.body.location, 'Ort', { max: MAX_TITLE, required: false }));
+    if (req.body.recurrence_rule !== undefined) checks.push(rrule(req.body.recurrence_rule, 'Wiederholung'));
+    const errors = collectErrors(checks);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
+
     const {
       title, description, start_datetime, end_datetime,
-      all_day, location, color, assigned_to, recurrence_rule,
+      all_day, location, color: colorVal, assigned_to, recurrence_rule,
     } = req.body;
-
-    if (title !== undefined && !title.trim())
-      return res.status(400).json({ error: 'Titel darf nicht leer sein', code: 400 });
-    if (start_datetime !== undefined && !DATETIME_RE.test(start_datetime))
-      return res.status(400).json({ error: 'Ungültiges start_datetime', code: 400 });
-    if (end_datetime !== undefined && end_datetime && !DATETIME_RE.test(end_datetime))
-      return res.status(400).json({ error: 'Ungültiges end_datetime', code: 400 });
-    if (color !== undefined && !COLOR_RE.test(color))
-      return res.status(400).json({ error: 'Farbe muss #RRGGBB sein', code: 400 });
 
     db.get().prepare(`
       UPDATE calendar_events
@@ -362,7 +353,7 @@ router.put('/:id', (req, res) => {
       end_datetime !== undefined ? (end_datetime || null) : event.end_datetime,
       all_day !== undefined ? (all_day ? 1 : 0) : null,
       location !== undefined ? (location || null) : event.location,
-      color ?? null,
+      colorVal ?? null,
       assigned_to !== undefined ? (assigned_to || null) : event.assigned_to,
       recurrence_rule !== undefined ? (recurrence_rule || null) : event.recurrence_rule,
       id

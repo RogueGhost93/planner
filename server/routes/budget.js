@@ -9,12 +9,12 @@
 const express = require('express');
 const router  = express.Router();
 const db      = require('../db');
+const { str, oneOf, date, num, rrule, collectErrors, MAX_TITLE, MONTH_RE } = require('../middleware/validate');
 
 const VALID_CATEGORIES = [
   'Lebensmittel', 'Miete', 'Versicherung', 'Mobilität',
   'Freizeit', 'Kleidung', 'Gesundheit', 'Bildung', 'Sonstiges',
 ];
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // --------------------------------------------------------
 // Statische Routen vor /:id
@@ -31,7 +31,7 @@ router.get('/summary', (req, res) => {
     const today = new Date().toISOString().slice(0, 7); // YYYY-MM
     const month = req.query.month || today;
 
-    if (!/^\d{4}-\d{2}$/.test(month))
+    if (!MONTH_RE.test(month))
       return res.status(400).json({ error: 'month muss YYYY-MM sein', code: 400 });
 
     const from = `${month}-01`;
@@ -83,7 +83,7 @@ router.get('/export', (req, res) => {
     const today = new Date().toISOString().slice(0, 7);
     const month = req.query.month || today;
 
-    if (!/^\d{4}-\d{2}$/.test(month))
+    if (!MONTH_RE.test(month))
       return res.status(400).json({ error: 'month muss YYYY-MM sein', code: 400 });
 
     const from    = `${month}-01`;
@@ -141,7 +141,7 @@ router.get('/', (req, res) => {
     const today = new Date().toISOString().slice(0, 7);
     const month = req.query.month || today;
 
-    if (!/^\d{4}-\d{2}$/.test(month))
+    if (!MONTH_RE.test(month))
       return res.status(400).json({ error: 'month muss YYYY-MM sein', code: 400 });
 
     const from   = `${month}-01`;
@@ -177,26 +177,20 @@ router.get('/', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const {
-      title, amount, category = 'Sonstiges',
-      date, is_recurring = 0, recurrence_rule = null,
-    } = req.body;
-
-    if (!title || !title.trim())
-      return res.status(400).json({ error: 'Titel ist erforderlich', code: 400 });
-    if (amount === undefined || amount === null || isNaN(Number(amount)))
-      return res.status(400).json({ error: 'Betrag (Zahl) ist erforderlich', code: 400 });
-    if (!date || !DATE_RE.test(date))
-      return res.status(400).json({ error: 'Gültiges Datum (YYYY-MM-DD) erforderlich', code: 400 });
-    if (!VALID_CATEGORIES.includes(category))
-      return res.status(400).json({ error: `Ungültige Kategorie: ${category}`, code: 400 });
+    const vTitle  = str(req.body.title,    'Titel',  { max: MAX_TITLE });
+    const vAmount = num(req.body.amount,  'Betrag', { required: true });
+    const vCat    = oneOf(req.body.category || 'Sonstiges', VALID_CATEGORIES, 'Kategorie');
+    const vDate   = date(req.body.date,   'Datum',  true);
+    const vRrule  = rrule(req.body.recurrence_rule, 'Wiederholung');
+    const errors  = collectErrors([vTitle, vAmount, vCat, vDate, vRrule]);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const result = db.get().prepare(`
       INSERT INTO budget_entries (title, amount, category, date, is_recurring, recurrence_rule, created_by)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `).run(
-      title.trim(), Number(amount), category, date,
-      is_recurring ? 1 : 0, recurrence_rule || null,
+      vTitle.value, vAmount.value, vCat.value || 'Sonstiges', vDate.value,
+      req.body.is_recurring ? 1 : 0, vRrule.value,
       req.session.userId
     );
 
@@ -225,14 +219,15 @@ router.put('/:id', (req, res) => {
     const entry = db.get().prepare('SELECT * FROM budget_entries WHERE id = ?').get(id);
     if (!entry) return res.status(404).json({ error: 'Eintrag nicht gefunden', code: 404 });
 
-    const { title, amount, category, date, is_recurring, recurrence_rule } = req.body;
-
-    if (amount !== undefined && isNaN(Number(amount)))
-      return res.status(400).json({ error: 'Betrag muss eine Zahl sein', code: 400 });
-    if (date !== undefined && !DATE_RE.test(date))
-      return res.status(400).json({ error: 'Ungültiges Datum', code: 400 });
-    if (category !== undefined && !VALID_CATEGORIES.includes(category))
-      return res.status(400).json({ error: `Ungültige Kategorie: ${category}`, code: 400 });
+    const checks = [];
+    if (req.body.title    !== undefined) checks.push(str(req.body.title,    'Titel',  { max: MAX_TITLE, required: false }));
+    if (req.body.amount   !== undefined) checks.push(num(req.body.amount,   'Betrag'));
+    if (req.body.category !== undefined) checks.push(oneOf(req.body.category, VALID_CATEGORIES, 'Kategorie'));
+    if (req.body.date     !== undefined) checks.push(date(req.body.date,    'Datum'));
+    if (req.body.recurrence_rule !== undefined) checks.push(rrule(req.body.recurrence_rule, 'Wiederholung'));
+    const errors = collectErrors(checks);
+    if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
+    const { title, amount, category, is_recurring, recurrence_rule } = req.body;
 
     db.get().prepare(`
       UPDATE budget_entries
