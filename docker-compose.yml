@@ -4,7 +4,7 @@ services:
     container_name: oikos
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     volumes:
       - oikos_data:/data
     env_file:
