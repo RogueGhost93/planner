@@ -52,32 +52,32 @@
   --color-border-subtle:  var(--neutral-150);
   --color-text-primary:   var(--neutral-900);
   --color-text-secondary: var(--neutral-600);  /* WCAG AA: ~5.0:1 auf weiß */
-  --color-text-tertiary:  var(--neutral-500);
+  --color-text-tertiary:  #737370;
   --color-text-disabled:  var(--neutral-300);
 
   /* --------------------------------------------------------
    * 2. Farben — Akzent (konfigurierbar)
    *    Wärmerer Blauton statt reinem Corporate-Blau.
    * -------------------------------------------------------- */
-  --color-accent:           #3478F6;
-  --color-accent-hover:     #2860D0;
-  --color-accent-active:    #1E4FA8;
-  --color-accent-light:     #EBF2FF;
-  --color-accent-subtle:    #D6E5FF;
-  --color-btn-primary:      #2C6BE0;       /* WCAG AA: ~4.8:1 auf weiß (weißer Text) */
-  --color-btn-primary-hover: #2258BA;
+  --color-accent:           #2563EB;
+  --color-accent-hover:     #1D4ED8;
+  --color-accent-active:    #1E40AF;
+  --color-accent-light:     #EFF6FF;
+  --color-accent-subtle:    #DBEAFE;
+  --color-btn-primary:      #2554C7;       /* WCAG AA: 6.62:1 auf weiß (weißer Text) */
+  --color-btn-primary-hover: #1E429A;
 
   /* --------------------------------------------------------
    * 3. Farben — Semantisch
    * -------------------------------------------------------- */
-  --color-success:       #2DA44E;
-  --color-success-hover: #258B3E;
+  --color-success:       #15803D;
+  --color-success-hover: #166534;
   --color-success-light: #DAFBE1;
-  --color-warning:       #E6930A;
-  --color-warning-hover: #C97D08;
+  --color-warning:       #B45309;
+  --color-warning-hover: #92400E;
   --color-warning-light: #FFF4D4;
-  --color-danger:        #E5534B;
-  --color-danger-hover:  #CC403A;
+  --color-danger:        #DC2626;
+  --color-danger-hover:  #B91C1C;
   --color-danger-light:  #FFE2E0;
   --color-info:          #54AEFF;
   --color-info-hover:    #3A94E5;
@@ -88,10 +88,10 @@
    *    Jedes Modul hat eine eigene dezente Akzentfarbe.
    *    Einsatz in Modul-Headern, Icons, aktiven States.
    * -------------------------------------------------------- */
-  --module-dashboard:  #3478F6;  /* Blau — Übersicht, neutral */
-  --module-tasks:      #2DA44E;  /* Grün — Erledigung, Fortschritt */
+  --module-dashboard:  #2563EB;  /* Blau — Übersicht, neutral */
+  --module-tasks:      #15803D;  /* Grün — Erledigung, Fortschritt */
   --module-calendar:   #8250DF;  /* Violett — Termine, Zeit */
-  --module-meals:      #E6930A;  /* Orange — Essen, Wärme */
+  --module-meals:      #B45309;  /* Orange — Essen, Wärme */
   --module-shopping:   #D4511E;  /* Rot-Orange — Einkaufen, Aktion */
   --module-notes:      #BF8700;  /* Gold — Notizen, Pinnwand */
   --module-contacts:   #0969DA;  /* Kräftiges Blau — Kontakte */
@@ -102,12 +102,12 @@
    * 5. Farben — Mahlzeit-Typen
    *    Zentrale Tokens statt Hardcoding in meals.css
    * -------------------------------------------------------- */
-  --meal-breakfast:       #E6930A;
+  --meal-breakfast:       #B45309;
   --meal-breakfast-light: #FFF4D4;
   --meal-lunch:           #2DA44E;
   --meal-lunch-light:     #DAFBE1;
-  --meal-dinner:          #3478F6;
-  --meal-dinner-light:    #EBF2FF;
+  --meal-dinner:          #2563EB;
+  --meal-dinner-light:    #EFF6FF;
   --meal-snack:           #D4511E;
   --meal-snack-light:     #FFECE3;
 
@@ -115,15 +115,15 @@
    * 6. Farben — Prioritäten
    * -------------------------------------------------------- */
   --color-priority-low:    var(--neutral-500);
-  --color-priority-medium: #E6930A;
+  --color-priority-medium: #B45309;
   --color-priority-high:   #D4511E;
-  --color-priority-urgent: #E5534B;
+  --color-priority-urgent: #DC2626;
 
   /* Hintergrundfarben für Priority-Badges */
   --color-priority-low-bg:    rgba(142, 141, 137, 0.12);
-  --color-priority-medium-bg: rgba(230, 147, 10, 0.12);
+  --color-priority-medium-bg: rgba(180, 83, 9, 0.12);
   --color-priority-high-bg:   rgba(212, 81, 30, 0.12);
-  --color-priority-urgent-bg: rgba(229, 83, 75, 0.12);
+  --color-priority-urgent-bg: rgba(220, 38, 38, 0.12);
 
   /* --------------------------------------------------------
    * 7. Overlay / Backdrop
@@ -159,7 +159,7 @@
   --font-mono: 'SF Mono', 'Fira Code', 'Fira Mono', 'Roboto Mono', monospace;
 
   /* Size-Skala */
-  --text-2xs:  0.625rem;   /* 10px — Micro-Labels (Nav, Avatare) */
+  --text-2xs:  0.6875rem;  /* 11px — Micro-Labels (Nav, Avatare) */
   --text-xs:   0.75rem;    /* 12px — Captions, Badges */
   --text-sm:   0.8125rem;  /* 13px — Small/Secondary */
   --text-base: 0.875rem;   /* 14px — Body (Desktop), kompakter */
@@ -273,15 +273,35 @@
     --sidebar-shadow-light: rgba(255, 255, 255, 0.04);
     --sidebar-shadow-dark: rgba(0, 0, 0, 0.4);
 
-    /* Akzent-Light-Varianten (dunkler Hintergrund) */
-    --color-accent-light:  #1A2D4D;
-    --color-accent-subtle: #162442;
+    /* Akzent — Dark Mode */
+    --color-accent:            #60A5FA;
+    --color-accent-hover:      #3B82F6;
+    --color-accent-active:     #2563EB;
+    --color-accent-light:      #1E3A5F;
+    --color-accent-subtle:     #1E3050;
+    --color-btn-primary:       #3B82F6;
+    --color-btn-primary-hover: #2563EB;
+
+    /* Semantische Farben — Dark Mode */
+    --color-success:       #4ADE80;
+    --color-warning:       #F59E0B;
+    --color-danger:        #FCA5A5;
+    --color-text-tertiary: #A3A3A0;
+
     --color-success-light: #1A3325;
     --color-warning-light: #332400;
     --color-danger-light:  #3D1C1A;
     --color-info-light:    #1A2D40;
 
-    /* Modul-Akzente bleiben im Dark Mode gleich (genug Kontrast) */
+    /* Modul-Akzente — Dark Mode */
+    --module-dashboard: #60A5FA;
+    --module-tasks:     #4ADE80;
+    --module-calendar:  #A78BFA;
+    --module-meals:     #F59E0B;
+
+    /* Mahlzeit-Typ — Dark Mode */
+    --meal-breakfast: #F59E0B;
+    --meal-dinner:    #60A5FA;
 
     /* Mahlzeit-Typ Light-Varianten */
     --meal-breakfast-light: #332400;
@@ -330,12 +350,35 @@
   --sidebar-shadow-light: rgba(255, 255, 255, 0.04);
   --sidebar-shadow-dark: rgba(0, 0, 0, 0.4);
 
-  --color-accent-light:  #1A2D4D;
-  --color-accent-subtle: #162442;
+  /* Akzent — Dark Mode */
+  --color-accent:            #60A5FA;
+  --color-accent-hover:      #3B82F6;
+  --color-accent-active:     #2563EB;
+  --color-accent-light:      #1E3A5F;
+  --color-accent-subtle:     #1E3050;
+  --color-btn-primary:       #3B82F6;
+  --color-btn-primary-hover: #2563EB;
+
+  /* Semantische Farben — Dark Mode */
+  --color-success:       #4ADE80;
+  --color-warning:       #F59E0B;
+  --color-danger:        #FCA5A5;
+  --color-text-tertiary: #A3A3A0;
+
   --color-success-light: #1A3325;
   --color-warning-light: #332400;
   --color-danger-light:  #3D1C1A;
   --color-info-light:    #1A2D40;
+
+  /* Modul-Akzente — Dark Mode */
+  --module-dashboard: #60A5FA;
+  --module-tasks:     #4ADE80;
+  --module-calendar:  #A78BFA;
+  --module-meals:     #F59E0B;
+
+  /* Mahlzeit-Typ — Dark Mode */
+  --meal-breakfast: #F59E0B;
+  --meal-dinner:    #60A5FA;
 
   --meal-breakfast-light: #332400;
   --meal-lunch-light:     #1A3325;

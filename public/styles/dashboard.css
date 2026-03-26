@@ -82,7 +82,7 @@
  * Begrüßungs-Widget
  * -------------------------------------------------------- */
 .widget-greeting {
-  background: linear-gradient(135deg, var(--color-accent) 0%, #6BA3FF 100%);
+  background: linear-gradient(135deg, #1D4ED8, #2563EB);
   border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-5);
   color: #ffffff;

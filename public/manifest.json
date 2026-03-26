@@ -4,8 +4,8 @@
   "description": "Selbstgehosteter Familienplaner für Kalender, Aufgaben, Einkauf und mehr.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F5F5F7",
-  "theme_color": "#007AFF",
+  "background_color": "#F5F4F1",
+  "theme_color": "#2563EB",
   "orientation": "portrait-primary",
   "lang": "de",
   "icons": [
