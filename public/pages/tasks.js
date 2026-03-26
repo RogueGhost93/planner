@@ -6,6 +6,7 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js';
+import { openModal as openSharedModal, closeModal } from '/components/modal.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -215,9 +216,8 @@ function renderTaskGroups(tasks, groupMode) {
 // Task-Modal (Erstellen / Bearbeiten)
 // --------------------------------------------------------
 
-function renderModal({ task = null, users = [] } = {}) {
+function renderModalContent({ task = null, users = [] } = {}) {
   const isEdit = !!task;
-  const title  = isEdit ? 'Aufgabe bearbeiten' : 'Neue Aufgabe';
 
   const userOptions = users.map((u) =>
     `<option value="${u.id}" ${task?.assigned_to === u.id ? 'selected' : ''}>${u.display_name}</option>`
@@ -232,93 +232,82 @@ function renderModal({ task = null, users = [] } = {}) {
   ).join('');
 
   return `
-    <div class="modal-backdrop" id="task-modal-backdrop">
-      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-        <div class="modal__header">
-          <h2 class="modal__title" id="modal-title">${title}</h2>
-          <button class="modal__close" data-action="close-modal" aria-label="Schließen">
-            <i data-lucide="x" style="width:18px;height:18px"></i>
-          </button>
-        </div>
+    <form id="task-form" novalidate>
+      <input type="hidden" id="task-id" value="${task?.id ?? ''}">
 
-        <form id="task-form" novalidate>
-          <input type="hidden" id="task-id" value="${task?.id ?? ''}">
-
-          <div class="form-group">
-            <label class="label" for="task-title">Titel *</label>
-            <input class="input" type="text" id="task-title" name="title"
-                   value="${task?.title ?? ''}" placeholder="Was muss erledigt werden?"
-                   required autocomplete="off">
-          </div>
-
-          <div class="form-group">
-            <label class="label" for="task-description">Notiz</label>
-            <textarea class="input" id="task-description" name="description"
-                      rows="2" placeholder="Optionale Details…"
-                      style="resize:vertical">${task?.description ?? ''}</textarea>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
-            <div class="form-group" style="margin-bottom:0">
-              <label class="label" for="task-priority">Priorität</label>
-              <select class="input" id="task-priority" name="priority" style="min-height:44px">
-                ${priorityOptions}
-              </select>
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label class="label" for="task-category">Kategorie</label>
-              <select class="input" id="task-category" name="category" style="min-height:44px">
-                ${categoryOptions}
-              </select>
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-4)">
-            <div class="form-group" style="margin-bottom:0">
-              <label class="label" for="task-due-date">Fälligkeit</label>
-              <input class="input" type="date" id="task-due-date" name="due_date"
-                     value="${task?.due_date ?? ''}">
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label class="label" for="task-due-time">Uhrzeit</label>
-              <input class="input" type="time" id="task-due-time" name="due_time"
-                     value="${task?.due_time ?? ''}">
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-top:var(--space-4)">
-            <label class="label" for="task-assigned">Zugewiesen an</label>
-            <select class="input" id="task-assigned" name="assigned_to" style="min-height:44px">
-              <option value="">— Niemand —</option>
-              ${userOptions}
-            </select>
-          </div>
-
-          ${isEdit ? `
-            <div class="form-group">
-              <label class="label" for="task-status">Status</label>
-              <select class="input" id="task-status" name="status" style="min-height:44px">
-                ${STATUSES.map((s) =>
-                  `<option value="${s.value}" ${task.status === s.value ? 'selected' : ''}>${s.label}</option>`
-                ).join('')}
-              </select>
-            </div>` : ''}
-
-          ${renderRRuleFields('task', task?.recurrence_rule)}
-
-          <div id="task-form-error" class="login-error" hidden></div>
-
-          <div class="modal__actions">
-            ${isEdit ? `
-              <button type="button" class="btn btn--danger" data-action="delete-task"
-                      data-id="${task.id}">Löschen</button>` : ''}
-            <button type="submit" class="btn btn--primary" id="task-submit-btn">
-              ${isEdit ? 'Speichern' : 'Erstellen'}
-            </button>
-          </div>
-        </form>
+      <div class="form-group">
+        <label class="label" for="task-title">Titel *</label>
+        <input class="input" type="text" id="task-title" name="title"
+               value="${task?.title ?? ''}" placeholder="Was muss erledigt werden?"
+               required autocomplete="off">
       </div>
-    </div>`;
+
+      <div class="form-group">
+        <label class="label" for="task-description">Notiz</label>
+        <textarea class="input" id="task-description" name="description"
+                  rows="2" placeholder="Optionale Details…"
+                  style="resize:vertical">${task?.description ?? ''}</textarea>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="label" for="task-priority">Priorität</label>
+          <select class="input" id="task-priority" name="priority" style="min-height:44px">
+            ${priorityOptions}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="label" for="task-category">Kategorie</label>
+          <select class="input" id="task-category" name="category" style="min-height:44px">
+            ${categoryOptions}
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-4)">
+        <div class="form-group" style="margin-bottom:0">
+          <label class="label" for="task-due-date">Fälligkeit</label>
+          <input class="input" type="date" id="task-due-date" name="due_date"
+                 value="${task?.due_date ?? ''}">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="label" for="task-due-time">Uhrzeit</label>
+          <input class="input" type="time" id="task-due-time" name="due_time"
+                 value="${task?.due_time ?? ''}">
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:var(--space-4)">
+        <label class="label" for="task-assigned">Zugewiesen an</label>
+        <select class="input" id="task-assigned" name="assigned_to" style="min-height:44px">
+          <option value="">— Niemand —</option>
+          ${userOptions}
+        </select>
+      </div>
+
+      ${isEdit ? `
+        <div class="form-group">
+          <label class="label" for="task-status">Status</label>
+          <select class="input" id="task-status" name="status" style="min-height:44px">
+            ${STATUSES.map((s) =>
+              `<option value="${s.value}" ${task.status === s.value ? 'selected' : ''}>${s.label}</option>`
+            ).join('')}
+          </select>
+        </div>` : ''}
+
+      ${renderRRuleFields('task', task?.recurrence_rule)}
+
+      <div id="task-form-error" class="login-error" hidden></div>
+
+      <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
+        ${isEdit ? `
+          <button type="button" class="btn btn--danger" data-action="delete-task"
+                  data-id="${task.id}">Löschen</button>` : ''}
+        <button type="submit" class="btn btn--primary" id="task-submit-btn">
+          ${isEdit ? 'Speichern' : 'Erstellen'}
+        </button>
+      </div>
+    </form>`;
 }
 
 // --------------------------------------------------------
@@ -367,36 +356,27 @@ async function loadTaskForEdit(id) {
 }
 
 // --------------------------------------------------------
-// Modal-Verwaltung
+// Modal-Verwaltung (delegiert an Shared Modal-System)
 // --------------------------------------------------------
 
-function openModal(html) {
-  document.body.insertAdjacentHTML('beforeend', html);
-  if (window.lucide) window.lucide.createIcons();
+function openTaskModal({ task = null, users = [] } = {}, container) {
+  const isEdit = !!task;
+  openSharedModal({
+    title: isEdit ? 'Aufgabe bearbeiten' : 'Neue Aufgabe',
+    content: renderModalContent({ task, users }),
+    size: 'lg',
+    onSave(panel) {
+      // RRULE-Events binden
+      bindRRuleEvents(document, 'task');
 
-  // RRULE-Events binden
-  bindRRuleEvents(document, 'task');
+      // Form-Events
+      panel.querySelector('#task-form')
+        ?.addEventListener('submit', (e) => handleFormSubmit(e, container));
 
-  // Fokus auf erstes Eingabefeld
-  setTimeout(() => document.getElementById('task-title')?.focus(), 50);
-
-  // Backdrop-Klick schließt Modal
-  document.getElementById('task-modal-backdrop')
-    .addEventListener('click', (e) => {
-      if (e.target.id === 'task-modal-backdrop') closeModal();
-    });
-
-  // Escape schließt Modal
-  document.addEventListener('keydown', onEscape);
-}
-
-function closeModal() {
-  document.getElementById('task-modal-backdrop')?.remove();
-  document.removeEventListener('keydown', onEscape);
-}
-
-function onEscape(e) {
-  if (e.key === 'Escape') closeModal();
+      panel.querySelector('[data-action="delete-task"]')
+        ?.addEventListener('click', (e) => handleDeleteTask(e.currentTarget.dataset.id, container));
+    },
+  });
 }
 
 // --------------------------------------------------------
@@ -604,8 +584,7 @@ function wireKanbanDrag(container) {
       if (!card) return;
       try {
         const task = await loadTaskForEdit(card.dataset.taskId);
-        openModal(renderModal({ task, users: state.users }));
-        wireModalEvents(container);
+        openTaskModal({ task, users: state.users }, container);
       } catch (err) {
         window.oikos.showToast('Aufgabe konnte nicht geladen werden.', 'danger');
       }
@@ -720,7 +699,7 @@ function wireSwipeGestures(container) {
 
     row.addEventListener('touchstart', (e) => {
       // Geste ignorieren wenn Modal offen
-      if (document.getElementById('task-modal-backdrop')) return;
+      if (document.getElementById('shared-modal-overlay')) return;
       startX = e.touches[0].clientX;
       startY = e.touches[0].clientY;
       dx     = 0;
@@ -800,8 +779,7 @@ function wireSwipeGestures(container) {
         if (navigator.vibrate) navigator.vibrate(20);
         try {
           const task = await loadTaskForEdit(taskId);
-          openModal(renderModal({ task, users: state.users }));
-          wireModalEvents(container);
+          openTaskModal({ task, users: state.users }, container);
         } catch (err) {
           window.oikos.showToast('Aufgabe konnte nicht geladen werden.', 'danger');
         }
@@ -865,21 +843,10 @@ function wireGroupToggle(container) {
 
 function wireNewTaskBtn(container) {
   const handler = () => {
-    openModal(renderModal({ users: state.users }));
-    wireModalEvents(container);
+    openTaskModal({ users: state.users }, container);
   };
   container.querySelector('#btn-new-task')?.addEventListener('click', handler);
   container.querySelector('#fab-new-task')?.addEventListener('click', handler);
-}
-
-function wireModalEvents(container) {
-  document.getElementById('task-form')?.addEventListener('submit', (e) => handleFormSubmit(e, container));
-
-  document.querySelector('[data-action="close-modal"]')
-    ?.addEventListener('click', closeModal);
-
-  document.querySelector('[data-action="delete-task"]')
-    ?.addEventListener('click', (e) => handleDeleteTask(e.currentTarget.dataset.id, container));
 }
 
 function wireTaskList(container) {
@@ -922,8 +889,7 @@ function wireTaskList(container) {
     if (action === 'edit-task' || action === 'open-task') {
       try {
         const task = await loadTaskForEdit(id);
-        openModal(renderModal({ task, users: state.users }));
-        wireModalEvents(container);
+        openTaskModal({ task, users: state.users }, container);
       } catch (err) {
         window.oikos.showToast('Aufgabe konnte nicht geladen werden.', 'danger');
       }

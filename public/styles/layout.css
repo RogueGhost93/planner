@@ -599,6 +599,8 @@
     border-radius: var(--radius-lg);
     animation: modal-scale-in 0.2s var(--ease-out) forwards;
   }
+  .modal-panel--sm { max-width: 400px; }
+  .modal-panel--lg { max-width: 680px; }
 }
 
 .modal-panel__header {
