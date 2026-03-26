@@ -430,7 +430,7 @@ export async function render(container, { user }) {
 
   const today = new Date().toDateString();
   const stats = {
-    urgentCount:     data.urgentTasks?.length ?? 0,
+    urgentCount:     (data.urgentTasks ?? []).filter((t) => t.priority === 'urgent' || t.priority === 'high').length,
     todayEventCount: (data.upcomingEvents ?? []).filter((e) =>
       new Date(e.start_datetime).toDateString() === today
     ).length,

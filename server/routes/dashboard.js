@@ -52,7 +52,7 @@ router.get('/', (req, res) => {
     result.upcomingEvents = [];
   }
 
-  // Dringende Aufgaben: high/urgent + fällig in ≤ 48h + nicht erledigt
+  // Offene Aufgaben: alle nicht-erledigten, sortiert nach Priorität und Fälligkeit
   try {
     result.urgentTasks = d.prepare(`
       SELECT
@@ -61,14 +61,18 @@ router.get('/', (req, res) => {
         u.avatar_color AS assigned_color
       FROM tasks t
       LEFT JOIN users u ON t.assigned_to = u.id
-      WHERE t.priority IN ('high', 'urgent')
-        AND t.status != 'done'
-        AND (t.due_date IS NULL OR t.due_date <= ?)
+      WHERE t.status != 'done'
       ORDER BY
-        CASE t.priority WHEN 'urgent' THEN 0 ELSE 1 END,
+        CASE t.priority
+          WHEN 'urgent' THEN 0
+          WHEN 'high'   THEN 1
+          WHEN 'medium' THEN 2
+          WHEN 'low'    THEN 3
+          ELSE 4
+        END,
         t.due_date ASC NULLS LAST
-      LIMIT 10
-    `).all(deadline48h.slice(0, 10));
+      LIMIT 5
+    `).all();
   } catch (err) {
     console.error('[Dashboard] urgentTasks-Fehler:', err.message);
     result.urgentTasks = [];
@@ -92,14 +96,13 @@ router.get('/', (req, res) => {
     result.todayMeals = [];
   }
 
-  // Angepinnte Notizen (max. 3)
+  // Neueste Notizen (gepinnte zuerst, dann aktuellste)
   try {
     result.pinnedNotes = d.prepare(`
       SELECT n.*, u.display_name AS author_name, u.avatar_color AS author_color
       FROM notes n
       LEFT JOIN users u ON n.created_by = u.id
-      WHERE n.pinned = 1
-      ORDER BY n.updated_at DESC
+      ORDER BY n.pinned DESC, n.updated_at DESC
       LIMIT 3
     `).all();
   } catch (err) {
