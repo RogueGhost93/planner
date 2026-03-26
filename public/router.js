@@ -145,6 +145,7 @@ async function renderPage(route) {
  */
 function renderAppShell(container) {
   container.innerHTML = `
+    <a href="#page-content" class="sr-only">Zum Inhalt springen</a>
     <nav class="nav-sidebar" aria-label="Hauptnavigation">
       <div class="nav-sidebar__logo"><span>Oikos</span></div>
       <div class="nav-sidebar__items" role="list">

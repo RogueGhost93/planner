@@ -1235,3 +1235,24 @@
     content: none;
   }
 }
+
+/* --------------------------------------------------------
+ * Skip-Link (sichtbar bei Keyboard-Focus)
+ * -------------------------------------------------------- */
+.sr-only:focus-visible {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  width: auto;
+  height: auto;
+  padding: var(--space-2) var(--space-4);
+  margin: 0;
+  clip: auto;
+  white-space: normal;
+  overflow: visible;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: var(--text-sm);
+  border-radius: 0 0 var(--radius-sm) 0;
+}
