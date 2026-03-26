@@ -93,7 +93,7 @@ export function openModal({ title, content, onSave, onDelete, size = 'md' } = {}
         <div class="modal-panel__header">
           <h2 class="modal-panel__title" id="shared-modal-title">${title}</h2>
           <button class="modal-panel__close" data-action="close-modal" aria-label="Schließen">
-            <i data-lucide="x" style="width:18px;height:18px"></i>
+            <i data-lucide="x" style="width:18px;height:18px" aria-hidden="true"></i>
           </button>
         </div>
         <div class="modal-panel__body">

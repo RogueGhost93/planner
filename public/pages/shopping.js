@@ -75,7 +75,7 @@ function renderTabs(container) {
   bar.innerHTML = `
     ${tabsHtml}
     <button class="list-tab__new" data-action="new-list" aria-label="Neue Liste erstellen">
-      <i data-lucide="plus" style="width:18px;height:18px"></i>
+      <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i>
     </button>
   `;
   if (window.lucide) window.lucide.createIcons();
@@ -88,7 +88,7 @@ function renderListContent(container) {
   if (!state.activeList) {
     content.innerHTML = `
       <div class="no-lists">
-        <i data-lucide="shopping-cart" style="width:56px;height:56px;color:var(--color-text-disabled)"></i>
+        <i data-lucide="shopping-cart" style="width:56px;height:56px;color:var(--color-text-disabled)" aria-hidden="true"></i>
         <div style="font-size:var(--text-lg);font-weight:var(--font-weight-semibold)">Keine Listen</div>
         <div style="font-size:var(--text-sm);color:var(--color-text-secondary)">
           Erstelle eine Liste mit dem + Button.
@@ -106,19 +106,19 @@ function renderListContent(container) {
       <span class="list-header__name" data-action="rename-list" data-id="${state.activeList.id}"
             role="button" tabindex="0" aria-label="Liste umbenennen">
         ${state.activeList.name}
-        <i data-lucide="pencil" class="list-header__edit-icon"></i>
+        <i data-lucide="pencil" class="list-header__edit-icon" aria-hidden="true"></i>
       </span>
       <div class="list-header__actions">
         ${checkedCount > 0 ? `
           <button class="btn btn--ghost" data-action="clear-checked"
                   style="font-size:var(--text-sm);color:var(--color-text-secondary)">
-            <i data-lucide="trash-2" style="width:15px;height:15px"></i>
+            <i data-lucide="trash-2" style="width:15px;height:15px" aria-hidden="true"></i>
             Abgehakt löschen (${checkedCount})
           </button>` : ''}
         <button class="btn btn--ghost btn--icon" data-action="delete-list"
                 data-id="${state.activeList.id}" aria-label="Liste löschen"
                 style="color:var(--color-text-secondary)">
-          <i data-lucide="trash" style="width:18px;height:18px"></i>
+          <i data-lucide="trash" style="width:18px;height:18px" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -139,7 +139,7 @@ function renderListContent(container) {
           ).join('')}
         </select>
         <button class="quick-add__btn" type="submit" aria-label="Artikel hinzufügen">
-          <i data-lucide="plus" style="width:20px;height:20px"></i>
+          <i data-lucide="plus" style="width:20px;height:20px" aria-hidden="true"></i>
         </button>
       </form>
     </div>
@@ -159,7 +159,7 @@ function renderItems() {
   if (!state.items.length) {
     return `
       <div class="shopping-empty">
-        <i data-lucide="check-circle" class="shopping-empty__icon"></i>
+        <i data-lucide="check-circle" class="shopping-empty__icon" aria-hidden="true"></i>
         <div class="shopping-empty__title">Liste ist leer</div>
         <div class="shopping-empty__desc">Füge Artikel mit dem Eingabefeld oben hinzu.</div>
       </div>`;
@@ -169,7 +169,7 @@ function renderItems() {
   return groups.map(([cat, items]) => `
     <div class="item-category">
       <div class="item-category__header">
-        <i data-lucide="${CATEGORY_ICONS[cat] ?? 'tag'}" class="item-category__icon"></i>
+        <i data-lucide="${CATEGORY_ICONS[cat] ?? 'tag'}" class="item-category__icon" aria-hidden="true"></i>
         ${cat}
       </div>
       ${items.map(renderItem).join('')}
@@ -183,7 +183,7 @@ function renderItem(item) {
       <button class="item-check ${item.is_checked ? 'item-check--checked' : ''}"
               data-action="toggle-item" data-id="${item.id}" data-checked="${item.is_checked}"
               aria-label="${item.name} ${item.is_checked ? 'als nicht erledigt markieren' : 'abhaken'}">
-        <i data-lucide="check" class="item-check__icon"></i>
+        <i data-lucide="check" class="item-check__icon" aria-hidden="true"></i>
       </button>
       <div class="item-body">
         <div class="item-name">${item.name}</div>
@@ -191,7 +191,7 @@ function renderItem(item) {
       </div>
       <button class="item-delete" data-action="delete-item" data-id="${item.id}"
               aria-label="${item.name} löschen">
-        <i data-lucide="x" style="width:16px;height:16px"></i>
+        <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
       </button>
     </div>`;
 }
@@ -321,7 +321,7 @@ function updateItemsList(container) {
       header.insertAdjacentHTML('afterbegin', `
         <button class="btn btn--ghost" data-action="clear-checked"
                 style="font-size:var(--text-sm);color:var(--color-text-secondary)">
-          <i data-lucide="trash-2" style="width:15px;height:15px"></i>
+          <i data-lucide="trash-2" style="width:15px;height:15px" aria-hidden="true"></i>
           Abgehakt löschen (${checkedCount})
         </button>`);
       if (window.lucide) window.lucide.createIcons();
@@ -330,7 +330,7 @@ function updateItemsList(container) {
         clearBtn.remove();
       } else {
         clearBtn.innerHTML = `
-          <i data-lucide="trash-2" style="width:15px;height:15px"></i>
+          <i data-lucide="trash-2" style="width:15px;height:15px" aria-hidden="true"></i>
           Abgehakt löschen (${checkedCount})`;
         if (window.lucide) window.lucide.createIcons();
       }
@@ -557,7 +557,7 @@ export async function render(container, { user }) {
       <div class="list-tabs-bar" id="list-tabs-bar"></div>
       <div id="list-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
       <button class="page-fab" id="fab-new-item" aria-label="Artikel hinzufügen">
-        <i data-lucide="plus" style="width:24px;height:24px"></i>
+        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
       </button>
     </div>
   `;

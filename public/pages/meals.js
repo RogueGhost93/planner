@@ -107,12 +107,12 @@ export async function render(container, { user }) {
       <h1 class="sr-only">Essensplan</h1>
       <div class="week-nav">
         <button class="btn btn--icon" id="week-prev" aria-label="Vorherige Woche">
-          <i data-lucide="chevron-left"></i>
+          <i data-lucide="chevron-left" aria-hidden="true"></i>
         </button>
         <span class="week-nav__label" id="week-label"></span>
         <button class="week-nav__today" id="week-today">Heute</button>
         <button class="btn btn--icon" id="week-next" aria-label="Nächste Woche">
-          <i data-lucide="chevron-right"></i>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
         </button>
       </div>
       <div class="week-grid" id="week-grid">
@@ -179,7 +179,7 @@ function renderSlot(date, type, mealsForDay) {
           data-type="${type.key}"
           aria-label="${type.label} hinzufügen"
         >
-          <i data-lucide="plus" style="width:16px;height:16px;"></i>
+          <i data-lucide="plus" style="width:16px;height:16px;" aria-hidden="true"></i>
         </button>
       </div>
     `;
@@ -206,13 +206,13 @@ function renderSlot(date, type, mealsForDay) {
           ${canTransfer ? `<button class="meal-card__action-btn meal-card__action-btn--shopping"
             data-action="transfer-meal"
             data-meal-id="${meal.id}"
-            title="Zutaten auf Einkaufsliste"
-          ><i data-lucide="shopping-cart" style="width:14px;height:14px;"></i></button>` : ''}
+            aria-label="Zutaten auf Einkaufsliste"
+          ><i data-lucide="shopping-cart" style="width:14px;height:14px;" aria-hidden="true"></i></button>` : ''}
           <button class="meal-card__action-btn"
             data-action="delete-meal"
             data-meal-id="${meal.id}"
-            title="Löschen"
-          ><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+            aria-label="Mahlzeit löschen"
+          ><i data-lucide="trash-2" style="width:14px;height:14px;" aria-hidden="true"></i></button>
         </div>
       </div>
     </div>
@@ -427,7 +427,7 @@ function buildModalContent({ mode, date, mealType, meal }) {
       <label class="form-label">Zutaten</label>
       <div class="ingredient-list" id="ingredient-list">${ingRows}</div>
       <button class="add-ingredient-btn" id="add-ingredient-btn" type="button">
-        <i data-lucide="plus" style="width:14px;height:14px;"></i>
+        <i data-lucide="plus" style="width:14px;height:14px;" aria-hidden="true"></i>
         Zutat hinzufügen
       </button>
     </div>
@@ -435,7 +435,7 @@ function buildModalContent({ mode, date, mealType, meal }) {
     ${isEdit && hasIngOpen ? `
     <div class="shopping-transfer">
       <div class="shopping-transfer__label">
-        <i data-lucide="shopping-cart" style="width:14px;height:14px;"></i>
+        <i data-lucide="shopping-cart" style="width:14px;height:14px;" aria-hidden="true"></i>
         Zutaten auf Einkaufsliste übertragen
       </div>
       <select class="shopping-transfer__select" id="transfer-list-select">${listOpts}</select>
@@ -455,8 +455,8 @@ function ingredientRowHTML(name, qty, id) {
     <div class="ingredient-row" data-ing-id="${id ?? ''}">
       <input type="text" class="form-input ingredient-row__name" placeholder="Zutat" value="${escHtml(name)}">
       <input type="text" class="form-input ingredient-row__qty" placeholder="Menge" value="${escHtml(qty)}">
-      <button class="ingredient-row__remove" data-action="remove-ingredient" type="button" title="Entfernen">
-        <i data-lucide="x" style="width:14px;height:14px;"></i>
+      <button class="ingredient-row__remove" data-action="remove-ingredient" type="button" aria-label="Zutat entfernen">
+        <i data-lucide="x" style="width:14px;height:14px;" aria-hidden="true"></i>
       </button>
     </div>
   `;

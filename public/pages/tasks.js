@@ -99,7 +99,7 @@ function renderDueDate(dateStr) {
   const d = formatDueDate(dateStr);
   if (!d) return '';
   return `<span class="due-date ${d.cls}">
-    <i data-lucide="clock" style="width:11px;height:11px"></i> ${d.label}
+    <i data-lucide="clock" style="width:11px;height:11px" aria-hidden="true"></i> ${d.label}
   </span>`;
 }
 
@@ -108,11 +108,11 @@ function renderSwipeRow(task, innerHtml) {
   return `
     <div class="swipe-row" data-swipe-id="${task.id}" data-swipe-status="${task.status}">
       <div class="swipe-reveal swipe-reveal--done" aria-hidden="true">
-        <i data-lucide="${isDone ? 'rotate-ccw' : 'check'}" style="width:22px;height:22px"></i>
+        <i data-lucide="${isDone ? 'rotate-ccw' : 'check'}" style="width:22px;height:22px" aria-hidden="true"></i>
         <span>${isDone ? 'Öffnen' : 'Erledigt'}</span>
       </div>
       <div class="swipe-reveal swipe-reveal--edit" aria-hidden="true">
-        <i data-lucide="pencil" style="width:22px;height:22px"></i>
+        <i data-lucide="pencil" style="width:22px;height:22px" aria-hidden="true"></i>
         <span>Bearbeiten</span>
       </div>
       ${innerHtml}
@@ -133,7 +133,7 @@ function renderTaskCard(task, opts = {}) {
           <button class="subtask-item__checkbox ${s.status === 'done' ? 'subtask-item__checkbox--done' : ''}"
                   data-action="toggle-subtask" data-id="${s.id}"
                   data-status="${s.status}" aria-label="${s.title} als erledigt markieren">
-            ${s.status === 'done' ? '<i data-lucide="check" style="width:10px;height:10px;color:#fff"></i>' : ''}
+            ${s.status === 'done' ? '<i data-lucide="check" style="width:10px;height:10px;color:#fff" aria-hidden="true"></i>' : ''}
           </button>
           <span class="subtask-item__title">${s.title}</span>
         </div>`).join('')
@@ -145,7 +145,7 @@ function renderTaskCard(task, opts = {}) {
         <button class="task-status-btn task-status-btn--${task.status}"
                 data-action="toggle-status" data-id="${task.id}" data-status="${task.status}"
                 aria-label="${task.title} als erledigt markieren">
-          <i data-lucide="check" class="task-status-btn__check"></i>
+          <i data-lucide="check" class="task-status-btn__check" aria-hidden="true"></i>
         </button>
 
         <div class="task-card__body">
@@ -155,7 +155,7 @@ function renderTaskCard(task, opts = {}) {
           <div class="task-card__meta">
             ${renderPriorityBadge(task.priority)}
             ${renderDueDate(task.due_date)}
-            ${task.is_recurring ? '<span class="due-date" title="Wiederkehrend"><i data-lucide="repeat" style="width:12px;height:12px"></i></span>' : ''}
+            ${task.is_recurring ? '<span class="due-date" aria-label="Wiederkehrend"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>' : ''}
             ${task.category !== 'Sonstiges' ? `<span class="due-date">${task.category}</span>` : ''}
           </div>
         </div>
@@ -168,7 +168,7 @@ function renderTaskCard(task, opts = {}) {
 
         <button class="btn btn--ghost btn--icon" data-action="edit-task" data-id="${task.id}"
                 aria-label="Aufgabe bearbeiten" style="min-height:unset;width:36px;height:36px">
-          <i data-lucide="pencil" style="width:16px;height:16px"></i>
+          <i data-lucide="pencil" style="width:16px;height:16px" aria-hidden="true"></i>
         </button>
       </div>
 
@@ -195,7 +195,7 @@ function renderTaskCard(task, opts = {}) {
 function renderTaskGroups(tasks, groupMode) {
   if (!tasks.length) {
     return `<div class="tasks-empty">
-      <i data-lucide="check-circle-2" class="tasks-empty__icon"></i>
+      <i data-lucide="check-circle-2" class="tasks-empty__icon" aria-hidden="true"></i>
       <div class="tasks-empty__title">Keine Aufgaben</div>
       <div class="tasks-empty__desc">Erstelle eine neue Aufgabe mit dem + Button.</div>
     </div>`;
@@ -467,7 +467,7 @@ function renderKanbanCard(task) {
       <div class="kanban-card__title">${task.title}</div>
       <div class="kanban-card__meta">
         ${renderPriorityBadge(task.priority)}
-        ${due ? `<span class="due-date ${due.cls}"><i data-lucide="clock" style="width:10px;height:10px"></i> ${due.label}</span>` : ''}
+        ${due ? `<span class="due-date ${due.cls}"><i data-lucide="clock" style="width:10px;height:10px" aria-hidden="true"></i> ${due.label}</span>` : ''}
       </div>
       ${task.assigned_color ? `
         <div class="kanban-card__footer">
@@ -915,11 +915,11 @@ export async function render(container, { user }) {
           <div class="group-toggle" id="view-toggle">
             <button class="group-toggle__btn group-toggle__btn--active" data-view="list"
                     title="Listenansicht" aria-label="Listenansicht">
-              <i data-lucide="list" style="width:14px;height:14px;pointer-events:none"></i>
+              <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
             </button>
             <button class="group-toggle__btn" data-view="kanban"
                     title="Kanban-Ansicht" aria-label="Kanban-Ansicht">
-              <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none"></i>
+              <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
             </button>
           </div>
           <div class="group-toggle" id="group-mode-toggle">
@@ -927,7 +927,7 @@ export async function render(container, { user }) {
             <button class="group-toggle__btn" data-mode="due">Fälligkeit</button>
           </div>
           <button class="btn btn--primary" id="btn-new-task" style="gap:var(--space-1)">
-            <i data-lucide="plus" style="width:18px;height:18px"></i> Neu
+            <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i> Neu
           </button>
         </div>
       </div>
@@ -943,7 +943,7 @@ export async function render(container, { user }) {
           </div>`).join('')}
       </div>
       <button class="page-fab" id="fab-new-task" aria-label="Neue Aufgabe">
-        <i data-lucide="plus" style="width:24px;height:24px"></i>
+        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
       </button>
     </div>
   `;

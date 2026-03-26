@@ -49,13 +49,13 @@ export async function render(container, { user }) {
       <div class="notes-toolbar">
         <h1 class="notes-toolbar__title">Pinnwand</h1>
         <button class="btn btn--primary" id="notes-add-btn">
-          <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;"></i>
+          <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
           Neue Notiz
         </button>
       </div>
       <div id="notes-grid" class="notes-grid"></div>
       <button class="page-fab" id="fab-new-note" aria-label="Neue Notiz">
-        <i data-lucide="plus" style="width:24px;height:24px"></i>
+        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -88,7 +88,7 @@ function renderGrid() {
   if (!state.notes.length) {
     grid.innerHTML = `
       <div class="notes-empty">
-        <i data-lucide="sticky-note" class="notes-empty__icon"></i>
+        <i data-lucide="sticky-note" class="notes-empty__icon" aria-hidden="true"></i>
         <div style="font-size:var(--text-lg);font-weight:600;margin-bottom:var(--space-2);">Noch keine Notizen</div>
         <div style="font-size:var(--text-sm);">Klicke auf „Neue Notiz" um loszulegen.</div>
       </div>
@@ -130,8 +130,8 @@ function renderNoteCard(note) {
          data-id="${note.id}"
          style="background-color:${escHtml(note.color)};color:${textColor};">
       <button class="note-card__pin" data-action="pin" data-id="${note.id}"
-              title="${note.pinned ? 'Anpinnen aufheben' : 'Anpinnen'}">
-        <i data-lucide="${note.pinned ? 'pin-off' : 'pin'}" style="width:12px;height:12px;"></i>
+              aria-label="${note.pinned ? 'Anpinnen aufheben' : 'Anpinnen'}">
+        <i data-lucide="${note.pinned ? 'pin-off' : 'pin'}" style="width:12px;height:12px;" aria-hidden="true"></i>
       </button>
       ${note.title ? `<div class="note-card__title">${escHtml(note.title)}</div>` : ''}
       <div class="note-card__content">${renderMarkdownLight(note.content)}</div>
@@ -141,8 +141,8 @@ function renderNoteCard(note) {
                 style="background-color:${escHtml(note.creator_color || '#8E8E93')}">${initials}</span>
           <span>${escHtml(note.creator_name || '')}</span>
         </div>
-        <button class="note-card__delete" data-action="delete" data-id="${note.id}" title="Löschen">
-          <i data-lucide="trash-2" style="width:12px;height:12px;"></i>
+        <button class="note-card__delete" data-action="delete" data-id="${note.id}" aria-label="Notiz löschen">
+          <i data-lucide="trash-2" style="width:12px;height:12px;" aria-hidden="true"></i>
         </button>
       </div>
     </div>

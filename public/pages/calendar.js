@@ -161,7 +161,7 @@ export async function render(container, { user }) {
       <div class="cal-toolbar" id="cal-toolbar"></div>
       <div id="cal-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden;"></div>
       <button class="page-fab" id="fab-new-event" aria-label="Neuer Termin">
-        <i data-lucide="plus" style="width:24px;height:24px"></i>
+        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -187,7 +187,7 @@ function renderToolbar() {
     <h1 class="sr-only">Kalender</h1>
     <div class="cal-toolbar__nav">
       <button class="btn btn--icon" id="cal-prev" aria-label="Zurück">
-        <i data-lucide="chevron-left"></i>
+        <i data-lucide="chevron-left" aria-hidden="true"></i>
       </button>
     </div>
     <button class="cal-toolbar__today" id="cal-today">Heute</button>
@@ -200,11 +200,11 @@ function renderToolbar() {
     </div>
     <button class="btn btn--primary btn--icon" id="cal-add" aria-label="Termin hinzufügen"
             style="margin-left:auto;">
-      <i data-lucide="plus"></i>
+      <i data-lucide="plus" aria-hidden="true"></i>
     </button>
     <div class="cal-toolbar__nav">
       <button class="btn btn--icon" id="cal-next" aria-label="Weiter">
-        <i data-lucide="chevron-right"></i>
+        <i data-lucide="chevron-right" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -620,7 +620,7 @@ function renderAgendaEvent(ev) {
     <div class="agenda-event" data-id="${ev.id}">
       <div class="agenda-event__color" style="background-color:${escHtml(ev.color)};"></div>
       <div class="agenda-event__body">
-        <div class="agenda-event__title">${escHtml(ev.title)}${ev.recurrence_rule ? ' <i data-lucide="repeat" style="width:12px;height:12px;display:inline;vertical-align:middle;opacity:0.5"></i>' : ''}</div>
+        <div class="agenda-event__title">${escHtml(ev.title)}${ev.recurrence_rule ? ' <i data-lucide="repeat" style="width:12px;height:12px;display:inline;vertical-align:middle;opacity:0.5" aria-hidden="true"></i>' : ''}</div>
         <div class="agenda-event__meta">
           <span>${timeStr}</span>
           ${ev.location ? `<span>📍 ${escHtml(ev.location)}</span>` : ''}
@@ -663,7 +663,7 @@ function showEventPopup(ev, anchor) {
     <div class="event-popup__actions">
       <button class="btn btn--secondary" style="flex:1;" id="popup-edit">Bearbeiten</button>
       <button class="btn btn--danger"    id="popup-delete">
-        <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+        <i data-lucide="trash-2" style="width:16px;height:16px;" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -850,8 +850,8 @@ function buildEventModalContent({ mode, event, date }) {
     ${renderRRuleFields('event', isEdit ? event.recurrence_rule : null)}
 
     <div class="modal-panel__footer" style="border:none;padding:0;margin-top:var(--space-4)">
-      ${isEdit ? `<button class="btn btn--danger btn--icon" id="modal-delete" title="Löschen">
-        <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+      ${isEdit ? `<button class="btn btn--danger btn--icon" id="modal-delete" aria-label="Termin löschen">
+        <i data-lucide="trash-2" style="width:16px;height:16px;" aria-hidden="true"></i>
       </button>` : '<div></div>'}
       <div style="display:flex;gap:var(--space-3)">
         <button class="btn btn--secondary" id="modal-cancel">Abbrechen</button>

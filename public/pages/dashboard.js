@@ -118,17 +118,17 @@ function renderGreeting(user, stats = {}) {
   const statChips = [];
   if (urgentCount > 0)
     statChips.push(`<span class="greeting-chip greeting-chip--warn">
-      <i data-lucide="alert-circle" style="${chipIcon}"></i>
+      <i data-lucide="alert-circle" style="${chipIcon}" aria-hidden="true"></i>
       ${urgentCount} dring. Aufgabe${urgentCount > 1 ? 'n' : ''}
     </span>`);
   if (todayEventCount > 0)
     statChips.push(`<span class="greeting-chip">
-      <i data-lucide="calendar" style="${chipIcon}"></i>
+      <i data-lucide="calendar" style="${chipIcon}" aria-hidden="true"></i>
       ${todayEventCount} Termin${todayEventCount > 1 ? 'e' : ''} heute
     </span>`);
   if (todayMealTitle)
     statChips.push(`<span class="greeting-chip">
-      <i data-lucide="utensils" style="${chipIcon}"></i>
+      <i data-lucide="utensils" style="${chipIcon}" aria-hidden="true"></i>
       Heute: ${todayMealTitle}
     </span>`);
 
@@ -148,7 +148,7 @@ function renderUrgentTasks(tasks) {
     return `<div class="widget">
       ${widgetHeader('check-square', 'Aufgaben', 0, '/tasks')}
       <div class="widget__empty">
-        <i data-lucide="check-circle" class="empty-state__icon" style="color:var(--color-success)"></i>
+        <i data-lucide="check-circle" class="empty-state__icon" style="color:var(--color-success)" aria-hidden="true"></i>
         <div>Alles erledigt</div>
       </div>
     </div>`;
@@ -181,7 +181,7 @@ function renderUpcomingEvents(events) {
     return `<div class="widget">
       ${widgetHeader('calendar', 'Termine', 0, '/calendar')}
       <div class="widget__empty">
-        <i data-lucide="calendar-check" class="empty-state__icon"></i>
+        <i data-lucide="calendar-check" class="empty-state__icon" aria-hidden="true"></i>
         <div>Keine Termine</div>
       </div>
     </div>`;
@@ -238,7 +238,7 @@ function renderPinnedNotes(notes) {
     return `<div class="widget">
       ${widgetHeader('pin', 'Pinnwand', 0, '/notes')}
       <div class="widget__empty">
-        <i data-lucide="sticky-note" class="empty-state__icon"></i>
+        <i data-lucide="sticky-note" class="empty-state__icon" aria-hidden="true"></i>
         <div>Keine angepinnten Notizen</div>
       </div>
     </div>`;

@@ -46,13 +46,13 @@ export async function render(container, { user }) {
       <h1 class="sr-only">Kontakte</h1>
       <div class="contacts-toolbar">
         <div class="contacts-toolbar__search">
-          <i data-lucide="search" class="contacts-toolbar__search-icon"></i>
+          <i data-lucide="search" class="contacts-toolbar__search-icon" aria-hidden="true"></i>
           <input type="search" class="contacts-toolbar__search-input"
                  id="contacts-search" placeholder="Name, Telefon oder E-Mail suchen…"
                  autocomplete="off">
         </div>
         <button class="btn btn--primary" id="contacts-add-btn">
-          <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;"></i>
+          <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
           Neu
         </button>
       </div>
@@ -64,7 +64,7 @@ export async function render(container, { user }) {
       </div>
       <div id="contacts-list" class="contacts-list"></div>
       <button class="page-fab" id="fab-new-contact" aria-label="Neuer Kontakt">
-        <i data-lucide="plus" style="width:24px;height:24px"></i>
+        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -134,7 +134,7 @@ function renderList() {
   if (!contacts.length) {
     container.innerHTML = `
       <div class="contacts-empty">
-        <i data-lucide="users" style="width:48px;height:48px;color:var(--color-text-disabled);margin-bottom:var(--space-3);"></i>
+        <i data-lucide="users" style="width:48px;height:48px;color:var(--color-text-disabled);margin-bottom:var(--space-3);" aria-hidden="true"></i>
         <div style="font-size:var(--text-base);font-weight:600;">Keine Kontakte gefunden</div>
       </div>
     `;
@@ -176,9 +176,9 @@ function renderList() {
 }
 
 function renderContactItem(c) {
-  const phone   = c.phone  ? `<a href="tel:${escHtml(c.phone)}"   class="contact-action-btn contact-action-btn--call"  title="Anrufen"><i data-lucide="phone" style="width:16px;height:16px;"></i></a>` : '';
-  const email   = c.email  ? `<a href="mailto:${escHtml(c.email)}" class="contact-action-btn contact-action-btn--mail"  title="E-Mail"><i data-lucide="mail" style="width:16px;height:16px;"></i></a>` : '';
-  const maps    = c.address ? `<a href="https://maps.google.com/?q=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="contact-action-btn contact-action-btn--maps" title="In Maps öffnen"><i data-lucide="map-pin" style="width:16px;height:16px;"></i></a>` : '';
+  const phone   = c.phone  ? `<a href="tel:${escHtml(c.phone)}"   class="contact-action-btn contact-action-btn--call"  aria-label="Anrufen"><i data-lucide="phone" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
+  const email   = c.email  ? `<a href="mailto:${escHtml(c.email)}" class="contact-action-btn contact-action-btn--mail"  aria-label="E-Mail"><i data-lucide="mail" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
+  const maps    = c.address ? `<a href="https://maps.google.com/?q=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="contact-action-btn contact-action-btn--maps" aria-label="In Maps öffnen"><i data-lucide="map-pin" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
   const meta    = [c.phone, c.email].filter(Boolean).join(' · ');
 
   return `
@@ -190,8 +190,8 @@ function renderContactItem(c) {
       </div>
       <div class="contact-item__actions">
         ${phone}${email}${maps}
-        <button class="contact-action-btn" data-action="delete" data-id="${c.id}" title="Löschen">
-          <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+        <button class="contact-action-btn" data-action="delete" data-id="${c.id}" aria-label="Kontakt löschen">
+          <i data-lucide="trash-2" style="width:16px;height:16px;" aria-hidden="true"></i>
         </button>
       </div>
     </div>
@@ -237,8 +237,8 @@ function openContactModal({ mode, contact = null }) {
     </div>
 
     <div class="modal-panel__footer" style="border:none;padding:0;margin-top:var(--space-4)">
-      ${isEdit ? `<button class="btn btn--danger btn--icon" id="cm-delete" title="Löschen">
-        <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+      ${isEdit ? `<button class="btn btn--danger btn--icon" id="cm-delete" aria-label="Kontakt löschen">
+        <i data-lucide="trash-2" style="width:16px;height:16px;" aria-hidden="true"></i>
       </button>` : '<div></div>'}
       <div style="display:flex;gap:var(--space-3);">
         <button class="btn btn--secondary" id="cm-cancel">Abbrechen</button>

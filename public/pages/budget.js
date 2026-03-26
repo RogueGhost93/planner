@@ -86,22 +86,22 @@ export async function render(container, { user }) {
       <h1 class="sr-only">Budget</h1>
       <div class="budget-nav">
         <button class="btn btn--icon" id="budget-prev" aria-label="Vorheriger Monat">
-          <i data-lucide="chevron-left"></i>
+          <i data-lucide="chevron-left" aria-hidden="true"></i>
         </button>
         <button class="budget-nav__today" id="budget-today">Aktuell</button>
         <span class="budget-nav__label" id="budget-label"></span>
         <button class="btn btn--primary btn--icon" id="budget-add" aria-label="Eintrag hinzufügen">
-          <i data-lucide="plus"></i>
+          <i data-lucide="plus" aria-hidden="true"></i>
         </button>
         <button class="btn btn--icon" id="budget-next" aria-label="Nächster Monat">
-          <i data-lucide="chevron-right"></i>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
         </button>
       </div>
       <div id="budget-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
         <div style="padding:2rem;text-align:center;color:var(--color-text-disabled);">Lade…</div>
       </div>
       <button class="page-fab" id="fab-new-budget" aria-label="Neuer Eintrag">
-        <i data-lucide="plus" style="width:24px;height:24px"></i>
+        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -192,7 +192,7 @@ function renderBody() {
         ${state.entries.length ? `
         <a href="/api/v1/budget/export?month=${state.month}" class="btn btn--secondary"
            style="font-size:var(--text-sm);padding:var(--space-1) var(--space-3);">
-          <i data-lucide="download" style="width:14px;height:14px;margin-right:4px;"></i>CSV
+          <i data-lucide="download" style="width:14px;height:14px;margin-right:4px;" aria-hidden="true"></i>CSV
         </a>` : ''}
       </div>
       <div class="budget-list" id="budget-list">
@@ -240,7 +240,7 @@ function renderCategoryBars(byCategory) {
 function renderEntries() {
   if (!state.entries.length) {
     return `<div class="budget-empty">
-      <i data-lucide="receipt" style="width:48px;height:48px;color:var(--color-text-disabled);margin-bottom:var(--space-3);"></i>
+      <i data-lucide="receipt" style="width:48px;height:48px;color:var(--color-text-disabled);margin-bottom:var(--space-3);" aria-hidden="true"></i>
       <div style="font-size:var(--text-base);font-weight:600;">Keine Einträge</div>
       <div style="font-size:var(--text-sm);margin-top:var(--space-1);">Noch keine Transaktionen für diesen Monat.</div>
     </div>`;
@@ -261,8 +261,8 @@ function renderEntries() {
           <div class="budget-entry__meta">${date} · ${escHtml(e.category)}${e.is_recurring ? ' 🔁' : ''}</div>
         </div>
         <div class="budget-entry__amount ${amtClass}">${sign}${formatAmount(e.amount)}</div>
-        <button class="budget-entry__delete" data-action="delete" data-id="${e.id}" title="Löschen">
-          <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+        <button class="budget-entry__delete" data-action="delete" data-id="${e.id}" aria-label="Eintrag löschen">
+          <i data-lucide="trash-2" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
       </div>
     `;
@@ -329,8 +329,8 @@ function openBudgetModal({ mode, entry = null }) {
     </div>
 
     <div class="modal-panel__footer" style="border:none;padding:0;margin-top:var(--space-4)">
-      ${isEdit ? `<button class="btn btn--danger btn--icon" id="bm-delete" title="Löschen">
-        <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
+      ${isEdit ? `<button class="btn btn--danger btn--icon" id="bm-delete" aria-label="Eintrag löschen">
+        <i data-lucide="trash-2" style="width:16px;height:16px;" aria-hidden="true"></i>
       </button>` : '<div></div>'}
       <div style="display:flex;gap:var(--space-3)">
         <button class="btn btn--secondary" id="bm-cancel">Abbrechen</button>
