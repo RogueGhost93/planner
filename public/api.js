@@ -30,6 +30,7 @@ async function apiFetch(path, options = {}) {
 
   const response = await fetch(url, {
     credentials: 'same-origin',
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(stateChanging ? { 'X-CSRF-Token': getCsrfToken() } : {}),
