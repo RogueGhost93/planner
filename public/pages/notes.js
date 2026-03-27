@@ -169,14 +169,49 @@ function applyFormat(textarea, format) {
       before = '*'; after = '*';
       insert = sel || 'Text';
       break;
+    case 'underline':
+      before = '<u>'; after = '</u>';
+      insert = sel || 'Text';
+      break;
+    case 'strikethrough':
+      before = '~~'; after = '~~';
+      insert = sel || 'Text';
+      break;
+    case 'code':
+      before = '`'; after = '`';
+      insert = sel || 'Code';
+      break;
+    case 'link':
+      if (sel) {
+        textarea.setRangeText(`[${sel}](url)`, start, end, 'select');
+        textarea.selectionStart = start + sel.length + 3;
+        textarea.selectionEnd   = start + sel.length + 6;
+      } else {
+        textarea.setRangeText('[Linktext](url)', start, end, 'select');
+        textarea.selectionStart = start + 1;
+        textarea.selectionEnd   = start + 9;
+      }
+      return;
+    case 'heading': {
+      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+      const lineEnd   = text.indexOf('\n', start);
+      const line      = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd);
+      const match     = line.match(/^(#{1,3})\s/);
+      if (match && match[1].length < 3) {
+        textarea.setRangeText('#' + line, lineStart, lineEnd === -1 ? text.length : lineEnd, 'end');
+      } else if (match && match[1].length >= 3) {
+        textarea.setRangeText(line.replace(/^#{1,3}\s/, ''), lineStart, lineEnd === -1 ? text.length : lineEnd, 'end');
+      } else {
+        textarea.setRangeText('## ' + line, lineStart, lineEnd === -1 ? text.length : lineEnd, 'end');
+      }
+      return;
+    }
     case 'list': {
-      // Jede Zeile mit "- " prefixen oder neuen Listenpunkt einfügen
       if (sel) {
         const lines = sel.split('\n').map((l) => l.startsWith('- ') ? l : `- ${l}`);
         textarea.setRangeText(lines.join('\n'), start, end, 'end');
         return;
       }
-      before = ''; after = '';
       const lineStart = text.lastIndexOf('\n', start - 1) + 1;
       const currentLine = text.slice(lineStart, start);
       if (currentLine.trim() === '') {
@@ -186,6 +221,54 @@ function applyFormat(textarea, format) {
       }
       return;
     }
+    case 'ordered-list': {
+      if (sel) {
+        const lines = sel.split('\n').map((l, i) => `${i + 1}. ${l.replace(/^\d+\.\s/, '')}`);
+        textarea.setRangeText(lines.join('\n'), start, end, 'end');
+        return;
+      }
+      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+      const currentLine = text.slice(lineStart, start);
+      if (currentLine.trim() === '') {
+        textarea.setRangeText('1. ', start, start, 'end');
+      } else {
+        textarea.setRangeText('\n1. ', start, start, 'end');
+      }
+      return;
+    }
+    case 'checklist': {
+      if (sel) {
+        const lines = sel.split('\n').map((l) => l.startsWith('- [ ] ') ? l : `- [ ] ${l}`);
+        textarea.setRangeText(lines.join('\n'), start, end, 'end');
+        return;
+      }
+      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+      const currentLine = text.slice(lineStart, start);
+      if (currentLine.trim() === '') {
+        textarea.setRangeText('- [ ] ', start, start, 'end');
+      } else {
+        textarea.setRangeText('\n- [ ] ', start, start, 'end');
+      }
+      return;
+    }
+    case 'quote': {
+      if (sel) {
+        const lines = sel.split('\n').map((l) => l.startsWith('> ') ? l : `> ${l}`);
+        textarea.setRangeText(lines.join('\n'), start, end, 'end');
+        return;
+      }
+      const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+      const currentLine = text.slice(lineStart, start);
+      if (currentLine.trim() === '') {
+        textarea.setRangeText('> ', start, start, 'end');
+      } else {
+        textarea.setRangeText('\n> ', start, start, 'end');
+      }
+      return;
+    }
+    case 'divider':
+      textarea.setRangeText('\n\n---\n\n', start, end, 'end');
+      return;
     default: return;
   }
 
@@ -211,7 +294,7 @@ function openNoteModal({ mode, note = null }) {
              placeholder="Kein Titel" value="${escHtml(isEdit && note.title ? note.title : '')}">
     </div>
     <div class="form-group">
-      <label class="form-label" for="note-content">Inhalt *</label>
+      <label class="form-label" for="note-content">Inhalt <span style="font-weight:400;color:var(--text-tertiary);font-size:.85em;">(Markdown-Formatierung möglich)</span></label>
       <div class="note-format-toolbar">
         <button type="button" class="note-format-btn" data-format="bold" title="Fett (Strg+B)">
           <i data-lucide="bold" style="width:14px;height:14px;" aria-hidden="true"></i>
@@ -219,9 +302,37 @@ function openNoteModal({ mode, note = null }) {
         <button type="button" class="note-format-btn" data-format="italic" title="Kursiv (Strg+I)">
           <i data-lucide="italic" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
+        <button type="button" class="note-format-btn" data-format="underline" title="Unterstrichen (Strg+U)">
+          <i data-lucide="underline" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="note-format-btn" data-format="strikethrough" title="Durchgestrichen">
+          <i data-lucide="strikethrough" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
         <span class="note-format-btn--sep"></span>
-        <button type="button" class="note-format-btn" data-format="list" title="Liste">
+        <button type="button" class="note-format-btn" data-format="heading" title="Überschrift">
+          <i data-lucide="heading" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="note-format-btn" data-format="list" title="Aufzählung">
           <i data-lucide="list" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="note-format-btn" data-format="ordered-list" title="Nummerierte Liste">
+          <i data-lucide="list-ordered" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="note-format-btn" data-format="checklist" title="Checkliste">
+          <i data-lucide="list-checks" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <span class="note-format-btn--sep"></span>
+        <button type="button" class="note-format-btn" data-format="link" title="Link">
+          <i data-lucide="link" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="note-format-btn" data-format="code" title="Code">
+          <i data-lucide="code" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="note-format-btn" data-format="quote" title="Zitat">
+          <i data-lucide="quote" style="width:14px;height:14px;" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="note-format-btn" data-format="divider" title="Trennlinie">
+          <i data-lucide="minus" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
       </div>
       <textarea class="form-input" id="note-content" rows="6"
@@ -277,6 +388,7 @@ function openNoteModal({ mode, note = null }) {
         if (e.ctrlKey || e.metaKey) {
           if (e.key === 'b') { e.preventDefault(); applyFormat(textarea, 'bold'); }
           if (e.key === 'i') { e.preventDefault(); applyFormat(textarea, 'italic'); }
+          if (e.key === 'u') { e.preventDefault(); applyFormat(textarea, 'underline'); }
         }
       });
 

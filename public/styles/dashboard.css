@@ -454,6 +454,29 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* Desktop: 2x2 Grid statt 4x1 für mehr Breite pro Slot */
+@media (min-width: 1024px) {
+  .meal-slots {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .meal-slot:first-child {
+    border-bottom-left-radius: 0;
+  }
+
+  .meal-slot:last-child {
+    border-bottom-right-radius: 0;
+  }
+
+  .meal-slot:nth-child(3) {
+    border-bottom-left-radius: var(--radius-md);
+  }
+
+  .meal-slot:nth-child(4) {
+    border-bottom-right-radius: var(--radius-md);
+  }
+}
+
 /* --------------------------------------------------------
  * Notizen-Grid-Widget
  * -------------------------------------------------------- */
