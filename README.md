@@ -38,19 +38,65 @@ Oikos is **not** a SaaS product, not a team collaboration tool, and not designed
 ## Screenshots
 
 <p align="center">
-  <img src="docs/screenshots/tablet-light/tablet-light-dashboard.png" alt="Dashboard" width="720">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-dashboard.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-dashboard.png">
+    <img src="docs/screenshots/tablet-light/tablet-light-dashboard.png" alt="Dashboard" width="720">
+  </picture>
 </p>
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-light/mobile-light-tasks.png" alt="Tasks" width="220"><br><strong>Tasks</strong></td>
-    <td align="center"><img src="docs/screenshots/mobile-light/mobile-light-shopping.png" alt="Shopping" width="220"><br><strong>Shopping</strong></td>
-    <td align="center"><img src="docs/screenshots/mobile-light/mobile-light-budget.png" alt="Budget" width="220"><br><strong>Budget</strong></td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-tasks.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-tasks.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-tasks.png" alt="Tasks" width="240">
+      </picture>
+      <br><strong>Tasks</strong>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-household.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-household.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-household.png" alt="Shopping" width="240">
+      </picture>
+      <br><strong>Shopping</strong>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-budget.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-budget.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-budget.png" alt="Budget" width="240">
+      </picture>
+      <br><strong>Budget</strong>
+    </td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/mobile-light/mobile-light-notes.png" alt="Notes" width="220"><br><strong>Notes</strong></td>
-    <td align="center"><img src="docs/screenshots/mobile-light/mobile-light-contacts.png" alt="Contacts" width="220"><br><strong>Contacts</strong></td>
-    <td align="center"><img src="docs/screenshots/tablet-light/tablet-light-calendar.png" alt="Calendar – Tablet" width="220"><br><strong>Calendar — Tablet</strong></td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-notes.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-notes.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-notes.png" alt="Notes" width="240">
+      </picture>
+      <br><strong>Notes</strong>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-contacts.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-contacts.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-contacts.png" alt="Contacts" width="240">
+      </picture>
+      <br><strong>Contacts</strong>
+    </td>
+    <td align="center" width="33%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-dashboard.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-dashboard.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-dashboard.png" alt="Dashboard Mobile" width="240">
+      </picture>
+      <br><strong>Dashboard — Mobile</strong>
+    </td>
   </tr>
 </table>
 
