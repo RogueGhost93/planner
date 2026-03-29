@@ -12,9 +12,9 @@
  *   API: Immer Netzwerk (kein Caching von Nutzerdaten)
  */
 
-const SHELL_CACHE   = 'oikos-shell-v18';
-const PAGES_CACHE   = 'oikos-pages-v18';
-const ASSETS_CACHE  = 'oikos-assets-v18';
+const SHELL_CACHE   = 'oikos-shell-v19';
+const PAGES_CACHE   = 'oikos-pages-v19';
+const ASSETS_CACHE  = 'oikos-assets-v19';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App-Shell: sofort benötigt für ersten Render
@@ -28,6 +28,7 @@ const APP_SHELL = [
   '/lucide.min.js',
   '/styles/tokens.css',
   '/styles/reset.css',
+  '/styles/pwa.css',
   '/styles/layout.css',
   '/styles/login.css',
   '/styles/dashboard.css',
@@ -39,10 +40,15 @@ const APP_SHELL = [
   '/styles/contacts.css',
   '/styles/budget.css',
   '/styles/settings.css',
+  '/components/oikos-install-prompt.js',
   '/manifest.json',
   '/favicon.ico',
   '/icons/favicon-32.png',
   '/icons/apple-touch-icon.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-maskable-192.png',
+  '/icons/icon-maskable-512.png',
 ];
 
 // Seiten-Module: lazy geladen, aber vorab gecacht für Offline
@@ -107,6 +113,12 @@ self.addEventListener('fetch', (event) => {
   // Nur GET cachen
   if (request.method !== 'GET') return;
 
+  // Navigation Requests: Network-first, Fallback auf gecachte Shell
+  if (request.mode === 'navigate') {
+    event.respondWith(networkFirst(request, SHELL_CACHE));
+    return;
+  }
+
   // Bilder + Fonts: Cache-First, langer TTL
   if (isAsset(url.pathname)) {
     event.respondWith(cacheFirst(request, ASSETS_CACHE));
@@ -119,9 +131,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // App-Shell (HTML, JS, CSS): Stale-While-Revalidate
+  // App-Shell (JS, CSS): Stale-While-Revalidate
   event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
 });
+
+// --------------------------------------------------------
+// Strategie: Network-First (für Navigation Requests)
+// Versucht Netzwerk, fällt auf gecachte Shell zurück (Offline).
+// --------------------------------------------------------
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.type === 'basic') {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch {
+    // Offline: gecachte Shell liefern
+    const cached = await cache.match(request);
+    if (cached) return cached;
+
+    // Fallback auf index.html (SPA-Routing)
+    const shell = await cache.match('/index.html');
+    if (shell) return shell;
+
+    return new Response('Keine Verbindung', {
+      status: 503,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+}
 
 // --------------------------------------------------------
 // Strategie: Stale-While-Revalidate

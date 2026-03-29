@@ -8,20 +8,60 @@ import { auth } from '/api.js';
 
 // --------------------------------------------------------
 // Routen-Definitionen
-// Jede Route hat: path, page (dynamisch geladen), requiresAuth
+// Jede Route hat: path, page (dynamisch geladen), requiresAuth, module (für theme-color)
 // --------------------------------------------------------
 const ROUTES = [
-  { path: '/login',    page: '/pages/login.js',    requiresAuth: false },
-  { path: '/',         page: '/pages/dashboard.js', requiresAuth: true  },
-  { path: '/tasks',    page: '/pages/tasks.js',     requiresAuth: true  },
-  { path: '/shopping', page: '/pages/shopping.js',  requiresAuth: true  },
-  { path: '/meals',    page: '/pages/meals.js',     requiresAuth: true  },
-  { path: '/calendar', page: '/pages/calendar.js',  requiresAuth: true  },
-  { path: '/notes',    page: '/pages/notes.js',     requiresAuth: true  },
-  { path: '/contacts', page: '/pages/contacts.js',  requiresAuth: true  },
-  { path: '/budget',   page: '/pages/budget.js',    requiresAuth: true  },
-  { path: '/settings', page: '/pages/settings.js',  requiresAuth: true  },
+  { path: '/login',    page: '/pages/login.js',    requiresAuth: false, module: null        },
+  { path: '/',         page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
+  { path: '/tasks',    page: '/pages/tasks.js',     requiresAuth: true, module: 'tasks'     },
+  { path: '/shopping', page: '/pages/shopping.js',  requiresAuth: true, module: 'shopping'  },
+  { path: '/meals',    page: '/pages/meals.js',     requiresAuth: true, module: 'meals'     },
+  { path: '/calendar', page: '/pages/calendar.js',  requiresAuth: true, module: 'calendar'  },
+  { path: '/notes',    page: '/pages/notes.js',     requiresAuth: true, module: 'notes'     },
+  { path: '/contacts', page: '/pages/contacts.js',  requiresAuth: true, module: 'contacts'  },
+  { path: '/budget',   page: '/pages/budget.js',    requiresAuth: true, module: 'budget'    },
+  { path: '/settings', page: '/pages/settings.js',  requiresAuth: true, module: 'settings'  },
 ];
+
+// --------------------------------------------------------
+// Standalone-Modus: Dynamische theme-color Anpassung
+// Statusbar-Farbe spiegelt aktuelle Seite / Modal-State wider
+// --------------------------------------------------------
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  || navigator.standalone === true;
+
+/**
+ * Setzt die theme-color Meta-Tags (Light + Dark Variante).
+ * @param {string} lightColor
+ * @param {string} [darkColor] — Falls nicht angegeben, wird lightColor für beide gesetzt
+ */
+function setThemeColor(lightColor, darkColor) {
+  if (!isStandalone) return;
+  const metas = document.querySelectorAll('meta[name="theme-color"]');
+  if (metas.length >= 2) {
+    metas[0].setAttribute('content', lightColor);
+    metas[1].setAttribute('content', darkColor || lightColor);
+  } else if (metas.length === 1) {
+    metas[0].setAttribute('content', lightColor);
+  }
+}
+
+/** Liest eine CSS Custom Property vom :root */
+function getCSSToken(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+/** Setzt theme-color passend zum aktuellen Modul */
+function updateThemeColorForRoute(route) {
+  if (!route?.module) {
+    setThemeColor('#007AFF', '#1C1C1E');
+    return;
+  }
+  const color = getCSSToken(`--module-${route.module}`);
+  if (color) {
+    setThemeColor(color, color);
+  }
+}
 
 // --------------------------------------------------------
 // Modul-Cache: verhindert redundante dynamic imports bei Navigation
@@ -88,6 +128,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
 
   await renderPage(route);
   updateNav(path);
+  updateThemeColorForRoute(route);
 }
 
 /**
@@ -348,4 +389,12 @@ window.addEventListener('auth:expired', () => {
 navigate(location.pathname, false);
 
 // Globale Exporte
-window.oikos = { navigate, showToast };
+window.oikos = {
+  navigate,
+  showToast,
+  setThemeColor,
+  restoreThemeColor: () => {
+    const route = ROUTES.find((r) => r.path === currentPath);
+    updateThemeColorForRoute(route);
+  },
+};

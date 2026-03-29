@@ -2,14 +2,24 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#2563EB" />
+  <!-- Viewport: edge-to-edge, kein Auto-Zoom bei Inputs -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+
+  <!-- PWA / Theme -->
+  <meta name="theme-color" content="#007AFF" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#1C1C1E" media="(prefers-color-scheme: dark)" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  <!-- iOS-spezifisch -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Oikos" />
   <meta name="description" content="Oikos — Familienplaner" />
   <title>Oikos</title>
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
 
@@ -24,6 +34,7 @@
   <!-- Styles -->
   <link rel="stylesheet" href="/styles/tokens.css" />
   <link rel="stylesheet" href="/styles/reset.css" />
+  <link rel="stylesheet" href="/styles/pwa.css" />
   <link rel="stylesheet" href="/styles/layout.css" />
   <link rel="stylesheet" href="/styles/login.css" />
   <link rel="stylesheet" href="/styles/dashboard.css" />
@@ -59,6 +70,10 @@
   <!-- Module (ES-Module, kein Bundler) -->
   <script type="module" src="/api.js"></script>
   <script type="module" src="/router.js"></script>
+
+  <!-- Install-Prompt (PWA) -->
+  <oikos-install-prompt></oikos-install-prompt>
+  <script type="module" src="/components/oikos-install-prompt.js"></script>
 
   <!-- Service Worker registrieren -->
   <script src="/sw-register.js" defer></script>

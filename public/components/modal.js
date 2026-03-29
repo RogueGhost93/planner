@@ -13,6 +13,9 @@ let activeOverlay = null;
 let previouslyFocused = null;
 let focusTrapHandler = null;
 
+// Overlay-Dimming: theme-color abdunkeln im Standalone-Modus
+const OVERLAY_THEME_COLOR = '#1A1A1A';
+
 const FOCUSABLE = [
   'a[href]',
   'button:not([disabled])',
@@ -126,6 +129,11 @@ export function openModal({ title, content, onSave, onDelete, size = 'md' } = {}
 
   // Callback für Aufrufer (Form-Events binden etc.)
   if (typeof onSave === 'function') onSave(panel);
+
+  // Standalone: Statusbar abdunkeln (Overlay-Effekt)
+  if (window.oikos?.setThemeColor) {
+    window.oikos.setThemeColor(OVERLAY_THEME_COLOR, OVERLAY_THEME_COLOR);
+  }
 }
 
 // --------------------------------------------------------
@@ -154,5 +162,10 @@ export function closeModal() {
   if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
     previouslyFocused.focus();
     previouslyFocused = null;
+  }
+
+  // Standalone: Statusbar-Farbe zur aktuellen Route wiederherstellen
+  if (window.oikos?.restoreThemeColor) {
+    window.oikos.restoreThemeColor();
   }
 }
