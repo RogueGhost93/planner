@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
-import { stagger } from '/utils/ux.js';
+import { stagger, vibrate } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -459,6 +459,7 @@ async function deleteNote(id) {
     await api.delete(`/notes/${id}`);
     state.notes = state.notes.filter((n) => n.id !== id);
     renderGrid();
+    vibrate([30, 50, 30]);
     window.oikos?.showToast('Notiz gelöscht', 'success');
   } catch (err) {
     window.oikos?.showToast(err.data?.error ?? 'Fehler', 'error');

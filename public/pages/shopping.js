@@ -5,7 +5,7 @@
  */
 
 import { api } from '/api.js';
-import { stagger } from '/utils/ux.js';
+import { stagger, vibrate } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -441,6 +441,7 @@ function wireListContentEvents(container) {
 
       try {
         await api.patch(`/shopping/items/${id}`, { is_checked: newVal });
+        vibrate(10);
       } catch (err) {
         // Zurückrollen
         if (item) item.is_checked = checked;

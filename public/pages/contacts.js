@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
-import { stagger } from '/utils/ux.js';
+import { stagger, vibrate } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -314,6 +314,7 @@ async function deleteContact(id) {
     await api.delete(`/contacts/${id}`);
     state.contacts = state.contacts.filter((c) => c.id !== id);
     renderList();
+    vibrate([30, 50, 30]);
     window.oikos?.showToast('Kontakt gelöscht', 'success');
   } catch (err) {
     window.oikos?.showToast(err.data?.error ?? 'Fehler', 'error');

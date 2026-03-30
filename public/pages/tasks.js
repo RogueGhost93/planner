@@ -7,7 +7,7 @@
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
-import { stagger } from '/utils/ux.js';
+import { stagger, vibrate } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -766,7 +766,7 @@ function wireSwipeGestures(container) {
         // Swipe links → Status-Toggle (offen ↔ erledigt)
         card.style.transition = 'transform 0.2s ease';
         card.style.transform  = 'translateX(-110%)';
-        if (navigator.vibrate) navigator.vibrate(40);
+        vibrate(40);
         setTimeout(async () => {
           resetCard(false);
           try {
@@ -781,7 +781,7 @@ function wireSwipeGestures(container) {
       } else if (dx > SWIPE_THRESHOLD) {
         // Swipe rechts → Bearbeiten-Modal
         resetCard(true);
-        if (navigator.vibrate) navigator.vibrate(20);
+        vibrate(20);
         try {
           const task = await loadTaskForEdit(taskId);
           openTaskModal({ task, users: state.users }, container);
