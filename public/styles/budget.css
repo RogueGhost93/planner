@@ -101,6 +101,14 @@
 .budget-summary-card--balance-positive .budget-summary-card__amount { color: var(--color-success); }
 .budget-summary-card--balance-negative .budget-summary-card__amount { color: var(--color-danger);  }
 
+.budget-summary-card__trend {
+  font-size: var(--text-xs);
+  margin-top: var(--space-1);
+}
+.budget-summary-card__trend--positive { color: var(--color-success); }
+.budget-summary-card__trend--negative { color: var(--color-danger);  }
+.budget-summary-card__trend--neutral  { color: var(--color-text-secondary); }
+
 /* --------------------------------------------------------
  * Kategorien-Diagramm (Canvas)
  * -------------------------------------------------------- */

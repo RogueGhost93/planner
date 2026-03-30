@@ -26,9 +26,10 @@ const MONTH_NAMES = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
 // --------------------------------------------------------
 
 let state = {
-  month:    '',   // YYYY-MM
-  entries:  [],
-  summary:  null,
+  month:       '',   // YYYY-MM
+  entries:     [],
+  summary:     null,
+  prevSummary: null, // Vormonat für Monatsvergleich
 };
 let _container = null;
 
@@ -56,19 +57,23 @@ function addMonths(ym, n) {
 // --------------------------------------------------------
 
 async function loadMonth(month) {
+  const prevMonth = addMonths(month, -1);
   try {
-    const [entriesRes, summaryRes] = await Promise.all([
+    const [entriesRes, summaryRes, prevSummaryRes] = await Promise.all([
       api.get(`/budget?month=${month}`),
       api.get(`/budget/summary?month=${month}`),
+      api.get(`/budget/summary?month=${prevMonth}`),
     ]);
-    state.month   = month;
-    state.entries = entriesRes.data;
-    state.summary = summaryRes.data;
+    state.month       = month;
+    state.entries     = entriesRes.data;
+    state.summary     = summaryRes.data;
+    state.prevSummary = prevSummaryRes.data;
   } catch (err) {
     console.error('[Budget] loadMonth Fehler:', err);
-    state.month   = month;
-    state.entries = [];
-    state.summary = { income: 0, expenses: 0, balance: 0, by_category: [] };
+    state.month       = month;
+    state.entries     = [];
+    state.summary     = { income: 0, expenses: 0, balance: 0, byCategory: [] };
+    state.prevSummary = null;
     window.oikos?.showToast('Budget konnte nicht geladen werden.', 'danger');
   }
 }
@@ -157,8 +162,10 @@ function renderBody() {
   if (!body) return;
   updateLabel();
 
-  const s = state.summary;
+  const s    = state.summary;
+  const p    = state.prevSummary;
   const balanceClass = s.balance >= 0 ? 'budget-summary-card--balance-positive' : 'budget-summary-card--balance-negative';
+  const prevLabel = p ? formatMonthLabel(p.month).split(' ')[0].slice(0, 3) : '';
 
   body.innerHTML = `
     <!-- Zusammenfassung -->
@@ -166,14 +173,17 @@ function renderBody() {
       <div class="budget-summary-card budget-summary-card--income">
         <div class="budget-summary-card__label">Einnahmen</div>
         <div class="budget-summary-card__amount">${formatAmount(s.income)}</div>
+        ${p ? renderTrend(s.income, p.income, prevLabel) : ''}
       </div>
       <div class="budget-summary-card budget-summary-card--expenses">
         <div class="budget-summary-card__label">Ausgaben</div>
         <div class="budget-summary-card__amount">${formatAmount(Math.abs(s.expenses))}</div>
+        ${p ? renderTrend(s.expenses, p.expenses, prevLabel) : ''}
       </div>
       <div class="budget-summary-card ${balanceClass}">
         <div class="budget-summary-card__label">Saldo</div>
         <div class="budget-summary-card__amount">${formatAmount(s.balance)}</div>
+        ${p ? renderTrend(s.balance, p.balance, prevLabel) : ''}
       </div>
     </div>
 
@@ -272,6 +282,28 @@ function renderEntries() {
       </div>
     `;
   }).join('');
+}
+
+/**
+ * Rendert eine Trend-Zeile im Vergleich zum Vormonat.
+ * Alle drei Metriken (income, expenses, balance) nutzen dieselbe Logik:
+ *   delta > 0 → positiver Trend (▲ grün), delta < 0 → negativer Trend (▼ rot).
+ * Ausgaben werden als negative Zahlen übergeben, daher gilt:
+ *   weniger Ausgaben ↔ delta > 0 ↔ gut.
+ * @param {number} current   Aktueller Wert
+ * @param {number} prev      Vormonatswert
+ * @param {string} prevLabel Kurzname des Vormonats (z.B. "Mär")
+ */
+function renderTrend(current, prev, prevLabel) {
+  const delta = current - prev;
+  if (Math.abs(delta) < 0.005) {
+    return `<div class="budget-summary-card__trend budget-summary-card__trend--neutral">— wie ${prevLabel}</div>`;
+  }
+  const positive = delta > 0;
+  const arrow    = positive ? '▲' : '▼';
+  const sign     = positive ? '+' : '';
+  const cls      = positive ? 'budget-summary-card__trend--positive' : 'budget-summary-card__trend--negative';
+  return `<div class="budget-summary-card__trend ${cls}">${arrow} ${sign}${formatAmount(delta)} vs. ${prevLabel}</div>`;
 }
 
 function formatEntryDate(dateStr) {

@@ -23,7 +23,7 @@ Das Datenmodell speichert `recurrence_rule` (iCal RRULE) für Kalender-Events. D
 
 ### BL-02 — Budget: Monatsvergleich (aktuell vs. Vormonat)
 
-**Status:** Offen
+**Status:** Erledigt (v0.3.0)
 **Aufwand:** S (1–2 Tage)
 
 SPEC: „Monatsvergleich (aktuell vs. Vormonat)". Derzeit zeigt die Budget-Seite nur den aktuellen Monat. Es fehlen API-Endpunkt und UI-Komponente für den Vergleich.
