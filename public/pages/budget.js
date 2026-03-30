@@ -203,7 +203,7 @@ function renderBody() {
   `;
 
   if (window.lucide) lucide.createIcons();
-  stagger(_container.querySelectorAll('.budget-entry'));
+  stagger(_container.querySelector('#budget-list')?.querySelectorAll('.budget-entry') ?? []);
 
   _container.querySelector('#budget-list')?.addEventListener('click', async (e) => {
     const delBtn = e.target.closest('[data-action="delete"]');
