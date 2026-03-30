@@ -7,6 +7,7 @@
 
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { stagger } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -202,6 +203,7 @@ function renderBody() {
   `;
 
   if (window.lucide) lucide.createIcons();
+  stagger(_container.querySelectorAll('.budget-entry'));
 
   _container.querySelector('#budget-list')?.addEventListener('click', async (e) => {
     const delBtn = e.target.closest('[data-action="delete"]');

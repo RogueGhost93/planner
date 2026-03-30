@@ -6,6 +6,7 @@
 
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { stagger } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -159,6 +160,7 @@ function renderList() {
     `).join('');
 
   if (window.lucide) lucide.createIcons();
+  stagger(container.querySelectorAll('.contact-item'));
 
   // Event-Delegation
   container.addEventListener('click', async (e) => {

@@ -7,6 +7,7 @@
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { stagger } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -605,6 +606,7 @@ function renderTaskList(container) {
   if (!listEl) return;
   listEl.innerHTML = renderTaskGroups(state.tasks, state.groupMode);
   if (window.lucide) window.lucide.createIcons();
+  stagger(listEl.querySelectorAll('.swipe-row, .kanban-card'));
   updateOverdueBadge();
   wireSwipeGestures(container);
 }

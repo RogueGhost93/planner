@@ -6,6 +6,7 @@
 
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal as closeSharedModal } from '/components/modal.js';
+import { stagger } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -162,6 +163,7 @@ function renderWeekGrid() {
   }).join('');
 
   if (window.lucide) lucide.createIcons();
+  stagger(grid.querySelectorAll('.meal-card'));
   wireGrid(grid);
 }
 

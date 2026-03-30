@@ -5,6 +5,7 @@
  */
 
 import { api } from '/api.js';
+import { stagger } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -151,6 +152,7 @@ function renderListContent(container) {
   `;
 
   if (window.lucide) window.lucide.createIcons();
+  stagger(content.querySelectorAll('.shopping-item'));
   wireAutocomplete(container);
   wireQuickAdd(container);
 }
@@ -311,6 +313,7 @@ function updateItemsList(container) {
   if (listEl) {
     listEl.innerHTML = renderItems();
     if (window.lucide) window.lucide.createIcons();
+    stagger(listEl.querySelectorAll('.shopping-item'));
   }
   // clear-checked Button aktualisieren
   const checkedCount = state.items.filter((i) => i.is_checked).length;

@@ -6,6 +6,7 @@
 
 import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { stagger } from '/utils/ux.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -99,6 +100,7 @@ function renderGrid() {
 
   grid.innerHTML = state.notes.map((n) => renderNoteCard(n)).join('');
   if (window.lucide) lucide.createIcons();
+  stagger(grid.querySelectorAll('.note-card'));
 
   grid.addEventListener('click', async (e) => {
     // Pin
