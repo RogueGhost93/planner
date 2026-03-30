@@ -2,6 +2,7 @@
  * Modul: Shared Modal-System
  * Zweck: Einheitliches Modal mit Focus-Trap, Escape-Handler, Overlay-Click,
  *        Focus-Restore, Scroll-Lock und aria-modal.
+ *        Auf Mobile: Bottom Sheet mit Swipe-to-Close und Slide-out-Animation.
  * Abhängigkeiten: CSS-Klassen aus layout.css (.modal-overlay, .modal-panel, etc.)
  *
  * API:
@@ -31,18 +32,47 @@ const FOCUSABLE = [
 
 function trapFocus(container) {
   focusTrapHandler = (e) => {
-    if (e.key !== 'Tab') return;
-    const focusable = container.querySelectorAll(FOCUSABLE);
-    if (!focusable.length) return;
-    const first = focusable[0];
-    const last  = focusable[focusable.length - 1];
+    // Tab-Trap: Fokus innerhalb des Modals halten
+    if (e.key === 'Tab') {
+      const focusable = container.querySelectorAll(FOCUSABLE);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last  = focusable[focusable.length - 1];
 
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+
+    // Enter in einzeiligen Inputs/Selects → zum nächsten Feld springen
+    if (e.key === 'Enter') {
+      const active = document.activeElement;
+      const isInput = active.tagName === 'INPUT' && active.type !== 'submit' && active.type !== 'button';
+      const isSelect = active.tagName === 'SELECT';
+
+      if (isInput || isSelect) {
+        const focusable = Array.from(container.querySelectorAll(FOCUSABLE));
+        const idx = focusable.indexOf(active);
+        const next = focusable[idx + 1];
+
+        if (next && next.tagName !== 'BUTTON') {
+          e.preventDefault();
+          next.focus();
+        }
+        // Beim letzten Feld oder wenn Next ein Button ist: Submit auslösen
+        if (!next || next.tagName === 'BUTTON') {
+          const submitBtn = container.querySelector('button[type="submit"], .btn--primary');
+          if (submitBtn && !submitBtn.disabled) {
+            e.preventDefault();
+            submitBtn.click();
+          }
+        }
+      }
     }
   };
   container.addEventListener('keydown', focusTrapHandler);
@@ -71,6 +101,61 @@ function trapFocus(container) {
 
 function onEscape(e) {
   if (e.key === 'Escape') closeModal();
+}
+
+// --------------------------------------------------------
+// Swipe-to-Close (Mobile)
+// --------------------------------------------------------
+
+function _wireSheetSwipe(panel) {
+  let startY = 0;
+  let dragging = false;
+
+  panel.addEventListener('touchstart', (e) => {
+    startY = e.touches[0].clientY;
+    dragging = true;
+  }, { passive: true });
+
+  panel.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy < 0) return; // Kein Swipe nach oben
+    panel.style.transform = `translateY(${dy * 0.6}px)`;
+  }, { passive: true });
+
+  panel.addEventListener('touchend', (e) => {
+    if (!dragging) return;
+    dragging = false;
+    const dy = e.changedTouches[0].clientY - startY;
+    panel.style.transform = '';
+    if (dy > 80) {
+      closeModal();
+    }
+  });
+}
+
+// --------------------------------------------------------
+// _doClose — gemeinsame Cleanup-Logik
+// --------------------------------------------------------
+
+function _doClose() {
+  if (!activeOverlay) return;
+  activeOverlay.remove();
+  activeOverlay = null;
+
+  // Scroll-Lock aufheben
+  document.body.style.overflow = '';
+
+  // Focus-Restore
+  if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+    previouslyFocused.focus();
+    previouslyFocused = null;
+  }
+
+  // Standalone: Statusbar-Farbe zur aktuellen Route wiederherstellen
+  if (window.oikos?.restoreThemeColor) {
+    window.oikos.restoreThemeColor();
+  }
 }
 
 // --------------------------------------------------------
@@ -126,6 +211,11 @@ export function openModal({ title, content, onSave, onDelete, size = 'md' } = {}
   const panel = activeOverlay.querySelector('.modal-panel');
   trapFocus(panel);
 
+  // Swipe-to-Close auf Mobile
+  if (window.innerWidth < 768) {
+    _wireSheetSwipe(panel);
+  }
+
   // Overlay-Click schließt Modal
   activeOverlay.addEventListener('click', (e) => {
     if (e.target === activeOverlay) closeModal();
@@ -156,33 +246,26 @@ export function closeModal() {
 
   document.removeEventListener('keydown', onEscape);
 
-  // Focus-Trap-Handler entfernen
+  const panel = activeOverlay.querySelector('.modal-panel');
+
+  // Focus-Trap-Handler und Virtual-Keyboard-Listener entfernen
   if (focusTrapHandler) {
-    const panel = activeOverlay.querySelector('.modal-panel');
     if (panel) panel.removeEventListener('keydown', focusTrapHandler);
     focusTrapHandler = null;
   }
-
-  // Virtual-Keyboard-Listener entfernen
-  const panel = activeOverlay.querySelector('.modal-panel');
   if (panel?._onInputFocus) {
     panel.removeEventListener('focusin', panel._onInputFocus);
   }
 
-  activeOverlay.remove();
-  activeOverlay = null;
-
-  // Scroll-Lock aufheben
-  document.body.style.overflow = '';
-
-  // Focus-Restore
-  if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
-    previouslyFocused.focus();
-    previouslyFocused = null;
+  // Sheet-Out-Animation auf Mobile, danach _doClose
+  const isMobile = window.innerWidth < 768;
+  if (isMobile && panel) {
+    panel.classList.add('modal-panel--closing');
+    panel.addEventListener('animationend', () => {
+      _doClose();
+    }, { once: true });
+    return;
   }
 
-  // Standalone: Statusbar-Farbe zur aktuellen Route wiederherstellen
-  if (window.oikos?.restoreThemeColor) {
-    window.oikos.restoreThemeColor();
-  }
+  _doClose();
 }

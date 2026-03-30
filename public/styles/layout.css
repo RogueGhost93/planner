@@ -703,6 +703,45 @@
   to   { opacity: 1; transform: scale(1); }
 }
 
+/* ── Bottom Sheet: Handle + Closing Animation (Mobile < 768px) ── */
+@media (max-width: 767px) {
+  .modal-panel {
+    /* Extra top padding for the drag handle */
+    padding-top: calc(var(--space-4) + 20px);
+    position: relative;
+  }
+
+  .modal-panel::before {
+    content: '';
+    position: absolute;
+    top: var(--space-3);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 4px;
+    background: var(--color-border);
+    border-radius: var(--radius-full);
+  }
+
+  .modal-panel--closing {
+    animation: sheet-out 0.2s ease forwards;
+  }
+}
+
+@keyframes sheet-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-panel {
+    animation: none;
+  }
+  .modal-panel--closing {
+    animation: none;
+  }
+}
+
 /* --------------------------------------------------------
  * Buttons
  * -------------------------------------------------------- */
