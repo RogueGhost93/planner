@@ -192,7 +192,7 @@
   width: 52px;
   height: 52px;
   border-radius: var(--radius-full);
-  background-color: var(--color-accent);
+  background-color: var(--module-accent, var(--color-btn-primary));
   color: #ffffff;
   box-shadow: var(--shadow-lg);
   display: flex;
@@ -206,7 +206,7 @@
 }
 
 .page-fab:hover {
-  background-color: var(--color-accent-hover);
+  background-color: color-mix(in srgb, var(--module-accent, var(--color-btn-primary)) 85%, black);
 }
 
 .page-fab:active {
@@ -783,6 +783,7 @@
   z-index: calc(var(--z-nav) - 1);
   transition:
     transform var(--transition-fast),
+    background-color var(--transition-fast),
     box-shadow var(--transition-fast);
 }
 
