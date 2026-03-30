@@ -269,3 +269,57 @@ export function closeModal() {
 
   _doClose();
 }
+
+// --------------------------------------------------------
+// Inline Blur-Validierung
+// --------------------------------------------------------
+
+/**
+ * Aktiviert Blur-Validierung für alle required-Inputs in einem Container.
+ * @param {HTMLElement} formContainer
+ */
+export function wireBlurValidation(formContainer) {
+  formContainer.querySelectorAll('input[required], select[required], textarea[required]').forEach((input) => {
+    input.addEventListener('blur', () => {
+      const group = input.closest('.form-field') ?? input.parentElement;
+      const hasValue = input.value.trim().length > 0;
+      group?.classList.toggle('form-field--error', !hasValue);
+      group?.classList.toggle('form-field--valid', hasValue);
+    });
+  });
+}
+
+// --------------------------------------------------------
+// Submit-Feedback (Checkmark + Shake)
+// --------------------------------------------------------
+
+/**
+ * Zeigt Erfolgs-Feedback auf einem Button (Checkmark für 700ms).
+ * @param {HTMLButtonElement} btn
+ * @param {string} [originalLabel]
+ */
+export function btnSuccess(btn, originalLabel) {
+  const label = originalLabel ?? btn.textContent;
+  btn.classList.add('btn--success');
+  btn.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2.5" aria-hidden="true">
+      <polyline points="20 6 9 17 4 12"/>
+    </svg>
+  `;
+  setTimeout(() => {
+    btn.classList.remove('btn--success');
+    btn.textContent = label;
+  }, 700);
+}
+
+/**
+ * Zeigt Fehler-Feedback auf einem Button (Shake-Animation).
+ * @param {HTMLButtonElement} btn
+ */
+export function btnError(btn) {
+  btn.classList.remove('btn--shaking');
+  void btn.offsetWidth; // Reflow für Animation-Restart
+  btn.classList.add('btn--shaking');
+  btn.addEventListener('animationend', () => btn.classList.remove('btn--shaking'), { once: true });
+}

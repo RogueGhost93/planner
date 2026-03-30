@@ -922,6 +922,35 @@
   margin-bottom: var(--space-4);
 }
 
+/* ── Inline-Validierung ── */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.form-field--error .input,
+.form-field--error .form-input {
+  border-color: var(--color-danger);
+}
+
+.form-field--valid .input,
+.form-field--valid .form-input {
+  border-color: var(--color-success);
+}
+
+.form-field__error {
+  display: none;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.form-field--error .form-field__error {
+  display: flex;
+}
+
 /* --------------------------------------------------------
  * Skeleton-Loading
  * -------------------------------------------------------- */
@@ -1283,6 +1312,25 @@
 .rrule-day--active:hover {
   background: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
+}
+
+/* ── Submit-Feedback Animationen ── */
+@keyframes btn-shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX(4px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+.btn--shaking {
+  animation: btn-shake 0.3s ease;
+}
+
+.btn--success {
+  background-color: var(--color-success) !important;
+  color: #fff !important;
+  pointer-events: none;
 }
 
 /* --------------------------------------------------------

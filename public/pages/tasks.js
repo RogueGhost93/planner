@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js';
-import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, wireBlurValidation, btnSuccess, btnError } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 
 // --------------------------------------------------------
@@ -240,10 +240,19 @@ function renderModalContent({ task = null, users = [] } = {}) {
       <input type="hidden" id="task-id" value="${task?.id ?? ''}">
 
       <div class="form-group">
-        <label class="label" for="task-title">Titel *</label>
-        <input class="input" type="text" id="task-title" name="title"
-               value="${task?.title ?? ''}" placeholder="Was muss erledigt werden?"
-               required autocomplete="off">
+        <div class="form-field">
+          <label class="label" for="task-title">Titel *</label>
+          <input class="input" type="text" id="task-title" name="title"
+                 value="${task?.title ?? ''}" placeholder="Was muss erledigt werden?"
+                 required autocomplete="off">
+          <div class="form-field__error">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/>
+                 <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16.01"/>
+            </svg>
+            Dieses Feld ist erforderlich.
+          </div>
+        </div>
       </div>
 
       <div class="form-group">
@@ -373,6 +382,9 @@ function openTaskModal({ task = null, users = [] } = {}, container) {
       // RRULE-Events binden
       bindRRuleEvents(document, 'task');
 
+      // Blur-Validierung für required-Felder aktivieren
+      wireBlurValidation(panel);
+
       // Form-Events
       panel.querySelector('#task-form')
         ?.addEventListener('submit', (e) => handleFormSubmit(e, container));
@@ -398,6 +410,8 @@ async function handleFormSubmit(e, container) {
   submitBtn.disabled = true;
   submitBtn.textContent = 'Wird gespeichert…';
 
+  const originalLabel = taskId ? 'Speichern' : 'Erstellen';
+
   const rrule = getRRuleValues(document, 'task');
   const body = {
     title:           form.title.value.trim(),
@@ -420,13 +434,15 @@ async function handleFormSubmit(e, container) {
       await api.post('/tasks', body);
       window.oikos.showToast('Aufgabe erstellt.', 'success');
     }
-    closeModal();
+    btnSuccess(submitBtn, originalLabel);
+    setTimeout(() => closeModal(), 700);
     await loadTasks(container);
   } catch (err) {
     errorEl.textContent = err.message;
     errorEl.hidden = false;
     submitBtn.disabled = false;
-    submitBtn.textContent = taskId ? 'Speichern' : 'Erstellen';
+    submitBtn.textContent = originalLabel;
+    btnError(submitBtn);
   }
 }
 
