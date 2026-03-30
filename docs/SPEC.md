@@ -193,6 +193,25 @@ Masonry-Grid mit farbigen Sticky Notes.
 - Adresse: Maps-Link (Google/Apple via User-Agent)
 - Echtzeit-Suchfilter
 
+### Login (`/login`)
+
+Nicht-authentifizierte Nutzer werden hierhin umgeleitet. Kein öffentliches Registrierungsformular — Admin erstellt Benutzer über Setup-Wizard (`setup.js`) oder Settings.
+
+- Username + Passwort-Formular
+- Fehleranzeige bei falschen Credentials
+- Rate-Limiting: 5 Versuche/min/IP, 15-min Lockout
+- Nach erfolgreichem Login: Redirect auf Dashboard
+
+### Einstellungen (`/settings`)
+
+Benutzerverwaltung und App-Konfiguration. Nur für eingeloggte Nutzer.
+
+- **Profil:** Display-Name, Avatar-Farbe ändern, Passwort ändern
+- **Benutzerverwaltung (Admin):** Neue Benutzer anlegen, bestehende Benutzer bearbeiten/löschen, Rollen zuweisen (admin/member)
+- **Kalender-Integration:** Google Calendar OAuth verbinden/trennen, Apple Calendar (CalDAV) Credentials hinterlegen, Sync-Intervall konfigurieren
+- **Wetter:** OpenWeatherMap Standort konfigurieren
+- **App-Info:** Version, Lizenz
+
 ### Budget (`/budget`)
 
 **Ansichten:**
