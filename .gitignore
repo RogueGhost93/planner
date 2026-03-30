@@ -30,6 +30,9 @@ dist/
 # Claude Code (enthält lokale Berechtigungen und ggf. Tokens)
 .claude/
 
+# Git Worktrees
+.worktrees/
+
 # Textdateien mit Tokens/Keys (Sicherheitsnetz)
 *.txt
 !public/robots.txt
