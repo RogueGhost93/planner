@@ -47,6 +47,17 @@ function trapFocus(container) {
   };
   container.addEventListener('keydown', focusTrapHandler);
 
+  // Virtual Keyboard: Focused Input in sichtbaren Bereich scrollen
+  function onInputFocus(e) {
+    const tag = e.target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return;
+    setTimeout(() => {
+      e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+  }
+  container.addEventListener('focusin', onInputFocus);
+  container._onInputFocus = onInputFocus;
+
   // Focus first focusable element
   const first = container.querySelector(FOCUSABLE);
   if (first) {
@@ -150,6 +161,12 @@ export function closeModal() {
     const panel = activeOverlay.querySelector('.modal-panel');
     if (panel) panel.removeEventListener('keydown', focusTrapHandler);
     focusTrapHandler = null;
+  }
+
+  // Virtual-Keyboard-Listener entfernen
+  const panel = activeOverlay.querySelector('.modal-panel');
+  if (panel?._onInputFocus) {
+    panel.removeEventListener('focusin', panel._onInputFocus);
   }
 
   activeOverlay.remove();
