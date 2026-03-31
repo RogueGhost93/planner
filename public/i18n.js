@@ -38,7 +38,12 @@ export async function initI18n() {
   currentLocale = resolveLocale();
   fallbackTranslations = await loadLocale(DEFAULT_LOCALE);
   if (currentLocale !== DEFAULT_LOCALE) {
-    translations = await loadLocale(currentLocale);
+    try {
+      translations = await loadLocale(currentLocale);
+    } catch {
+      translations = fallbackTranslations;
+      currentLocale = DEFAULT_LOCALE;
+    }
   } else {
     translations = fallbackTranslations;
   }
@@ -50,11 +55,11 @@ export async function setLocale(locale) {
   if (!SUPPORTED_LOCALES.includes(locale)) return;
   localStorage.setItem(STORAGE_KEY, locale);
   currentLocale = locale;
-  if (locale === DEFAULT_LOCALE) {
-    translations = fallbackTranslations;
-  } else {
-    translations = await loadLocale(locale);
-  }
+  const loaded = locale === DEFAULT_LOCALE
+    ? fallbackTranslations
+    : await loadLocale(locale);
+  if (currentLocale !== locale) return;
+  translations = loaded;
   document.documentElement.lang = locale;
   window.dispatchEvent(new CustomEvent('locale-changed', { detail: { locale } }));
 }
@@ -80,18 +85,24 @@ export function getSupportedLocales() {
 
 /** Datum locale-aware formatieren */
 export function formatDate(date) {
+  if (date == null) return '';
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return '';
   return new Intl.DateTimeFormat(currentLocale, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(date instanceof Date ? date : new Date(date));
+  }).format(d);
 }
 
 /** Uhrzeit locale-aware formatieren */
 export function formatTime(date) {
+  if (date == null) return '';
+  const d = date instanceof Date ? date : new Date(date);
+  if (isNaN(d.getTime())) return '';
   return new Intl.DateTimeFormat(currentLocale, {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(date instanceof Date ? date : new Date(date));
+  }).format(d);
 }
