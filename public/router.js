@@ -411,6 +411,18 @@ window.addEventListener('auth:expired', () => {
 });
 
 // --------------------------------------------------------
+// Virtuelle Tastatur: FAB ausblenden wenn Keyboard offen
+// Erkennung via visualViewport — Höhe < 75% des Fensters = Keyboard aktiv.
+// Nur auf Mobilgeräten relevant (< 1024px), Desktop hat keine virtuelle Tastatur.
+// --------------------------------------------------------
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    const keyboardVisible = window.visualViewport.height < window.innerHeight * 0.75;
+    document.body.classList.toggle('keyboard-visible', keyboardVisible);
+  });
+}
+
+// --------------------------------------------------------
 // Initialisierung
 // --------------------------------------------------------
 navigate(location.pathname, false);

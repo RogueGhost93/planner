@@ -872,6 +872,15 @@
   }
 }
 
+/* FAB und page-fab ausblenden wenn virtuelle Tastatur offen (nur Mobile) */
+@media (max-width: 1023px) {
+  .keyboard-visible .fab,
+  .keyboard-visible .page-fab {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
 /* --------------------------------------------------------
  * Form-Elemente
  * -------------------------------------------------------- */
