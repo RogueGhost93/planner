@@ -95,11 +95,15 @@ Das Budget-Formular hat eine „Wiederkehrend"-Checkbox und speichert `is_recurr
 
 ### BL-07 — Notizen: Volltextsuche / Filter
 
+**Status:** Erledigt (v0.4.0)
+
 Derzeit keine Suchfunktion in der Pinnwand. Die Notizen liegen im State, eine Client-seitige Filterleiste wäre ohne API-Änderung machbar.
 
 ---
 
 ### BL-08 — Dashboard: Wetter-Widget Refresh
+
+**Status:** Erledigt (v0.4.0)
 
 Wetter-Widget lädt beim Seitenaufruf und hat keinen manuellen Refresh-Button. Bei langem Tab-Offenbleiben können die Daten veralten. Ein 30-Minuten-Interval oder ein Refresh-Icon wäre sinnvoll (SPEC erwähnt „Refresh 30min" implizit).
 
@@ -107,11 +111,15 @@ Wetter-Widget lädt beim Seitenaufruf und hat keinen manuellen Refresh-Button. B
 
 ### BL-09 — Kontakte: vCard-Import / -Export
 
+**Status:** Erledigt (v0.4.0)
+
 Nicht im SPEC, aber naheliegend: `.vcf`-Export eines Kontakts, Import aus vCard für Erstbefüllung.
 
 ---
 
 ### BL-10 — PWA: Offline-Fallback für kritische Seiten
+
+**Status:** Erledigt (v0.4.0)
 
 Der Service Worker cached aktuell den App-Shell. Bei Offline-Nutzung fehlt eine sinnvolle Fallback-Seite mit dem Hinweis auf fehlende Verbindung und einem „Wiederholen"-Button.
 

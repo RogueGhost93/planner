@@ -289,7 +289,10 @@ function renderWeatherWidget(weather) {
   }).join('');
 
   return `
-    <div class="widget weather-widget">
+    <div class="widget weather-widget" id="weather-widget">
+      <button class="weather-widget__refresh" id="weather-refresh-btn" aria-label="Wetter aktualisieren" title="Aktualisieren">
+        <i data-lucide="refresh-cw" style="width:14px;height:14px;" aria-hidden="true"></i>
+      </button>
       <div class="weather-widget__inner">
         <div class="weather-widget__main">
           <div class="weather-widget__left">
@@ -462,4 +465,50 @@ export async function render(container, { user }) {
   wireLinks(container);
   initFab(container, _fabController.signal);
   if (window.lucide) window.lucide.createIcons();
+
+  // Wetter-Refresh: Button + 30-Minuten-Interval
+  const refreshBtn = container.querySelector('#weather-refresh-btn');
+  if (refreshBtn) {
+    const doWeatherRefresh = async () => {
+      refreshBtn.disabled = true;
+      refreshBtn.classList.add('weather-widget__refresh--spinning');
+      try {
+        const res = await api.get('/weather').catch(() => ({ data: null }));
+        const wWidget = container.querySelector('#weather-widget');
+        if (wWidget) {
+          const fresh = renderWeatherWidget(res.data ?? null);
+          wWidget.outerHTML = fresh;
+          const newWidget = container.querySelector('#weather-widget');
+          if (newWidget && window.lucide) window.lucide.createIcons({ el: newWidget });
+          wireWeatherRefresh(container);
+        }
+      } catch { /* silently ignore */ }
+    };
+
+    refreshBtn.addEventListener('click', doWeatherRefresh, { signal: _fabController.signal });
+
+    // 30-Minuten Auto-Refresh — abortiert wenn Seite verlassen wird
+    const timerId = setInterval(doWeatherRefresh, 30 * 60 * 1000);
+    _fabController.signal.addEventListener('abort', () => clearInterval(timerId));
+  }
+}
+
+function wireWeatherRefresh(container) {
+  const refreshBtn = container.querySelector('#weather-refresh-btn');
+  if (!refreshBtn) return;
+  const doWeatherRefresh = async () => {
+    refreshBtn.disabled = true;
+    refreshBtn.classList.add('weather-widget__refresh--spinning');
+    try {
+      const res = await api.get('/weather').catch(() => ({ data: null }));
+      const wWidget = container.querySelector('#weather-widget');
+      if (wWidget) {
+        wWidget.outerHTML = renderWeatherWidget(res.data ?? null);
+        const newWidget = container.querySelector('#weather-widget');
+        if (newWidget && window.lucide) window.lucide.createIcons({ el: newWidget });
+        wireWeatherRefresh(container);
+      }
+    } catch { /* silently ignore */ }
+  };
+  refreshBtn.addEventListener('click', doWeatherRefresh, { signal: _fabController.signal });
 }

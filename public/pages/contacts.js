@@ -52,6 +52,11 @@ export async function render(container, { user }) {
                  id="contacts-search" placeholder="Name, Telefon oder E-Mail suchen…"
                  autocomplete="off">
         </div>
+        <label class="btn btn--secondary" title="vCard importieren" aria-label="Kontakt aus vCard importieren">
+          <i data-lucide="upload" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
+          Import
+          <input type="file" id="contacts-import-input" accept=".vcf,text/vcard" style="display:none">
+        </label>
         <button class="btn btn--primary" id="contacts-add-btn">
           <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
           Neu
@@ -101,6 +106,24 @@ export async function render(container, { user }) {
   const addHandler = () => openContactModal({ mode: 'create' });
   _container.querySelector('#contacts-add-btn').addEventListener('click', addHandler);
   _container.querySelector('#fab-new-contact').addEventListener('click', addHandler);
+
+  // vCard-Import
+  _container.querySelector('#contacts-import-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const text    = await file.text();
+      const contact = parseVCard(text);
+      if (!contact.name) { window.oikos?.showToast('vCard enthält keinen Namen.', 'warning'); return; }
+      const res = await api.post('/contacts', contact);
+      state.contacts.push(res.data);
+      renderList();
+      window.oikos?.showToast(`${res.data.name} importiert.`, 'success');
+    } catch (err) {
+      window.oikos?.showToast('Import fehlgeschlagen: ' + err.message, 'danger');
+    }
+  });
 }
 
 // --------------------------------------------------------
@@ -198,6 +221,10 @@ function renderContactItem(c) {
       </div>
       <div class="contact-item__actions">
         ${phone}${email}${maps}
+        <a href="/api/v1/contacts/${c.id}/vcard" download="${escHtml(c.name)}.vcf"
+           class="contact-action-btn" aria-label="Als vCard exportieren" title="vCard exportieren">
+          <i data-lucide="download" style="width:16px;height:16px;" aria-hidden="true"></i>
+        </a>
         <button class="contact-action-btn" data-action="delete" data-id="${c.id}" aria-label="Kontakt löschen">
           <i data-lucide="trash-2" style="width:16px;height:16px;" aria-hidden="true"></i>
         </button>
@@ -326,4 +353,40 @@ function escHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Minimaler vCard 3.0/4.0 Parser.
+ * Gibt { name, phone, email, address, notes, category } zurück.
+ */
+function parseVCard(text) {
+  const unescapeVCard = (s) => String(s || '')
+    .replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\');
+
+  // Zeilenfortsetzungen entfalten (RFC 6350 §3.2)
+  const unfolded = text.replace(/\r?\n[ \t]/g, '');
+
+  const get = (prop) => {
+    const re = new RegExp(`^${prop}(?:;[^:]*)?:(.*)$`, 'im');
+    const m  = re.exec(unfolded);
+    return m ? unescapeVCard(m[1].trim()) : null;
+  };
+
+  const name    = get('FN') || get('N')?.split(';')[0] || null;
+  const phone   = get('TEL') || null;
+  const email   = get('EMAIL') || null;
+
+  // ADR: ;;street;city;region;postal;country
+  const adrRaw  = get('ADR');
+  let address   = null;
+  if (adrRaw) {
+    const parts = adrRaw.split(';').map((p) => p.trim()).filter(Boolean);
+    address = parts.join(', ') || null;
+  }
+
+  const notes    = get('NOTE') || null;
+  const catRaw   = get('CATEGORIES') || null;
+  const category = CATEGORIES.find((c) => catRaw?.toLowerCase().includes(c.toLowerCase())) || 'Sonstiges';
+
+  return { name, phone, email, address, notes, category };
 }

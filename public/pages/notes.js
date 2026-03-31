@@ -21,7 +21,7 @@ const NOTE_COLORS = [
 // State
 // --------------------------------------------------------
 
-let state = { notes: [], user: null };
+let state = { notes: [], user: null, filterQuery: '' };
 let _container = null;
 
 // --------------------------------------------------------
@@ -49,6 +49,12 @@ export async function render(container, { user }) {
     <div class="notes-page">
       <div class="notes-toolbar">
         <h1 class="notes-toolbar__title">Pinnwand</h1>
+        <div class="notes-toolbar__search">
+          <i data-lucide="search" class="notes-toolbar__search-icon" aria-hidden="true"></i>
+          <input type="search" id="notes-search" class="notes-toolbar__search-input"
+                 placeholder="Notizen durchsuchen…" autocomplete="off"
+                 value="${escHtml(state.filterQuery)}">
+        </div>
         <button class="btn btn--primary" id="notes-add-btn">
           <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
           Neue Notiz
@@ -91,6 +97,11 @@ export async function render(container, { user }) {
   const addHandler = () => openNoteModal({ mode: 'create' });
   _container.querySelector('#notes-add-btn').addEventListener('click', addHandler);
   _container.querySelector('#fab-new-note').addEventListener('click', addHandler);
+
+  _container.querySelector('#notes-search').addEventListener('input', (e) => {
+    state.filterQuery = e.target.value;
+    renderGrid();
+  });
 }
 
 // --------------------------------------------------------
@@ -101,7 +112,16 @@ function renderGrid() {
   const grid = _container.querySelector('#notes-grid');
   if (!grid) return;
 
-  if (!state.notes.length) {
+  const q = state.filterQuery.trim().toLowerCase();
+  const visible = q
+    ? state.notes.filter((n) =>
+        (n.title   || '').toLowerCase().includes(q) ||
+        (n.content || '').toLowerCase().includes(q)
+      )
+    : state.notes;
+
+  if (!visible.length) {
+    const isFiltered = q.length > 0;
     grid.innerHTML = `
       <div class="empty-state" style="column-span:all;">
         <svg class="empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -111,15 +131,15 @@ function renderGrid() {
           <line x1="16" y1="17" x2="8" y2="17"/>
           <polyline points="10 9 9 9 8 9"/>
         </svg>
-        <div class="empty-state__title">Noch keine Notizen</div>
-        <div class="empty-state__description">Neue Notiz über den + Button erstellen.</div>
+        <div class="empty-state__title">${isFiltered ? 'Keine Treffer' : 'Noch keine Notizen'}</div>
+        <div class="empty-state__description">${isFiltered ? `Keine Notiz enthält „${escHtml(state.filterQuery)}".` : 'Neue Notiz über den + Button erstellen.'}</div>
       </div>
     `;
     if (window.lucide) lucide.createIcons();
     return;
   }
 
-  grid.innerHTML = state.notes.map((n) => renderNoteCard(n)).join('');
+  grid.innerHTML = visible.map((n) => renderNoteCard(n)).join('');
   if (window.lucide) lucide.createIcons();
   stagger(grid.querySelectorAll('.note-card'));
 }

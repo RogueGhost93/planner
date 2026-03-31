@@ -542,8 +542,44 @@
  *          Layout mit bis zu 5-Tage-Vorhersage.
  * -------------------------------------------------------- */
 .weather-widget {
+  position: relative;
   background: linear-gradient(135deg, var(--color-accent) 0%, #1E5CB3 100%);
   color: #ffffff;
+}
+
+.weather-widget__refresh {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  z-index: 1;
+  transition: background 0.15s;
+}
+
+.weather-widget__refresh:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+.weather-widget__refresh:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.weather-widget__refresh--spinning i {
+  animation: spin 0.7s linear infinite;
 }
 
 .weather-widget__main {

@@ -160,4 +160,42 @@ router.get('/meta', (_req, res) => {
   }
 });
 
+/**
+ * GET /api/v1/contacts/:id/vcard
+ * Kontakt als vCard 3.0 (.vcf) exportieren.
+ * Response: text/vcard Dateidownload
+ */
+router.get('/:id/vcard', (req, res) => {
+  try {
+    const id      = parseInt(req.params.id, 10);
+    const contact = db.get().prepare('SELECT * FROM contacts WHERE id = ?').get(id);
+    if (!contact) return res.status(404).json({ error: 'Kontakt nicht gefunden', code: 404 });
+
+    const esc = (v) => String(v || '').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
+
+    const lines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `FN:${esc(contact.name)}`,
+      `N:${esc(contact.name)};;;;`,
+    ];
+    if (contact.phone)   lines.push(`TEL;TYPE=VOICE:${esc(contact.phone)}`);
+    if (contact.email)   lines.push(`EMAIL:${esc(contact.email)}`);
+    if (contact.address) lines.push(`ADR;TYPE=HOME:;;${esc(contact.address)};;;;`);
+    if (contact.notes)   lines.push(`NOTE:${esc(contact.notes)}`);
+    if (contact.category) lines.push(`CATEGORIES:${esc(contact.category)}`);
+    lines.push('END:VCARD');
+
+    const vcf      = lines.join('\r\n');
+    const filename = encodeURIComponent(contact.name.replace(/[^a-zA-Z0-9-_ ]/g, '_')) + '.vcf';
+
+    res.setHeader('Content-Type', 'text/vcard; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(vcf);
+  } catch (err) {
+    console.error('[contacts/GET /:id/vcard]', err);
+    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+  }
+});
+
 module.exports = router;

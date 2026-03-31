@@ -12,9 +12,9 @@
  *   API: Immer Netzwerk (kein Caching von Nutzerdaten)
  */
 
-const SHELL_CACHE   = 'oikos-shell-v19';
-const PAGES_CACHE   = 'oikos-pages-v19';
-const ASSETS_CACHE  = 'oikos-assets-v19';
+const SHELL_CACHE   = 'oikos-shell-v20';
+const PAGES_CACHE   = 'oikos-pages-v20';
+const ASSETS_CACHE  = 'oikos-assets-v20';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App-Shell: sofort benötigt für ersten Render
@@ -41,6 +41,7 @@ const APP_SHELL = [
   '/styles/budget.css',
   '/styles/settings.css',
   '/components/oikos-install-prompt.js',
+  '/offline.html',
   '/manifest.json',
   '/favicon.ico',
   '/icons/favicon-32.png',
@@ -157,6 +158,10 @@ async function networkFirst(request, cacheName) {
     const shell = await cache.match('/index.html');
     if (shell) return shell;
 
+    // Letzter Ausweg: Offline-Seite
+    const offline = await caches.match('/offline.html');
+    if (offline) return offline;
+
     return new Response('Keine Verbindung', {
       status: 503,
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -192,10 +197,12 @@ async function staleWhileRevalidate(request, cacheName) {
   const networkResponse = await networkPromise;
   if (networkResponse) return networkResponse;
 
-  // Offline-Fallback: SPA-Shell für Navigation
+  // Offline-Fallback für Navigation
   if (request.mode === 'navigate') {
     const shell = await caches.match('/index.html');
     if (shell) return shell;
+    const offline = await caches.match('/offline.html');
+    if (offline) return offline;
   }
 
   // Letzter Ausweg: leere 503-Antwort statt Promise-Rejection
