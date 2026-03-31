@@ -135,7 +135,10 @@
     "subtaskPrompt": "Teilaufgabe:",
     "kanbanOpen": "Offen",
     "kanbanInProgress": "In Bearbeitung",
-    "kanbanDone": "Erledigt"
+    "kanbanDone": "Erledigt",
+    "recurring": "Wiederkehrend",
+    "listView": "Listenansicht",
+    "kanbanView": "Kanban-Ansicht"
   },
 
   "shopping": {

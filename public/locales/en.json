@@ -135,7 +135,10 @@
     "subtaskPrompt": "Subtask:",
     "kanbanOpen": "Open",
     "kanbanInProgress": "In Progress",
-    "kanbanDone": "Done"
+    "kanbanDone": "Done",
+    "recurring": "Recurring",
+    "listView": "List view",
+    "kanbanView": "Kanban view"
   },
 
   "shopping": {

@@ -175,7 +175,7 @@ function renderTaskCard(task, opts = {}) {
           <div class="task-card__meta">
             ${renderPriorityBadge(task.priority)}
             ${renderDueDate(task.due_date)}
-            ${task.is_recurring ? '<span class="due-date" aria-label="Wiederkehrend"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>' : ''}
+            ${task.is_recurring ? `<span class="due-date" aria-label="${t('tasks.recurring')}"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>` : ''}
             ${task.category !== 'Sonstiges' ? `<span class="due-date">${CATEGORY_LABELS()[task.category] ?? task.category}</span>` : ''}
           </div>
         </div>
@@ -958,11 +958,11 @@ export async function render(container, { user }) {
         <div class="tasks-toolbar__actions">
           <div class="group-toggle" id="view-toggle">
             <button class="group-toggle__btn group-toggle__btn--active" data-view="list"
-                    title="Listenansicht" aria-label="Listenansicht">
+                    title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}">
               <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
             </button>
             <button class="group-toggle__btn" data-view="kanban"
-                    title="Kanban-Ansicht" aria-label="Kanban-Ansicht">
+                    title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}">
               <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
             </button>
           </div>
