@@ -202,15 +202,15 @@ function renderItem(item) {
            data-item-id="${item.id}">
         <button class="item-check ${isDone ? 'item-check--checked' : ''}"
                 data-action="toggle-item" data-id="${item.id}" data-checked="${item.is_checked}"
-                aria-label="${item.name} ${isDone ? 'als nicht erledigt markieren' : 'abhaken'}">
+                aria-label="${escHtml(item.name)} ${isDone ? 'als nicht erledigt markieren' : 'abhaken'}">
           <i data-lucide="check" class="item-check__icon" aria-hidden="true"></i>
         </button>
         <div class="item-body">
-          <div class="item-name">${item.name}</div>
-          ${item.quantity ? `<div class="item-quantity">${item.quantity}</div>` : ''}
+          <div class="item-name">${escHtml(item.name)}</div>
+          ${item.quantity ? `<div class="item-quantity">${escHtml(item.quantity)}</div>` : ''}
         </div>
         <button class="item-delete" data-action="delete-item" data-id="${item.id}"
-                aria-label="${item.name} löschen">
+                aria-label="${escHtml(item.name)} löschen">
           <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
         </button>
       </div>
@@ -730,4 +730,17 @@ export async function render(container, { user }) {
       container.querySelector('[data-action="new-list"]')?.click();
     }
   });
+}
+
+// --------------------------------------------------------
+// HTML-Escaping
+// --------------------------------------------------------
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
