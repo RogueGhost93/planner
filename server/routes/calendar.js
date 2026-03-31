@@ -15,7 +15,70 @@ const appleCalendar  = require('../services/apple-calendar');
 const { requireAdmin } = require('../auth');
 const { str, color, datetime, rrule, collectErrors, MAX_TITLE, MAX_TEXT, DATE_RE, DATETIME_RE } = require('../middleware/validate');
 
+const { nextOccurrence } = require('../services/recurrence');
+
 const VALID_SOURCES = ['local', 'google', 'apple'];
+
+// --------------------------------------------------------
+// RRULE-Expansion: alle Vorkommen eines wiederkehrenden Events
+// innerhalb [from, to] generieren (inklusive beider Grenzen).
+// --------------------------------------------------------
+
+/**
+ * @param {object[]} events  Rohe DB-Events (können recurrence_rule haben)
+ * @param {string}   from    YYYY-MM-DD
+ * @param {string}   to      YYYY-MM-DD
+ * @returns {object[]}  Expandiertes, sortiertes Array
+ */
+function expandRecurringEvents(events, from, to) {
+  const result = [];
+
+  for (const event of events) {
+    if (!event.recurrence_rule) {
+      result.push(event);
+      continue;
+    }
+
+    // Dauer des Events in ms (für End-Zeit-Berechnung der Instanzen)
+    const startMs    = new Date(event.start_datetime).getTime();
+    const endMs      = event.end_datetime ? new Date(event.end_datetime).getTime() : null;
+    const durationMs = endMs !== null ? endMs - startMs : null;
+
+    // Original-Zeit-Teil erhalten (z.B. 'T14:30:00' oder '' bei All-Day)
+    const timeSuffix = event.start_datetime.slice(10);
+
+    let currentDate = event.start_datetime.slice(0, 10); // YYYY-MM-DD
+    let iterations  = 0;
+    const MAX_ITER  = 1000; // Sicherheitsgrenze
+
+    while (currentDate <= to && iterations < MAX_ITER) {
+      iterations++;
+
+      if (currentDate >= from) {
+        const newStart = currentDate + timeSuffix;
+        let newEnd = event.end_datetime;
+        if (durationMs !== null) {
+          newEnd = new Date(new Date(newStart).getTime() + durationMs)
+            .toISOString()
+            .replace('.000Z', 'Z');
+        }
+
+        result.push({
+          ...event,
+          start_datetime:       newStart,
+          end_datetime:         newEnd,
+          is_recurring_instance: currentDate !== event.start_datetime.slice(0, 10) ? 1 : 0,
+        });
+      }
+
+      const next = nextOccurrence(currentDate, event.recurrence_rule);
+      if (!next || next <= currentDate) break;
+      currentDate = next;
+    }
+  }
+
+  return result.sort((a, b) => a.start_datetime.localeCompare(b.start_datetime));
+}
 
 // --------------------------------------------------------
 // GET /api/v1/calendar
@@ -46,11 +109,14 @@ router.get('/', (req, res) => {
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
       LEFT JOIN users u_created  ON u_created.id  = e.created_by
       WHERE (
-        DATE(e.start_datetime) <= ? AND
-        (e.end_datetime IS NULL OR DATE(e.end_datetime) >= ?)
+        (e.recurrence_rule IS NULL AND
+          DATE(e.start_datetime) <= ? AND
+          (e.end_datetime IS NULL OR DATE(e.end_datetime) >= ?))
+        OR
+        (e.recurrence_rule IS NOT NULL AND DATE(e.start_datetime) <= ?)
       )
     `;
-    const params = [to, from];
+    const params = [to, from, to];
 
     if (req.query.assigned_to) {
       sql += ' AND e.assigned_to = ?';
@@ -64,7 +130,8 @@ router.get('/', (req, res) => {
 
     sql += ' ORDER BY e.start_datetime ASC, e.all_day DESC';
 
-    const events = db.get().prepare(sql).all(...params);
+    const rawEvents = db.get().prepare(sql).all(...params);
+    const events    = expandRecurringEvents(rawEvents, from, to);
     res.json({ data: events, from, to });
   } catch (err) {
     console.error('[calendar/GET /]', err);
@@ -80,21 +147,30 @@ router.get('/', (req, res) => {
 // --------------------------------------------------------
 router.get('/upcoming', (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit, 10) || 5, 20);
-    const now   = new Date().toISOString();
+    const limit   = Math.min(parseInt(req.query.limit, 10) || 5, 20);
+    const nowDate = new Date().toISOString().slice(0, 10);
+    // Fenster: heute bis 90 Tage voraus (für Wiederholungs-Expansion)
+    const future  = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-    const events = db.get().prepare(`
+    const rawEvents = db.get().prepare(`
       SELECT e.*,
              u_assigned.display_name AS assigned_name,
              u_assigned.avatar_color AS assigned_color
       FROM calendar_events e
       LEFT JOIN users u_assigned ON u_assigned.id = e.assigned_to
-      WHERE e.start_datetime >= ?
+      WHERE (
+        (e.recurrence_rule IS NULL AND DATE(e.start_datetime) BETWEEN ? AND ?)
+        OR
+        (e.recurrence_rule IS NOT NULL AND DATE(e.start_datetime) <= ?)
+      )
       ORDER BY e.start_datetime ASC
-      LIMIT ?
-    `).all(now, limit);
+    `).all(nowDate, future, future);
 
-    res.json({ data: events });
+    const expanded = expandRecurringEvents(rawEvents, nowDate, future)
+      .filter((e) => e.start_datetime >= new Date().toISOString())
+      .slice(0, limit);
+
+    res.json({ data: expanded });
   } catch (err) {
     console.error('[calendar/GET /upcoming]', err);
     res.status(500).json({ error: 'Interner Fehler', code: 500 });

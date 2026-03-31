@@ -623,7 +623,7 @@ function renderAgendaEvent(ev) {
     <div class="agenda-event" data-id="${ev.id}">
       <div class="agenda-event__color" style="background-color:${escHtml(ev.color)};"></div>
       <div class="agenda-event__body">
-        <div class="agenda-event__title">${escHtml(ev.title)}${ev.recurrence_rule ? ' <i data-lucide="repeat" style="width:12px;height:12px;display:inline;vertical-align:middle;opacity:0.5" aria-hidden="true"></i>' : ''}</div>
+        <div class="agenda-event__title">${escHtml(ev.title)}${(ev.recurrence_rule || ev.is_recurring_instance) ? ' <i data-lucide="repeat" style="width:12px;height:12px;display:inline;vertical-align:middle;opacity:0.5" aria-hidden="true"></i>' : ''}</div>
         <div class="agenda-event__meta">
           <span>${timeStr}</span>
           ${ev.location ? `<span>📍 ${escHtml(ev.location)}</span>` : ''}

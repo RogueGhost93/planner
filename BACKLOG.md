@@ -8,7 +8,7 @@ Feature-Requests und geplante Erweiterungen. Einträge hier werden **nicht** imp
 
 ### BL-01 — Kalender: Wiederkehrende Events werden nicht expandiert
 
-**Status:** Offen
+**Status:** Erledigt (v0.3.0)
 **Aufwand:** M (3–5 Tage)
 
 Das Datenmodell speichert `recurrence_rule` (iCal RRULE) für Kalender-Events. Der `recurrence.js`-Service mit `nextOccurrence()` existiert und wird in Tasks genutzt. Im Kalender-Route (`server/routes/calendar.js`) fehlt jedoch die Expansion: Beim Abruf der Events werden Wiederholungsinstanzen nicht generiert. Wiederkehrende Termine erscheinen daher nur einmal (beim Originaldatum).
@@ -84,7 +84,7 @@ Das Budget-Formular hat eine „Wiederkehrend"-Checkbox und speichert `is_recurr
 
 ### BL-06 — Shopping: Schnell-Add Autocomplete von lokalem Verlauf
 
-**Status:** In Arbeit (API-seitig implementiert, UI prüfen)
+**Status:** Erledigt (bereits vollständig implementiert)
 **Aufwand:** XS
 
 `shopping.js` ruft `/api/v1/shopping/suggestions?q=...` auf. Prüfen ob der API-Endpunkt auf Server-Seite existiert und korrekt auf die `shopping_items`-Historie zugreift. Falls ja, Status auf „Fertig" setzen.
