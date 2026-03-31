@@ -232,6 +232,7 @@ Benutzerverwaltung und App-Konfiguration. Nur für eingeloggte Nutzer.
 - **Benutzerverwaltung (Admin):** Neue Benutzer anlegen, bestehende Benutzer bearbeiten/löschen, Rollen zuweisen (admin/member)
 - **Kalender-Integration:** Google Calendar OAuth verbinden/trennen, Apple Calendar (CalDAV) Credentials hinterlegen, Sync-Intervall konfigurieren
 - **Wetter:** OpenWeatherMap Standort konfigurieren
+- **Sprache:** System (folgt `navigator.language`), Deutsch, English — via `oikos-locale-picker` Web Component; Wechsel ohne Reload
 - **App-Info:** Version, Lizenz
 
 ### Budget (`/budget`)
@@ -313,3 +314,33 @@ Benutzerverwaltung und App-Konfiguration. Nur für eingeloggte Nutzer.
 - Mobil: < 768px (1 Spalte, Bottom Nav)
 - Tablet: 768–1024px (2 Spalten, Bottom Nav)
 - Desktop: > 1024px (Sidebar + Content)
+
+---
+
+## Internationalisierung (i18n)
+
+Alle UI-Strings werden über `public/i18n.js` verwaltet. Kein hardcodierter Text in JS-Dateien außer in Locale-Dateien.
+
+### Architektur
+
+- **Modul:** `public/i18n.js` — exports: `initI18n()`, `setLocale()`, `t(key, params?)`, `getLocale()`, `getSupportedLocales()`, `formatDate(date)`, `formatTime(date)`
+- **Locale-Dateien:** `public/locales/de.json` (Referenz), `public/locales/en.json` — Struktur: `{ "modul.camelCaseKey": "Wert" }`
+- **Variablen:** `{{variable}}`-Syntax in Übersetzungsstrings, z.B. `t('tasks.assignedTo', { name: 'Anna' })`
+- **Fallback-Kette:** aktive Locale → Deutsch (`de`) → Key selbst
+- **Datumsformat:** `Intl.DateTimeFormat` mit aktuellem Locale — `formatDate()` und `formatTime()` aus `i18n.js`
+
+### Sprach-Erkennung
+
+1. `localStorage` Eintrag `oikos-locale` (manuelle Auswahl)
+2. `navigator.languages[0]` (Browser-Sprache)
+3. Fallback: `de`
+
+### Neue Sprache hinzufügen
+
+1. `public/locales/xx.json` erstellen (Kopie von `de.json`, übersetzen)
+2. `SUPPORTED_LOCALES` in `public/i18n.js` um `'xx'` erweitern
+3. Label in `oikos-locale-picker` ergänzen (`LOCALE_LABELS['xx'] = 'Name'`)
+
+### Locale-Wechsel
+
+`setLocale(locale)` speichert die Auswahl, lädt die neue Locale-Datei und feuert das `locale-changed` Custom Event. Alle Seiten-Module und Web Components hören dieses Event und rendern sich neu — kein Seiten-Reload nötig.

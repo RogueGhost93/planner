@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-31
+
+### Added
+- i18n: full internationalisation system (`public/i18n.js`) with German (de) and English (en) support; language auto-detected from `navigator.language`, overridable via Settings
+- i18n: all user-facing strings moved to locale files (`public/locales/de.json`, `public/locales/en.json`); 489 translation keys covering all modules
+- i18n: locale switch without page reload — all pages, components and navigation re-render via `locale-changed` custom event
+- i18n: `oikos-locale-picker` Web Component in Settings — three options: System (follows browser language), Deutsch, English
+- i18n: dates and times formatted with `Intl.DateTimeFormat` using the active locale; `formatDate()` and `formatTime()` exported from `i18n.js`
+- i18n: fallback chain (active locale → German → key) ensures no untranslated keys are shown even if a future locale file is incomplete
+- i18n: adding a new language requires only one JSON file (`public/locales/xx.json`) and one line in `SUPPORTED_LOCALES`
+
 ## [0.4.0] - 2026-03-31
 
 ### Fixed
@@ -101,7 +112,8 @@ Initial release of Oikos — a self-hosted family planner for 2–6 person house
 - No user data cached by service worker (API requests are network-only)
 - Hardened `.gitignore` and `.dockerignore` to prevent accidental secret or binary leakage
 
-[Unreleased]: https://github.com/ulsklyc/oikos/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/ulsklyc/oikos/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/ulsklyc/oikos/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/ulsklyc/oikos/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/ulsklyc/oikos/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/ulsklyc/oikos/compare/v0.1.0...v0.2.1
