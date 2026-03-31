@@ -1,6 +1,8 @@
 # Contributing to Oikos
 
-Thanks for your interest in contributing. Oikos is a small, opinionated project with deliberate architectural constraints. This guide covers what you need to know before submitting code.
+Thanks for your interest in contributing! Oikos is a small, opinionated project with deliberate architectural constraints. This guide covers what you need to know before submitting code.
+
+Have a question before diving in? Start a thread in [Discussions](https://github.com/ulsklyc/oikos/discussions).
 
 ---
 
@@ -234,7 +236,13 @@ Features that conflict with the project's [hard constraints](#hard-constraints) 
 
 ### Security vulnerabilities
 
-Do **not** open a public issue. See [`SECURITY.md`](SECURITY.md) for responsible disclosure.
+Do **not** open a public issue. Use [GitHub Private Vulnerability Reporting](https://github.com/ulsklyc/oikos/security/advisories/new) instead. See [`SECURITY.md`](SECURITY.md) for details.
+
+---
+
+## Questions?
+
+If something in this guide is unclear or you're unsure whether a contribution fits, open a thread in [Discussions](https://github.com/ulsklyc/oikos/discussions) or comment on the relevant issue. We're happy to help.
 
 ---
 
