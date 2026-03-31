@@ -508,7 +508,9 @@
     "logout": "Log out",
     "synchronizing": "Syncing…",
     "googleDisconnectConfirm": "Disconnect Google Calendar?",
-    "appleDisconnectConfirm": "Disconnect Apple Calendar?"
+    "appleDisconnectConfirm": "Disconnect Apple Calendar?",
+    "localeSystem": "System",
+    "languageTitle": "Language"
   },
 
   "login": {

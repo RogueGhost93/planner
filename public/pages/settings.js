@@ -6,6 +6,7 @@
 
 import { api, auth } from '/api.js';
 import { t, formatDate, formatTime } from '/i18n.js';
+import '/components/oikos-locale-picker.js';
 
 /**
  * @param {HTMLElement} container
@@ -71,6 +72,14 @@ export async function render(container, { user }) {
               ${t('settings.themeDark')}
             </button>
           </div>
+        </div>
+      </section>
+
+      <!-- Sprache -->
+      <section class="settings-section">
+        <h2 class="settings-section__title">${t('settings.languageTitle')}</h2>
+        <div class="settings-card">
+          <oikos-locale-picker></oikos-locale-picker>
         </div>
       </section>
 
