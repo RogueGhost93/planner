@@ -182,22 +182,33 @@ function renderItems() {
 }
 
 function renderItem(item) {
+  const isDone = Boolean(item.is_checked);
   return `
-    <div class="shopping-item ${item.is_checked ? 'shopping-item--checked' : ''}"
-         data-item-id="${item.id}">
-      <button class="item-check ${item.is_checked ? 'item-check--checked' : ''}"
-              data-action="toggle-item" data-id="${item.id}" data-checked="${item.is_checked}"
-              aria-label="${item.name} ${item.is_checked ? 'als nicht erledigt markieren' : 'abhaken'}">
-        <i data-lucide="check" class="item-check__icon" aria-hidden="true"></i>
-      </button>
-      <div class="item-body">
-        <div class="item-name">${item.name}</div>
-        ${item.quantity ? `<div class="item-quantity">${item.quantity}</div>` : ''}
+    <div class="swipe-row" data-swipe-id="${item.id}" data-swipe-checked="${item.is_checked}">
+      <div class="swipe-reveal swipe-reveal--done" aria-hidden="true">
+        <i data-lucide="${isDone ? 'rotate-ccw' : 'check'}" style="width:22px;height:22px" aria-hidden="true"></i>
+        <span>${isDone ? 'Zurück' : 'Abhaken'}</span>
       </div>
-      <button class="item-delete" data-action="delete-item" data-id="${item.id}"
-              aria-label="${item.name} löschen">
-        <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
-      </button>
+      <div class="swipe-reveal swipe-reveal--delete" aria-hidden="true">
+        <i data-lucide="trash-2" style="width:22px;height:22px" aria-hidden="true"></i>
+        <span>Löschen</span>
+      </div>
+      <div class="shopping-item ${isDone ? 'shopping-item--checked' : ''}"
+           data-item-id="${item.id}">
+        <button class="item-check ${isDone ? 'item-check--checked' : ''}"
+                data-action="toggle-item" data-id="${item.id}" data-checked="${item.is_checked}"
+                aria-label="${item.name} ${isDone ? 'als nicht erledigt markieren' : 'abhaken'}">
+          <i data-lucide="check" class="item-check__icon" aria-hidden="true"></i>
+        </button>
+        <div class="item-body">
+          <div class="item-name">${item.name}</div>
+          ${item.quantity ? `<div class="item-quantity">${item.quantity}</div>` : ''}
+        </div>
+        <button class="item-delete" data-action="delete-item" data-id="${item.id}"
+                aria-label="${item.name} löschen">
+          <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>`;
 }
 
