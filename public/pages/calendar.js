@@ -109,7 +109,7 @@ function formatDateTime(datetimeStr) {
   if (!datetimeStr) return '';
   const date = datetimeStr.slice(0, 10);
   const time = datetimeStr.slice(11, 16);
-  return time ? `${formatDate(date)} ${time} Uhr` : formatDate(date);
+  return time ? `${formatDate(date)} ${time} ${t('calendar.timeSuffix')}`.trimEnd() : formatDate(date);
 }
 
 function getMonthRange(dateStr) {
@@ -631,7 +631,7 @@ function renderAgendaEvent(ev) {
   const timeStr = ev.all_day
     ? t('calendar.allDay')
     : formatTime(ev.start_datetime)
-      + (ev.end_datetime ? ` – ${formatTime(ev.end_datetime)} Uhr` : ' Uhr');
+      + (ev.end_datetime ? ` – ${formatTime(ev.end_datetime)} ${t('calendar.timeSuffix')}`.trimEnd() : ` ${t('calendar.timeSuffix')}`.trimEnd());
 
   const initials = ev.assigned_name
     ? ev.assigned_name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2)
@@ -857,7 +857,7 @@ function buildEventModalContent({ mode, event, date }) {
       <div class="color-picker">
         ${EVENT_COLORS.map((c) => `
           <div class="color-swatch" data-color="${c}" style="background-color:${c};"
-               role="radio" tabindex="0" aria-label="Farbe ${c}"></div>
+               role="radio" tabindex="0" aria-label="${t('calendar.colorLabel', { color: c })}"></div>
         `).join('')}
       </div>
     </div>

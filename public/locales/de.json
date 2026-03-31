@@ -296,7 +296,9 @@
     "dayLongWednesday": "Mittwoch",
     "dayLongThursday": "Donnerstag",
     "dayLongFriday": "Freitag",
-    "dayLongSaturday": "Samstag"
+    "dayLongSaturday": "Samstag",
+    "timeSuffix": "Uhr",
+    "colorLabel": "Farbe {{color}}"
   },
 
   "notes": {
