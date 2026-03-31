@@ -1,7 +1,5 @@
 <p align="center">
-  <!-- Replace with your logo when ready: recommended 120–160px, SVG or PNG, transparent background -->
-  <!-- <img src="docs/logo.svg" alt="Oikos" width="140"> -->
-  <img src="https://img.shields.io/badge/%F0%9F%8F%A0-Oikos-007AFF?style=for-the-badge&labelColor=F5F5F7" alt="Oikos" height="48">
+  <img src="docs/logo.svg" alt="Oikos" width="140">
 </p>
 
 <h1 align="center">Oikos</h1>
