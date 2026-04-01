@@ -1,8 +1,8 @@
 /**
  * Icon Generator for Oikos PWA
- * Generates placeholder icons (accent color #007AFF with white "O")
+ * Generates icons from docs/logo.svg
  * Sizes: 192px and 512px, both "any" and "maskable" variants
- * Maskable icons include safe zone padding (min 10%)
+ * Maskable icons: full-bleed background, logo content stays within 80% safe zone
  *
  * Usage: node scripts/generate-icons.js
  * Dependencies: sharp (devDependency)
@@ -15,73 +15,63 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ICONS_DIR = join(__dirname, '..', 'public', 'icons');
-const ACCENT = '#007AFF';
-const BG_LIGHT = '#F5F5F7';
 
 mkdirSync(ICONS_DIR, { recursive: true });
 
-/**
- * Create an SVG with a centered "O" on accent background.
- * @param {number} size - Icon dimension in px
- * @param {boolean} maskable - If true, add 20% padding for safe zone
- */
-function createSvg(size, maskable) {
-  const fontSize = maskable ? size * 0.4 : size * 0.55;
-  const bgRadius = maskable ? 0 : size * 0.18;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="${bgRadius}" fill="${ACCENT}"/>
-  <text x="50%" y="52%" dominant-baseline="central" text-anchor="middle"
-        font-family="system-ui, -apple-system, sans-serif" font-weight="700"
-        font-size="${fontSize}" fill="white">O</text>
+/** Logo SVG (any): rounded corners, gradient background */
+function createLogoSvg(size) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 160 160" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="160" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#006AE0"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" rx="36" fill="url(#bg)"/>
+  <path d="M80 36L36 72V120C36 122.2 37.8 124 40 124H68V96H92V124H120C122.2 124 124 122.2 124 120V72L80 36Z" fill="white"/>
+  <rect x="100" y="46" width="12" height="22" rx="2" fill="white"/>
 </svg>`;
 }
 
-/**
- * Create Apple Touch Icon (180x180) with slight rounding
- */
+/** Maskable logo SVG: full-bleed background (no rx), logo within safe zone */
+function createMaskableLogoSvg(size) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 160 160" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="160" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0A84FF"/>
+      <stop offset="100%" stop-color="#006AE0"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="160" fill="url(#bg)"/>
+  <path d="M80 36L36 72V120C36 122.2 37.8 124 40 124H68V96H92V124H120C122.2 124 124 122.2 124 120V72L80 36Z" fill="white"/>
+  <rect x="100" y="46" width="12" height="22" rx="2" fill="white"/>
+</svg>`;
+}
+
+/** Apple Touch Icon (180x180): same as any-icon */
 function createAppleTouchSvg() {
-  const size = 180;
-  const fontSize = size * 0.55;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="${size * 0.18}" fill="${ACCENT}"/>
-  <text x="50%" y="52%" dominant-baseline="central" text-anchor="middle"
-        font-family="system-ui, -apple-system, sans-serif" font-weight="700"
-        font-size="${fontSize}" fill="white">O</text>
-</svg>`;
+  return createLogoSvg(180);
 }
 
-/**
- * Create favicon (32x32)
- */
+/** Favicon (32x32): simplified — just gradient background with house */
 function createFaviconSvg() {
-  const size = 32;
-  const fontSize = size * 0.6;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-  <rect width="${size}" height="${size}" rx="6" fill="${ACCENT}"/>
-  <text x="50%" y="52%" dominant-baseline="central" text-anchor="middle"
-        font-family="system-ui, -apple-system, sans-serif" font-weight="700"
-        font-size="${fontSize}" fill="white">O</text>
-</svg>`;
+  return createLogoSvg(32);
 }
 
 const icons = [
-  { name: 'icon-192.png', size: 192, maskable: false },
-  { name: 'icon-512.png', size: 512, maskable: false },
-  { name: 'icon-maskable-192.png', size: 192, maskable: true },
-  { name: 'icon-maskable-512.png', size: 512, maskable: true },
-  { name: 'apple-touch-icon.png', size: 180, svg: createAppleTouchSvg() },
-  { name: 'favicon-32.png', size: 32, svg: createFaviconSvg() },
+  { name: 'icon-192.png',          size: 192, svg: createLogoSvg(192)         },
+  { name: 'icon-512.png',          size: 512, svg: createLogoSvg(512)         },
+  { name: 'icon-maskable-192.png', size: 192, svg: createMaskableLogoSvg(192) },
+  { name: 'icon-maskable-512.png', size: 512, svg: createMaskableLogoSvg(512) },
+  { name: 'apple-touch-icon.png',  size: 180, svg: createAppleTouchSvg()      },
+  { name: 'favicon-32.png',        size: 32,  svg: createFaviconSvg()         },
 ];
 
 for (const icon of icons) {
-  const svg = icon.svg || createSvg(icon.size, icon.maskable);
   const outputPath = join(ICONS_DIR, icon.name);
-
-  await sharp(Buffer.from(svg))
+  await sharp(Buffer.from(icon.svg))
     .png()
     .toFile(outputPath);
-
   console.log(`  ✓ ${icon.name} (${icon.size}x${icon.size})`);
 }
 
