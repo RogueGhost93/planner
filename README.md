@@ -57,17 +57,17 @@ Oikos is designed for **one family on one server** — not a SaaS product, not a
   <tr>
     <td align="center" width="33%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-dashboard.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-dashboard.png">
-        <img src="docs/screenshots/mobile-light/mobile-light-dashboard.png" alt="Dashboard" width="240">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-dashboard-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-dashboard-2.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-dashboard-2.png" alt="Dashboard" width="240">
       </picture>
       <br><strong>Dashboard</strong>
     </td>
     <td align="center" width="33%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-tasks.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-tasks.png">
-        <img src="docs/screenshots/mobile-light/mobile-light-tasks.png" alt="Tasks" width="240">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-tasks-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-tasks-2.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-tasks-2.png" alt="Tasks" width="240">
       </picture>
       <br><strong>Tasks</strong>
     </td>
@@ -99,9 +99,9 @@ Oikos is designed for **one family on one server** — not a SaaS product, not a
     </td>
     <td align="center" width="33%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-budget.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-budget.png">
-        <img src="docs/screenshots/mobile-light/mobile-light-budget.png" alt="Budget" width="240">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-budget-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-budget-2.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-budget-2.png" alt="Budget" width="240">
       </picture>
       <br><strong>Budget</strong>
     </td>
@@ -109,17 +109,17 @@ Oikos is designed for **one family on one server** — not a SaaS product, not a
   <tr>
     <td align="center" width="33%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-notes.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-notes.png">
-        <img src="docs/screenshots/mobile-light/mobile-light-notes.png" alt="Notes" width="240">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-notes-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-notes-2.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-notes-2.png" alt="Notes" width="240">
       </picture>
       <br><strong>Notes</strong>
     </td>
     <td align="center" width="33%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-contacts.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-contacts.png">
-        <img src="docs/screenshots/mobile-light/mobile-light-contacts.png" alt="Contacts" width="240">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/mobile-dark/mobile-dark-contacts-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/mobile-light/mobile-light-contacts-2.png">
+        <img src="docs/screenshots/mobile-light/mobile-light-contacts-2.png" alt="Contacts" width="240">
       </picture>
       <br><strong>Contacts</strong>
     </td>
@@ -141,17 +141,17 @@ Oikos is designed for **one family on one server** — not a SaaS product, not a
   <tr>
     <td align="center" width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-dashboard.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-dashboard.png">
-        <img src="docs/screenshots/tablet-light/tablet-light-dashboard.png" alt="Dashboard — Tablet" width="480">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-dashboard-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-dashboard-2.png">
+        <img src="docs/screenshots/tablet-light/tablet-light-dashboard-2.png" alt="Dashboard — Tablet" width="480">
       </picture>
       <br><strong>Dashboard</strong>
     </td>
     <td align="center" width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-tasks.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-tasks.png">
-        <img src="docs/screenshots/tablet-light/tablet-light-tasks.png" alt="Tasks — Tablet" width="480">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-tasks-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-tasks-2.png">
+        <img src="docs/screenshots/tablet-light/tablet-light-tasks-2.png" alt="Tasks — Tablet" width="480">
       </picture>
       <br><strong>Tasks</strong>
     </td>
@@ -185,9 +185,9 @@ Oikos is designed for **one family on one server** — not a SaaS product, not a
     </td>
     <td align="center" width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-budget.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-budget.png">
-        <img src="docs/screenshots/tablet-light/tablet-light-budget.png" alt="Budget — Tablet" width="480">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-budget-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-budget-2.png">
+        <img src="docs/screenshots/tablet-light/tablet-light-budget-2.png" alt="Budget — Tablet" width="480">
       </picture>
       <br><strong>Budget</strong>
     </td>
@@ -195,17 +195,17 @@ Oikos is designed for **one family on one server** — not a SaaS product, not a
   <tr>
     <td align="center" width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-notes.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-notes.png">
-        <img src="docs/screenshots/tablet-light/tablet-light-notes.png" alt="Notes — Tablet" width="480">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-notes-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-notes-2.png">
+        <img src="docs/screenshots/tablet-light/tablet-light-notes-2.png" alt="Notes — Tablet" width="480">
       </picture>
       <br><strong>Notes</strong>
     </td>
     <td align="center" width="50%">
       <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-contacts.png">
-        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-contacts.png">
-        <img src="docs/screenshots/tablet-light/tablet-light-contacts.png" alt="Contacts — Tablet" width="480">
+        <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/tablet-dark/tablet-dark-contacts-2.png">
+        <source media="(prefers-color-scheme: light)" srcset="docs/screenshots/tablet-light/tablet-light-contacts-2.png">
+        <img src="docs/screenshots/tablet-light/tablet-light-contacts-2.png" alt="Contacts — Tablet" width="480">
       </picture>
       <br><strong>Contacts</strong>
     </td>
