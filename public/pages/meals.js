@@ -349,20 +349,21 @@ function wireDragDrop(grid) {
 
     async function onUp(ev) {
       if (!dragging) return;
-      cleanup();
+      const { mealId, sourceDate, sourceType, slot: sourceSlot } = dragging;
+      cleanup(); // setzt dragging = null — Werte daher vorher destrukturieren
 
       if (ghost) ghost.style.display = 'none';
       const el = document.elementFromPoint(ev.clientX, ev.clientY);
       if (ghost) ghost.style.display = '';
 
       const targetSlot = el?.closest('.meal-slot');
-      if (targetSlot && targetSlot !== dragging.slot) {
+      if (targetSlot && targetSlot !== sourceSlot) {
         const targetDate    = targetSlot.dataset.date;
         const targetType    = targetSlot.dataset.type;
         const targetMealId  = targetSlot.dataset.mealId ? parseInt(targetSlot.dataset.mealId, 10) : null;
         _suppressNextClick = true;
         setTimeout(() => { _suppressNextClick = false; }, 300);
-        await moveMeal(dragging.mealId, dragging.sourceDate, dragging.sourceType, targetDate, targetType, targetMealId);
+        await moveMeal(mealId, sourceDate, sourceType, targetDate, targetType, targetMealId);
       }
     }
 
