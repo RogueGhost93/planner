@@ -265,7 +265,7 @@ function renderPinnedNotes(notes) {
 // Wetter-Widget
 // --------------------------------------------------------
 
-const WEATHER_ICON_BASE = 'https://openweathermap.org/img/wn/';
+const WEATHER_ICON_BASE = '/api/v1/weather/icon/';
 
 function renderWeatherWidget(weather) {
   if (!weather) return '';
@@ -279,7 +279,7 @@ function renderWeatherWidget(weather) {
     return `
       <div class="weather-forecast__day${extraCls}">
         <div class="weather-forecast__label">${label}</div>
-        <img class="weather-forecast__icon" src="${WEATHER_ICON_BASE}${d.icon}@2x.png"
+        <img class="weather-forecast__icon" src="${WEATHER_ICON_BASE}${d.icon}"
              alt="${d.desc}" width="32" height="32" loading="lazy">
         <div class="weather-forecast__temps">
           <span class="weather-forecast__high">${d.temp_max}°</span>
@@ -303,7 +303,7 @@ function renderWeatherWidget(weather) {
               ${t('dashboard.weatherFeelsLike', { temp: current.feels_like, humidity: current.humidity, wind: current.wind_speed })}
             </div>
           </div>
-          <img class="weather-widget__icon" src="${WEATHER_ICON_BASE}${current.icon}@2x.png"
+          <img class="weather-widget__icon" src="${WEATHER_ICON_BASE}${current.icon}"
                alt="${current.desc}" width="80" height="80" loading="lazy">
         </div>
         ${forecast.length ? `<div class="weather-forecast">${forecastHtml}</div>` : ''}

@@ -43,7 +43,7 @@ app.use(helmet({
         'https://cdn.jsdelivr.net',
       ],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'https://openweathermap.org'],
+      imgSrc: ["'self'", 'data:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],

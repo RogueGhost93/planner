@@ -92,4 +92,33 @@ router.get('/', async (req, res) => {
   }
 });
 
+// --------------------------------------------------------
+// GET /api/v1/weather/icon/:code
+// Proxy für OpenWeatherMap-Icons — vermeidet externe Bild-Requests
+// im PWA-Standalone-Modus (CORS/CSP-Probleme auf Android Chrome).
+// Erlaubte Codes: 2–4 alphanumerische Zeichen (z.B. "01d", "10n").
+// Response: PNG-Bild mit 24h-Cache
+// --------------------------------------------------------
+router.get('/icon/:code', async (req, res) => {
+  const { code } = req.params;
+  if (!/^[a-zA-Z0-9]{2,4}$/.test(code)) {
+    return res.status(400).json({ error: 'Ungültiger Icon-Code.', code: 400 });
+  }
+
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const url = `https://openweathermap.org/img/wn/${code}@2x.png`;
+    const upstream = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!upstream.ok) {
+      return res.status(502).json({ error: 'Icon nicht verfügbar.', code: 502 });
+    }
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 Stunden
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.warn('[Weather] Icon-Proxy Fehler:', err.message);
+    res.status(502).json({ error: 'Icon-Proxy fehlgeschlagen.', code: 502 });
+  }
+});
+
 module.exports = router;
