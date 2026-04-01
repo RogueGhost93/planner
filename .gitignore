@@ -33,6 +33,9 @@ dist/
 # Git Worktrees
 .worktrees/
 
+# Claude Code Arbeitsdokumente (interne Pläne/Specs, nicht für Contributors)
+docs/superpowers/
+
 # Textdateien mit Tokens/Keys (Sicherheitsnetz)
 *.txt
 !public/robots.txt
