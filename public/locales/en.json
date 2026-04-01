@@ -510,6 +510,7 @@
     "googleDisconnectConfirm": "Disconnect Google Calendar?",
     "appleDisconnectConfirm": "Disconnect Apple Calendar?",
     "localeSystem": "System",
+    "localeLabel": "Language",
     "languageTitle": "Language"
   },
 

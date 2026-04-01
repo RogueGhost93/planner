@@ -510,6 +510,7 @@
     "googleDisconnectConfirm": "Google Calendar-Verbindung trennen?",
     "appleDisconnectConfirm": "Apple Calendar-Verbindung trennen?",
     "localeSystem": "System",
+    "localeLabel": "Sprache",
     "languageTitle": "Sprache"
   },
 

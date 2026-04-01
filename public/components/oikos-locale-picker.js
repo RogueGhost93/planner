@@ -1,6 +1,6 @@
 /**
  * oikos-locale-picker — Sprachauswahl-Web-Component
- * Zeigt Radio-Buttons für System/Deutsch/English.
+ * Zeigt ein <select>-Dropdown für System/Deutsch/English.
  * Bei Auswahl: setLocale() oder localStorage-Eintrag löschen (System).
  * Dependencies: i18n.js
  */
@@ -24,56 +24,43 @@ class OikosLocalePicker extends HTMLElement {
   }
 
   _render() {
-    this.textContent = '';
-
     const stored = localStorage.getItem('oikos-locale');
 
-    const wrapper = document.createElement('div');
-    wrapper.className = 'locale-picker';
+    const label = document.createElement('label');
+    label.className = 'locale-picker__label';
+    label.htmlFor = 'locale-select';
+    label.textContent = t('settings.localeLabel');
+
+    const select = document.createElement('select');
+    select.className = 'form-input locale-picker__select';
+    select.id = 'locale-select';
 
     // System-Option
-    const systemOption = this._createOption(
-      'system',
-      t('settings.localeSystem'),
-      !stored,
-      () => {
-        localStorage.removeItem('oikos-locale');
-        location.reload();
-      }
-    );
-    wrapper.appendChild(systemOption);
+    const systemOpt = document.createElement('option');
+    systemOpt.value = 'system';
+    systemOpt.textContent = t('settings.localeSystem');
+    systemOpt.selected = !stored;
+    select.appendChild(systemOpt);
 
     // Sprach-Optionen
     for (const locale of getSupportedLocales()) {
-      const option = this._createOption(
-        locale,
-        LOCALE_LABELS[locale] || locale,
-        stored === locale,
-        () => setLocale(locale)
-      );
-      wrapper.appendChild(option);
+      const opt = document.createElement('option');
+      opt.value = locale;
+      opt.textContent = LOCALE_LABELS[locale] || locale;
+      opt.selected = stored === locale;
+      select.appendChild(opt);
     }
 
-    this.appendChild(wrapper);
-  }
+    select.addEventListener('change', () => {
+      if (select.value === 'system') {
+        localStorage.removeItem('oikos-locale');
+        location.reload();
+      } else {
+        setLocale(select.value);
+      }
+    });
 
-  _createOption(value, label, checked, onChange) {
-    const item = document.createElement('label');
-    item.className = 'locale-picker__option';
-
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'locale';
-    radio.value = value;
-    radio.checked = checked;
-    radio.addEventListener('change', onChange);
-
-    const span = document.createElement('span');
-    span.textContent = label;
-
-    item.appendChild(radio);
-    item.appendChild(span);
-    return item;
+    this.replaceChildren(label, select);
   }
 }
 

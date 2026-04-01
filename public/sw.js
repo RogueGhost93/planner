@@ -12,9 +12,9 @@
  *   API: Immer Netzwerk (kein Caching von Nutzerdaten)
  */
 
-const SHELL_CACHE   = 'oikos-shell-v21';
-const PAGES_CACHE   = 'oikos-pages-v21';
-const ASSETS_CACHE  = 'oikos-assets-v21';
+const SHELL_CACHE   = 'oikos-shell-v22';
+const PAGES_CACHE   = 'oikos-pages-v22';
+const ASSETS_CACHE  = 'oikos-assets-v22';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App-Shell: sofort benötigt für ersten Render
@@ -123,8 +123,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Bilder + Fonts: Cache-First, langer TTL
-  if (isAsset(url.pathname)) {
+  // Bilder + Fonts: Cache-First, langer TTL — nur Same-Origin
+  // Cross-Origin-Assets (z.B. Wetter-Icons von openweathermap.org) nicht
+  // abfangen: opaque Responses führen im PWA-Modus zu Darstellungsfehlern.
+  if (isAsset(url.pathname) && url.origin === self.location.origin) {
     event.respondWith(cacheFirst(request, ASSETS_CACHE));
     return;
   }
