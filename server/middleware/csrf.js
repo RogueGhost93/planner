@@ -39,8 +39,7 @@ function csrfMiddleware(req, res, next) {
   res.cookie('csrf-token', req.session.csrfToken, {
     httpOnly: false,
     sameSite: 'strict',
-    secure: process.env.SESSION_SECURE === 'false' ? false
-          : process.env.NODE_ENV === 'production',
+    secure: process.env.SESSION_SECURE !== 'false',
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 Tage (gleich wie Session)
   });
 

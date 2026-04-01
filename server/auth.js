@@ -103,10 +103,8 @@ const sessionMiddleware = session({
   name: 'oikos.sid',
   cookie: {
     httpOnly: true,
-    // SESSION_SECURE=false in .env erlaubt HTTP-Zugriff (z.B. direktes localhost ohne Reverse Proxy)
-    // Ohne diese Variable: secure=true wenn NODE_ENV=production
-    secure: process.env.SESSION_SECURE === 'false' ? false
-          : process.env.NODE_ENV === 'production',
+    // secure=true by default; set SESSION_SECURE=false in .env to allow HTTP (local dev without reverse proxy)
+    secure: process.env.SESSION_SECURE !== 'false',
     sameSite: 'strict',
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 Tage in ms
   },
@@ -193,8 +191,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       res.cookie('csrf-token', req.session.csrfToken, {
         httpOnly: false,
         sameSite: 'strict',
-        secure: process.env.SESSION_SECURE === 'false' ? false
-              : process.env.NODE_ENV === 'production',
+        secure: process.env.SESSION_SECURE !== 'false',
         maxAge: 1000 * 60 * 60 * 24 * 7,
       });
 
