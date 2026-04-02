@@ -66,18 +66,15 @@
 ## Quick Start
 
 ```bash
-docker compose up -d
-```
-
-Then open `http://localhost:3000` and run the setup:
-
-```bash
+git clone https://github.com/ulsklyc/oikos.git && cd oikos
+cp .env.example .env     # then edit .env — set SESSION_SECRET and DB_ENCRYPTION_KEY
+docker compose up -d --build
 docker compose exec oikos node setup.js
 ```
 
-Add family members from Settings.
+Then open `http://localhost:3000` and log in. Add family members from Settings.
 
-> See [`nginx.conf.example`](nginx.conf.example) for HTTPS and reverse proxy setup.
+> **New to Docker?** The **[Installation Guide](docs/installation.md)** walks you through every step — from installing Docker to HTTPS setup, backups, and troubleshooting.
 
 ## Tech Stack
 
@@ -92,8 +89,8 @@ Add family members from Settings.
 
 ## Documentation
 
-| 📖 [Spec & Data Model](docs/SPEC.md) | 🤝 [Contributing](CONTRIBUTING.md) | 🔒 [Security](SECURITY.md) | 📋 [Changelog](CHANGELOG.md) | 📌 [Backlog](BACKLOG.md) |
-|---|---|---|---|---|
+| 🚀 [Installation](docs/installation.md) | 📖 [Spec & Data Model](docs/SPEC.md) | 🤝 [Contributing](CONTRIBUTING.md) | 🔒 [Security](SECURITY.md) | 📋 [Changelog](CHANGELOG.md) | 📌 [Backlog](BACKLOG.md) |
+|---|---|---|---|---|---|
 
 ## Roadmap
 
