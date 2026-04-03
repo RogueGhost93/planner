@@ -9,15 +9,13 @@
  *   Ohne DB_ENCRYPTION_KEY gesetzt läuft die App mit unverschlüsseltem SQLite (für Entwicklung).
  */
 
-'use strict';
-
-const Database = require('better-sqlite3');
-const path = require('path');
-const { createLogger } = require('./logger');
+import Database from 'better-sqlite3';
+import path from 'path';
+import { createLogger } from './logger.js';
 
 const log = createLogger('DB');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '..', 'oikos.db');
+const DB_PATH = process.env.DB_PATH || path.join(import.meta.dirname, '..', 'oikos.db');
 const DB_KEY = process.env.DB_ENCRYPTION_KEY;
 
 let db;
@@ -32,6 +30,7 @@ let db;
  * @returns {import('better-sqlite3').Database}
  */
 function init() {
+  if (db) return db;
   db = new Database(DB_PATH);
 
   if (DB_KEY) {
@@ -369,4 +368,6 @@ function transaction(fn) {
   return get().transaction(fn)();
 }
 
-module.exports = { init, get, transaction, currentVersion };
+init();   // auto-initialise when module is first imported
+
+export { init, get, transaction, currentVersion };

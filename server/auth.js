@@ -4,16 +4,14 @@
  * Abhängigkeiten: express, bcrypt, express-session, server/db.js
  */
 
-'use strict';
-
-const express = require('express');
-const bcrypt = require('bcrypt');
-const session = require('express-session');
-const rateLimit = require('express-rate-limit');
-const db = require('./db');
-
-const { generateToken, csrfMiddleware } = require('./middleware/csrf');
-const { createLogger } = require('./logger');
+import express from 'express';
+import bcrypt from 'bcrypt';
+import session from 'express-session';
+import rateLimit from 'express-rate-limit';
+import { randomBytes } from 'node:crypto';
+import * as db from './db.js';
+import { generateToken, csrfMiddleware } from './middleware/csrf.js';
+import { createLogger } from './logger.js';
 
 const log = createLogger('Auth');
 const router = express.Router();
@@ -97,7 +95,6 @@ if (!process.env.SESSION_SECRET) {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('[Auth] SESSION_SECRET muss in der .env gesetzt sein (Produktion).');
   }
-  const { randomBytes } = require('node:crypto');
   process.env.SESSION_SECRET = randomBytes(32).toString('hex');
   log.warn('SESSION_SECRET nicht gesetzt - zufaelliges Einmal-Secret generiert (Sessions ueberleben keinen Neustart).');
 }
@@ -410,4 +407,4 @@ router.delete('/users/:id', requireAuth, requireAdmin, csrfMiddleware, (req, res
   }
 });
 
-module.exports = { router, sessionMiddleware, requireAuth, requireAdmin };
+export { router, sessionMiddleware, requireAuth, requireAdmin };

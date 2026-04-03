@@ -5,8 +5,6 @@
  * Abhängigkeiten: keine
  */
 
-'use strict';
-
 // SQL-String für Migration v1 (gespiegelt aus db.js MIGRATIONS[0].up)
 // Änderungen in db.js MIGRATIONS müssen hier synchron gehalten werden.
 const MIGRATIONS_SQL = {
@@ -182,4 +180,4 @@ const MIGRATIONS_SQL = {
   `,
 };
 
-module.exports = { MIGRATIONS_SQL };
+export { MIGRATIONS_SQL };
