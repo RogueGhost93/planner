@@ -90,13 +90,18 @@ const sessionStore = new BetterSQLiteStore();
  * Session-Middleware konfigurieren.
  * Wird in server/index.js eingebunden.
  */
-if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
-  throw new Error('[Auth] SESSION_SECRET muss in der .env gesetzt sein (Produktion).');
+if (!process.env.SESSION_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[Auth] SESSION_SECRET muss in der .env gesetzt sein (Produktion).');
+  }
+  const { randomBytes } = require('node:crypto');
+  process.env.SESSION_SECRET = randomBytes(32).toString('hex');
+  console.warn('[Auth] SESSION_SECRET nicht gesetzt - zufaelliges Einmal-Secret generiert (Sessions ueberleben keinen Neustart).');
 }
 
 const sessionMiddleware = session({
   store: sessionStore,
-  secret: process.env.SESSION_SECRET || 'dev-only-secret-not-for-production',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   name: 'oikos.sid',
