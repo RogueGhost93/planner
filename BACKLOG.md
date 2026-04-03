@@ -4,9 +4,11 @@ Feature requests and planned extensions. Entries here will **not** be implemente
 
 New suggestion? → [Open an issue](https://github.com/ulsklyc/oikos/issues/new?template=feature_request.md) or add it here.
 
----
+## Open Entries
 
-*No open entries at this time.*
+| ID | Issue | Feature | Notes |
+|----|-------|---------|-------|
+| BL-11 | [#10](https://github.com/ulsklyc/oikos/issues/10) | Contacts: CardDAV (read-only) provider | Sync address book entries from phone/server; backend lib evaluation needed |
 
 ---
 
