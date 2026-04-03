@@ -5,8 +5,6 @@
  * Abhängigkeiten: keine
  */
 
-'use strict';
-
 const DAY_MAP = { MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, SU: 0 };
 
 /**
@@ -107,4 +105,4 @@ function nextOccurrence(baseDateStr, rrule) {
   return next.toISOString().slice(0, 10); // YYYY-MM-DD
 }
 
-module.exports = { parseRRule, nextOccurrence };
+export { parseRRule, nextOccurrence };

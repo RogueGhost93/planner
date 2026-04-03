@@ -5,20 +5,18 @@
  * Abhängigkeiten: express, server/db.js, server/auth.js
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
+import * as googleCalendar from '../services/google-calendar.js';
+import * as appleCalendar from '../services/apple-calendar.js';
+import { requireAdmin } from '../auth.js';
+import { str, color, datetime, rrule, collectErrors, MAX_TITLE, MAX_TEXT, DATE_RE, DATETIME_RE } from '../middleware/validate.js';
+import { nextOccurrence } from '../services/recurrence.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Calendar');
 
-const express        = require('express');
 const router         = express.Router();
-const db             = require('../db');
-const googleCalendar = require('../services/google-calendar');
-const appleCalendar  = require('../services/apple-calendar');
-const { requireAdmin } = require('../auth');
-const { str, color, datetime, rrule, collectErrors, MAX_TITLE, MAX_TEXT, DATE_RE, DATETIME_RE } = require('../middleware/validate');
-
-const { nextOccurrence } = require('../services/recurrence');
 
 const VALID_SOURCES = ['local', 'google', 'apple'];
 
@@ -545,4 +543,4 @@ router.delete('/:id', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

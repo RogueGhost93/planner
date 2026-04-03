@@ -3,13 +3,14 @@
   "version": "0.5.9",
   "description": "Self-hosted family planner - calendar, tasks, shopping, meal planning, budget and more. Private, open-source, no subscription.",
   "main": "server/index.js",
+  "type": "module",
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
-    "setup": "node setup.js",
+    "start": "node --import dotenv/config server/index.js",
+    "dev": "node --import dotenv/config --watch server/index.js",
+    "setup": "node --import dotenv/config setup.js",
     "test:db": "node --experimental-sqlite test-db.js",
     "test:dashboard": "node --experimental-sqlite test-dashboard.js",
     "test:tasks": "node --experimental-sqlite test-tasks.js",

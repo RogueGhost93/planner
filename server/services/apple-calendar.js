@@ -12,12 +12,10 @@
  *   apple_last_sync - ISO-8601-Timestamp des letzten Syncs
  */
 
-'use strict';
-
-const { createLogger } = require('../logger');
+import { createLogger } from '../logger.js';
 const log = createLogger('Apple');
 
-const db = require('../db');
+import * as db from '../db.js';
 
 const APPLE_COLOR = '#FC3C44';
 
@@ -407,4 +405,4 @@ async function sync() {
   log.info(`Sync abgeschlossen - ${totalObjects} Objekte aus ${syncCalendars.length} Kalendern inbound, ${localEvents.length} lokal → iCloud.`);
 }
 
-module.exports = { sync, getStatus, saveCredentials, clearCredentials, testConnection };
+export { sync, getStatus, saveCredentials, clearCredentials, testConnection };

@@ -4,10 +4,8 @@
  * Ausführen: node --experimental-sqlite test-dashboard.js
  */
 
-'use strict';
-
-const { DatabaseSync } = require('node:sqlite');
-const { MIGRATIONS_SQL } = require('./server/db-schema-test');
+import { DatabaseSync } from 'node:sqlite';
+import { MIGRATIONS_SQL } from './server/db-schema-test.js';
 
 let passed = 0;
 let failed = 0;

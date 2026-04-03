@@ -4,15 +4,14 @@
  * Abhängigkeiten: express, server/db.js, server/auth.js
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
+import { str, oneOf, date, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT, DATE_RE } from '../middleware/validate.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Meals');
 
-const express = require('express');
 const router  = express.Router();
-const db      = require('../db');
-const { str, oneOf, date, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT, DATE_RE } = require('../middleware/validate');
 
 const VALID_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
 
@@ -471,4 +470,4 @@ router.post('/week-to-shopping-list', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

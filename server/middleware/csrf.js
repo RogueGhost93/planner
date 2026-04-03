@@ -11,9 +11,7 @@
  *   5. GET/HEAD/OPTIONS sind ausgenommen (safe methods).
  */
 
-'use strict';
-
-const crypto = require('node:crypto');
+import crypto from 'node:crypto';
 
 const TOKEN_LENGTH = 32; // Bytes → 64 Hex-Zeichen
 
@@ -68,4 +66,4 @@ function csrfMiddleware(req, res, next) {
   next();
 }
 
-module.exports = { csrfMiddleware, generateToken };
+export { csrfMiddleware, generateToken };

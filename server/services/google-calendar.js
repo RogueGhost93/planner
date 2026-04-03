@@ -11,14 +11,12 @@
  *   google_last_sync      - ISO-8601-Timestamp des letzten erfolgreichen Syncs
  */
 
-'use strict';
-
-const { createLogger } = require('../logger');
+import { createLogger } from '../logger.js';
 const log = createLogger('Google');
 
-const { google } = require('googleapis');
-const crypto = require('crypto');
-const db = require('../db');
+import { google } from 'googleapis';
+import crypto from 'crypto';
+import * as db from '../db.js';
 
 const GOOGLE_COLOR = '#4285F4';
 
@@ -334,4 +332,4 @@ function localEventToGoogle(event) {
   return gEvent;
 }
 
-module.exports = { getAuthUrl, handleCallback, getStatus, disconnect, sync };
+export { getAuthUrl, handleCallback, getStatus, disconnect, sync };

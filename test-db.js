@@ -7,15 +7,13 @@
  * Ausführen: node test-db.js
  */
 
-'use strict';
-
-const { DatabaseSync } = require('node:sqlite');
+import { DatabaseSync } from 'node:sqlite';
 
 // --------------------------------------------------------
 // Migrations-SQL direkt aus db.js extrahieren
 // (Nur für Tests - in Produktion läuft db.js mit better-sqlite3)
 // --------------------------------------------------------
-const { MIGRATIONS_SQL } = require('./server/db-schema-test');
+import { MIGRATIONS_SQL } from './server/db-schema-test.js';
 
 let passed = 0;
 let failed = 0;

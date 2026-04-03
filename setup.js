@@ -5,14 +5,10 @@
  * Abhängigkeiten: server/db.js, bcrypt, dotenv
  */
 
-'use strict';
-
-require('dotenv').config();
-const readline = require('node:readline');
-const bcrypt = require('bcrypt');
-const db = require('./server/db');
-
-const os = require('node:os');
+import readline from 'node:readline';
+import bcrypt from 'bcrypt';
+import * as db from './server/db.js';
+import os from 'node:os';
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
@@ -66,9 +62,6 @@ function promptPassword(question) {
 
 async function main() {
   console.log('\n=== Oikos Setup ===\n');
-
-  // Datenbank initialisieren
-  db.init();
 
   // Prüfen ob bereits Admin vorhanden
   const existingAdmin = db.get()
