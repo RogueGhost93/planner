@@ -7,15 +7,14 @@
  * vor dynamischen (/:listId) registriert sein, damit Express korrekt matcht.
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
+import { str, oneOf, collectErrors, MAX_TITLE, MAX_SHORT } from '../middleware/validate.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Shopping');
 
-const express = require('express');
 const router  = express.Router();
-const db      = require('../db');
-const { str, oneOf, collectErrors, MAX_TITLE, MAX_SHORT } = require('../middleware/validate');
 
 // --------------------------------------------------------
 // Konstanten
@@ -286,4 +285,4 @@ router.delete('/:listId/items/checked', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

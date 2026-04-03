@@ -4,8 +4,6 @@
  * Abhängigkeiten: keine
  */
 
-'use strict';
-
 // Globale Längengrenzen
 const MAX_TITLE    = 200;
 const MAX_TEXT     = 5000;
@@ -158,7 +156,7 @@ function id(val, field) {
   return { value: n, error: null };
 }
 
-module.exports = {
+export {
   str, oneOf, date, time, datetime, month, num, color, rrule, id, collectErrors,
   MAX_TITLE, MAX_TEXT, MAX_SHORT, MAX_RRULE,
   DATE_RE, TIME_RE, DATETIME_RE, COLOR_RE, MONTH_RE,

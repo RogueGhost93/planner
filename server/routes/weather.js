@@ -4,12 +4,11 @@
  * Abhängigkeiten: express, node-fetch, dotenv
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Weather');
 
-const express = require('express');
 const router  = express.Router();
 
 // Cache: Daten für 30 Minuten halten
@@ -124,4 +123,4 @@ router.get('/icon/:code', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

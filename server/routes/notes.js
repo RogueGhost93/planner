@@ -4,15 +4,14 @@
  * Abhängigkeiten: express, server/db.js, server/auth.js
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
+import { str, color, collectErrors, MAX_TEXT, MAX_TITLE } from '../middleware/validate.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Notes');
 
-const express = require('express');
 const router  = express.Router();
-const db      = require('../db');
-const { str, color, collectErrors, MAX_TEXT, MAX_TITLE } = require('../middleware/validate');
 
 /**
  * GET /api/v1/notes
@@ -152,4 +151,4 @@ router.delete('/:id', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

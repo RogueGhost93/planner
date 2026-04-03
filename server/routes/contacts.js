@@ -4,15 +4,14 @@
  * Abhängigkeiten: express, server/db.js, server/auth.js
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
+import { str, oneOf, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT } from '../middleware/validate.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Contacts');
 
-const express = require('express');
 const router  = express.Router();
-const db      = require('../db');
-const { str, oneOf, collectErrors, MAX_TITLE, MAX_TEXT, MAX_SHORT } = require('../middleware/validate');
 
 const VALID_CATEGORIES = ['Arzt', 'Schule/Kita', 'Behörde', 'Versicherung',
                            'Handwerker', 'Notfall', 'Sonstiges'];
@@ -201,4 +200,4 @@ router.get('/:id/vcard', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

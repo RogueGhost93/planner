@@ -4,14 +4,13 @@
  * Abhängigkeiten: express, server/db.js
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Dashboard');
 
-const express = require('express');
 const router = express.Router();
-const db = require('../db');
 
 /**
  * GET /api/v1/dashboard
@@ -129,4 +128,4 @@ router.get('/', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

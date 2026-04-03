@@ -4,30 +4,29 @@
  * Abhängigkeiten: express, helmet, dotenv, server/db.js, server/auth.js, server/routes/*
  */
 
-'use strict';
-
-require('dotenv').config();
-const express    = require('express');
-const helmet     = require('helmet');
-const rateLimit  = require('express-rate-limit');
-const path       = require('path');
-const { createLogger } = require('./logger');
+import express from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import path from 'path';
+import { createLogger } from './logger.js';
+import * as db from './db.js';
+import { router as authRouter, sessionMiddleware, requireAuth } from './auth.js';
+import { csrfMiddleware } from './middleware/csrf.js';
+import * as googleCalendar from './services/google-calendar.js';
+import * as appleCalendar from './services/apple-calendar.js';
+import dashboardRouter from './routes/dashboard.js';
+import tasksRouter from './routes/tasks.js';
+import shoppingRouter from './routes/shopping.js';
+import mealsRouter from './routes/meals.js';
+import calendarRouter from './routes/calendar.js';
+import notesRouter from './routes/notes.js';
+import contactsRouter from './routes/contacts.js';
+import budgetRouter from './routes/budget.js';
+import weatherRouter from './routes/weather.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
 const logOikos = createLogger('Oikos');
-
-// --------------------------------------------------------
-// Datenbank initialisieren (muss vor require('./auth') stehen,
-// da BetterSQLiteStore im Konstruktor db.get() aufruft)
-// --------------------------------------------------------
-const db = require('./db');
-db.init();
-
-const { router: authRouter, sessionMiddleware, requireAuth } = require('./auth');
-const { csrfMiddleware } = require('./middleware/csrf');
-const googleCalendar = require('./services/google-calendar');
-const appleCalendar  = require('./services/apple-calendar');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -107,7 +106,7 @@ app.use('/api/', (req, res, next) => {
 // Bilder + Icons + Fonts: 30 Tage immutable (ändern sich praktisch nie).
 // manifest.json + sw.js: no-cache (PWA-Updates sollen sofort greifen).
 // --------------------------------------------------------
-app.use(express.static(path.join(__dirname, '..', 'public'), {
+app.use(express.static(path.join(import.meta.dirname, '..', 'public'), {
   etag: true,
   lastModified: true,
   setHeaders(res, filePath) {
@@ -152,15 +151,15 @@ app.use('/api/v1/auth', authRouter);
 // Alle weiteren API-Routen erfordern Authentifizierung + CSRF-Schutz
 app.use('/api/v1', requireAuth);
 app.use('/api/v1', csrfMiddleware);
-app.use('/api/v1/dashboard', require('./routes/dashboard'));
-app.use('/api/v1/tasks', require('./routes/tasks'));
-app.use('/api/v1/shopping', require('./routes/shopping'));
-app.use('/api/v1/meals', require('./routes/meals'));
-app.use('/api/v1/calendar', require('./routes/calendar'));
-app.use('/api/v1/notes', require('./routes/notes'));
-app.use('/api/v1/contacts', require('./routes/contacts'));
-app.use('/api/v1/budget', require('./routes/budget'));
-app.use('/api/v1/weather', require('./routes/weather'));
+app.use('/api/v1/dashboard', dashboardRouter);
+app.use('/api/v1/tasks', tasksRouter);
+app.use('/api/v1/shopping', shoppingRouter);
+app.use('/api/v1/meals', mealsRouter);
+app.use('/api/v1/calendar', calendarRouter);
+app.use('/api/v1/notes', notesRouter);
+app.use('/api/v1/contacts', contactsRouter);
+app.use('/api/v1/budget', budgetRouter);
+app.use('/api/v1/weather', weatherRouter);
 
 // --------------------------------------------------------
 // Health-Check (für Docker)
@@ -187,7 +186,7 @@ app.get('*', spaLimiter, (req, res) => {
   if (req.path.startsWith('/api/')) {
     return res.status(404).json({ error: 'Nicht gefunden.', code: 404 });
   }
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+  res.sendFile(path.join(import.meta.dirname, '..', 'public', 'index.html'));
 });
 
 // --------------------------------------------------------
@@ -231,4 +230,4 @@ app.listen(PORT, () => {
   }, 10_000);
 });
 
-module.exports = app;
+export default app;

@@ -4,15 +4,14 @@
  * Abhängigkeiten: express, server/db.js, server/auth.js
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
+import { str, oneOf, date as validateDate, num, rrule, collectErrors, MAX_TITLE, MONTH_RE } from '../middleware/validate.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Budget');
 
-const express = require('express');
 const router  = express.Router();
-const db      = require('../db');
-const { str, oneOf, date: validateDate, num, rrule, collectErrors, MAX_TITLE, MONTH_RE } = require('../middleware/validate');
 
 // --------------------------------------------------------
 // Wiederkehrende Einträge: fehlende Instanzen für einen Monat erzeugen
@@ -348,4 +347,4 @@ router.delete('/:id', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -4,16 +4,15 @@
  * Abhängigkeiten: express, server/db.js
  */
 
-'use strict';
+import { createLogger } from '../logger.js';
+import express from 'express';
+import * as db from '../db.js';
+import { nextOccurrence } from '../services/recurrence.js';
+import * as v from '../middleware/validate.js';
 
-const { createLogger } = require('../logger');
 const log = createLogger('Tasks');
 
-const express      = require('express');
-const router       = express.Router();
-const db           = require('../db');
-const { nextOccurrence }   = require('../services/recurrence');
-const v            = require('../middleware/validate');
+const router = express.Router();
 
 // --------------------------------------------------------
 // Konstanten
@@ -321,4 +320,4 @@ router.get('/meta/options', (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
