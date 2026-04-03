@@ -36,6 +36,10 @@ function cfgSet(key, value) {
   `).run(key, value);
 }
 
+function cfgDel(key) {
+  db.get().prepare('DELETE FROM sync_config WHERE key = ?').run(key);
+}
+
 // --------------------------------------------------------
 // Credentials: sync_config hat Vorrang vor .env
 // --------------------------------------------------------
@@ -253,52 +257,76 @@ async function sync() {
     return;
   }
 
-  // Standard-Kalender: erster nicht-Geburtstags-Kalender
-  const cal = calendars.find((c) => !c.displayName?.toLowerCase().includes('geburts')) || calendars[0];
+  // created_by: ersten existierenden User verwenden (nicht hardcoded ID 1)
+  const owner = db.get().prepare('SELECT id FROM users ORDER BY id ASC LIMIT 1').get();
+  if (!owner) {
+    console.warn('[Apple] Kein User in der Datenbank — Sync übersprungen.');
+    return;
+  }
+  const createdBy = owner.id;
 
-  const calObjects = await client.fetchCalendarObjects({ calendar: cal });
+  // Alle Kalender synchen (außer Geburtstags-Kalender)
+  const syncCalendars = calendars.filter(
+    (c) => !c.displayName?.toLowerCase().includes('geburts') &&
+           !c.displayName?.toLowerCase().includes('birthday')
+  );
 
-  // --------------------------------------------------------
-  // Inbound: iCloud → lokal
-  // --------------------------------------------------------
-  for (const obj of calObjects) {
-    const parsed = parseICS(obj.data || '');
-    for (const ev of parsed) {
-      try {
-        const existing = db.get().prepare(
-          `SELECT id FROM calendar_events WHERE external_calendar_id = ? AND external_source = 'apple'`
-        ).get(ev.uid);
+  let totalObjects = 0;
 
-        if (existing) {
-          db.get().prepare(`
-            UPDATE calendar_events
-            SET title = ?, description = ?, start_datetime = ?, end_datetime = ?,
-                all_day = ?, location = ?, recurrence_rule = ?
-            WHERE id = ?
-          `).run(
-            ev.summary, ev.description, ev.dtstart, ev.dtend,
-            ev.allDay ? 1 : 0, ev.location, ev.rrule, existing.id
-          );
-        } else {
-          db.get().prepare(`
-            INSERT INTO calendar_events
-              (title, description, start_datetime, end_datetime, all_day,
-               location, color, external_calendar_id, external_source, recurrence_rule, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'apple', ?, 1)
-          `).run(
-            ev.summary, ev.description, ev.dtstart, ev.dtend,
-            ev.allDay ? 1 : 0, ev.location, APPLE_COLOR, ev.uid, ev.rrule
-          );
+  for (const cal of syncCalendars) {
+    let calObjects;
+    try {
+      calObjects = await client.fetchCalendarObjects({ calendar: cal });
+    } catch (err) {
+      console.warn(`[Apple] Kalender "${cal.displayName || '(unbenannt)'}" nicht abrufbar: ${err.message}`);
+      continue;
+    }
+
+    totalObjects += calObjects.length;
+
+    // --------------------------------------------------------
+    // Inbound: iCloud → lokal
+    // --------------------------------------------------------
+    for (const obj of calObjects) {
+      const parsed = parseICS(obj.data || '');
+      for (const ev of parsed) {
+        try {
+          const existing = db.get().prepare(
+            `SELECT id FROM calendar_events WHERE external_calendar_id = ? AND external_source = 'apple'`
+          ).get(ev.uid);
+
+          if (existing) {
+            db.get().prepare(`
+              UPDATE calendar_events
+              SET title = ?, description = ?, start_datetime = ?, end_datetime = ?,
+                  all_day = ?, location = ?, recurrence_rule = ?
+              WHERE id = ?
+            `).run(
+              ev.summary, ev.description, ev.dtstart, ev.dtend,
+              ev.allDay ? 1 : 0, ev.location, ev.rrule, existing.id
+            );
+          } else {
+            db.get().prepare(`
+              INSERT INTO calendar_events
+                (title, description, start_datetime, end_datetime, all_day,
+                 location, color, external_calendar_id, external_source, recurrence_rule, created_by)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'apple', ?, ?)
+            `).run(
+              ev.summary, ev.description, ev.dtstart, ev.dtend,
+              ev.allDay ? 1 : 0, ev.location, APPLE_COLOR, ev.uid, ev.rrule, createdBy
+            );
+          }
+        } catch (err) {
+          console.error(`[Apple] Upsert-Fehler für UID ${ev.uid}:`, err.message);
         }
-      } catch (err) {
-        console.error(`[Apple] Upsert-Fehler für UID ${ev.uid}:`, err.message);
       }
     }
   }
 
   // --------------------------------------------------------
-  // Outbound: lokal → iCloud
+  // Outbound: lokal → iCloud (erster verfügbarer Kalender)
   // --------------------------------------------------------
+  const defaultCal = syncCalendars[0];
   const localEvents = db.get().prepare(`
     SELECT * FROM calendar_events
     WHERE external_source = 'local' AND external_calendar_id IS NULL
@@ -311,7 +339,7 @@ async function sync() {
       const filename = `${uid}.ics`;
 
       await client.createCalendarObject({
-        calendar:     cal,
+        calendar:     defaultCal,
         filename,
         iCalString:   icsData,
       });
@@ -325,7 +353,7 @@ async function sync() {
   }
 
   cfgSet('apple_last_sync', new Date().toISOString());
-  console.log(`[Apple] Sync abgeschlossen — ${calObjects.length} Objekte inbound, ${localEvents.length} lokal → iCloud.`);
+  console.log(`[Apple] Sync abgeschlossen — ${totalObjects} Objekte aus ${syncCalendars.length} Kalendern inbound, ${localEvents.length} lokal → iCloud.`);
 }
 
 module.exports = { sync, getStatus, saveCredentials, clearCredentials, testConnection };

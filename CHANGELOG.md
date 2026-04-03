@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-04-03
+
+### Fixed
+- Fix iCloud Calendar sync failing with FOREIGN KEY constraint error — `created_by` was hardcoded to user ID 1 instead of resolving dynamically (fixes #4)
+- Sync all iCloud calendars instead of only the first one — previously only a single calendar was imported, ignoring Family, subscribed, and other calendars
+- Add missing `cfgDel` helper function used by `clearCredentials` — disconnecting Apple Calendar would crash
+- Skip unreachable or broken calendars gracefully instead of aborting the entire sync
+
 ## [0.5.4] - 2026-04-03
 
 ### Fixed
