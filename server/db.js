@@ -33,7 +33,8 @@ function init() {
 
   if (DB_KEY) {
     // Nur wirksam wenn Binary gegen SQLCipher kompiliert ist (Docker)
-    db.pragma(`key=x'${Buffer.from(DB_KEY, 'utf8').toString('hex')}'`);
+    db.pragma(`key="x'${Buffer.from(DB_KEY, 'utf8').toString('hex')}'"`);
+
     // Sicherstellen dass die Datenbank tatsächlich entschlüsselbar ist
     try {
       db.prepare('SELECT count(*) FROM sqlite_master').get();
