@@ -6,6 +6,7 @@
 
 import { api } from '/api.js';
 import { t, formatDate, formatTime, getLocale } from '/i18n.js';
+import { esc } from '/utils/html.js';
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
@@ -16,9 +17,9 @@ let _fabController = null;
 
 function greeting(displayName) {
   const h = new Date().getHours();
-  if (h < 12) return t('dashboard.greetingMorning', { name: displayName });
-  if (h < 18) return t('dashboard.greetingDay',     { name: displayName });
-  return t('dashboard.greetingEvening', { name: displayName });
+  if (h < 12) return t('dashboard.greetingMorning', { name: esc(displayName) });
+  if (h < 18) return t('dashboard.greetingDay',     { name: esc(displayName) });
+  return t('dashboard.greetingEvening', { name: esc(displayName) });
 }
 
 function formatDateTime(isoString) {
@@ -130,7 +131,7 @@ function renderGreeting(user, stats = {}) {
   if (todayMealTitle)
     statChips.push(`<span class="greeting-chip">
       <i data-lucide="utensils" style="${chipIcon}" aria-hidden="true"></i>
-      ${t('dashboard.todayMealChip', { title: todayMealTitle })}
+      ${t('dashboard.todayMealChip', { title: esc(todayMealTitle) })}
     </span>`);
 
   return `
@@ -161,12 +162,12 @@ function renderUrgentTasks(tasks) {
       <div class="task-item" data-route="/tasks" role="button" tabindex="0">
         <div class="task-item__priority task-item__priority--${t.priority}"></div>
         <div class="task-item__content">
-          <div class="task-item__title">${t.title}</div>
+          <div class="task-item__title">${esc(t.title)}</div>
           ${due ? `<div class="task-item__meta ${due.overdue ? 'task-item__meta--overdue' : ''}">${due.text}</div>` : ''}
         </div>
         ${t.assigned_color ? `
-          <div class="task-item__avatar" style="background-color:${t.assigned_color}"
-               title="${t.assigned_name || ''}">${initials(t.assigned_name || '')}</div>` : ''}
+          <div class="task-item__avatar" style="background-color:${esc(t.assigned_color)}"
+               title="${esc(t.assigned_name)}">${esc(initials(t.assigned_name || ''))}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -196,13 +197,13 @@ function renderUpcomingEvents(events) {
     const timeStr = e.all_day ? t('dashboard.allDay') : `${formatTime(d)}${_suffix ? ' ' + _suffix : ''}`.trim();
     return `
       <div class="event-item" data-route="/calendar" role="button" tabindex="0">
-        <div class="event-item__bar" style="background-color:${e.color || 'var(--color-accent)'}"></div>
+        <div class="event-item__bar" style="background-color:${esc(e.color) || 'var(--color-accent)'}"></div>
         <div class="event-item__content">
-          <div class="event-item__title">${e.title}</div>
+          <div class="event-item__title">${esc(e.title)}</div>
           <div class="event-item__time">
             <span class="event-time-badge ${isToday ? 'event-time-badge--today' : ''}">${isToday ? t('common.today') : formatDateTime(e.start_datetime).split(',')[0]}</span>
             ${timeStr}
-            ${e.location ? ` · ${e.location}` : ''}
+            ${e.location ? ` · ${esc(e.location)}` : ''}
           </div>
         </div>
       </div>
@@ -225,7 +226,7 @@ function renderTodayMeals(meals) {
       <div class="meal-slot ${meal ? 'meal-slot--filled' : ''}" data-route="/meals" role="button" tabindex="0">
         <i data-lucide="${MEAL_ICONS[type]}" class="meal-slot__icon" aria-hidden="true"></i>
         <div class="meal-slot__type">${mealLabels[type]}</div>
-        <div class="meal-slot__title">${meal ? meal.title : '-'}</div>
+        <div class="meal-slot__title">${meal ? esc(meal.title) : '-'}</div>
       </div>
     `;
   }).join('');
@@ -249,9 +250,9 @@ function renderPinnedNotes(notes) {
 
   const items = notes.map((n) => `
     <div class="note-item" data-route="/notes" role="button" tabindex="0"
-         style="--note-color:${n.color};">
-      ${n.title ? `<div class="note-item__title">${n.title}</div>` : ''}
-      <div class="note-item__content">${n.content}</div>
+         style="--note-color:${esc(n.color)};">
+      ${n.title ? `<div class="note-item__title">${esc(n.title)}</div>` : ''}
+      <div class="note-item__content">${esc(n.content)}</div>
     </div>
   `).join('');
 
@@ -280,7 +281,7 @@ function renderWeatherWidget(weather) {
       <div class="weather-forecast__day${extraCls}">
         <div class="weather-forecast__label">${label}</div>
         <img class="weather-forecast__icon" src="${WEATHER_ICON_BASE}${d.icon}"
-             alt="${d.desc}" width="32" height="32" loading="lazy">
+             alt="${esc(d.desc)}" width="32" height="32" loading="lazy">
         <div class="weather-forecast__temps">
           <span class="weather-forecast__high">${d.temp_max}°</span>
           <span class="weather-forecast__low">${d.temp_min}°</span>
@@ -296,15 +297,15 @@ function renderWeatherWidget(weather) {
       <div class="weather-widget__inner">
         <div class="weather-widget__main">
           <div class="weather-widget__left">
-            <div class="weather-widget__temp">${current.temp}°C</div>
-            <div class="weather-widget__desc">${current.desc}</div>
-            <div class="weather-widget__city">${city}</div>
+            <div class="weather-widget__temp">${esc(current.temp)}°C</div>
+            <div class="weather-widget__desc">${esc(current.desc)}</div>
+            <div class="weather-widget__city">${esc(city)}</div>
             <div class="weather-widget__meta">
               ${t('dashboard.weatherFeelsLike', { temp: current.feels_like, humidity: current.humidity, wind: current.wind_speed })}
             </div>
           </div>
           <img class="weather-widget__icon" src="${WEATHER_ICON_BASE}${current.icon}"
-               alt="${current.desc}" width="80" height="80" loading="lazy">
+               alt="${esc(current.desc)}" width="80" height="80" loading="lazy">
         </div>
         ${forecast.length ? `<div class="weather-forecast">${forecastHtml}</div>` : ''}
       </div>

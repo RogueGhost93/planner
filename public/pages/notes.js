@@ -8,6 +8,7 @@ import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal, btnError } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
+import { esc } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -31,7 +32,7 @@ let _container = null;
 
 function renderMarkdownLight(text) {
   if (!text) return '';
-  return escHtml(text)
+  return esc(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g,     '<em>$1</em>')
     .replace(/^- (.+)$/gm,     '• $1')
@@ -54,7 +55,7 @@ export async function render(container, { user }) {
           <i data-lucide="search" class="notes-toolbar__search-icon" aria-hidden="true"></i>
           <input type="search" id="notes-search" class="notes-toolbar__search-input"
                  placeholder="${t('notes.searchPlaceholder')}" autocomplete="off"
-                 value="${escHtml(state.filterQuery)}">
+                 value="${esc(state.filterQuery)}">
         </div>
         <button class="btn btn--primary" id="notes-add-btn">
           <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
@@ -155,18 +156,18 @@ function renderNoteCard(note) {
   return `
     <div class="note-card ${note.pinned ? 'note-card--pinned' : ''}"
          data-id="${note.id}"
-         style="background-color:${escHtml(note.color)};color:${textColor};">
+         style="background-color:${esc(note.color)};color:${textColor};">
       <button class="note-card__pin" data-action="pin" data-id="${note.id}"
               aria-label="${note.pinned ? t('notes.unpinAction') : t('notes.pinAction')}">
         <i data-lucide="${note.pinned ? 'pin-off' : 'pin'}" style="width:12px;height:12px;" aria-hidden="true"></i>
       </button>
-      ${note.title ? `<div class="note-card__title">${escHtml(note.title)}</div>` : ''}
+      ${note.title ? `<div class="note-card__title">${esc(note.title)}</div>` : ''}
       <div class="note-card__content">${renderMarkdownLight(note.content)}</div>
       <div class="note-card__footer">
         <div class="note-card__creator">
           <span class="note-card__avatar"
-                style="background-color:${escHtml(note.creator_color || '#8E8E93')}">${initials}</span>
-          <span>${escHtml(note.creator_name || '')}</span>
+                style="background-color:${esc(note.creator_color || '#8E8E93')}">${initials}</span>
+          <span>${esc(note.creator_name || '')}</span>
         </div>
         <button class="note-card__delete" data-action="delete" data-id="${note.id}" aria-label="${t('notes.deleteLabel')}">
           <i data-lucide="trash-2" style="width:12px;height:12px;" aria-hidden="true"></i>
@@ -318,7 +319,7 @@ function openNoteModal({ mode, note = null }) {
     <div class="form-group">
       <label class="form-label" for="note-title">${t('notes.titleLabel')}</label>
       <input type="text" class="form-input" id="note-title"
-             placeholder="${t('notes.titlePlaceholder')}" value="${escHtml(isEdit && note.title ? note.title : '')}">
+             placeholder="${t('notes.titlePlaceholder')}" value="${esc(isEdit && note.title ? note.title : '')}">
     </div>
     <div class="form-group">
       <label class="form-label" for="note-content">${t('notes.contentLabel')} <span style="font-weight:400;color:var(--text-tertiary);font-size:.85em;">${t('notes.contentMarkdownHint')}</span></label>
@@ -364,7 +365,7 @@ function openNoteModal({ mode, note = null }) {
       </div>
       <textarea class="form-input" id="note-content" rows="6"
                 placeholder="${t('notes.contentPlaceholder')}"
-                style="resize:vertical;">${escHtml(isEdit ? note.content : '')}</textarea>
+                style="resize:vertical;">${esc(isEdit ? note.content : '')}</textarea>
     </div>
     <div class="form-group">
       <label class="form-label">${t('notes.colorLabel')}</label>
@@ -498,9 +499,3 @@ function isLightColor(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 150;
 }
 
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

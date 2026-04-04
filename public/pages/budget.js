@@ -9,6 +9,7 @@ import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t, formatDate, getLocale } from '/i18n.js';
+import { esc } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -253,7 +254,7 @@ function renderCategoryBars(byCategory) {
 
     return `
       <div class="budget-bar-row">
-        <div class="budget-bar-row__label" title="${escHtml(c.category)}">${escHtml(c.category)}</div>
+        <div class="budget-bar-row__label" title="${esc(c.category)}">${esc(c.category)}</div>
         <div class="budget-bar-row__track">
           <div class="budget-bar-row__fill ${cls}" style="width:${pct}%;"></div>
         </div>
@@ -289,8 +290,8 @@ function renderEntries() {
       <div class="budget-entry" data-id="${e.id}">
         <div class="budget-entry__indicator ${indClass}"></div>
         <div class="budget-entry__body">
-          <div class="budget-entry__title">${escHtml(e.title)}</div>
-          <div class="budget-entry__meta">${date} · ${escHtml(e.category)}${recurTag}</div>
+          <div class="budget-entry__title">${esc(e.title)}</div>
+          <div class="budget-entry__meta">${date} · ${esc(e.category)}${recurTag}</div>
         </div>
         <div class="budget-entry__amount ${amtClass}">${sign}${formatAmount(e.amount)}</div>
         <button class="budget-entry__delete" data-action="delete" data-id="${e.id}" aria-label="${t('budget.deleteLabel')}">
@@ -354,7 +355,7 @@ function openBudgetModal({ mode, entry = null }) {
     <div class="form-group">
       <label class="form-label" for="bm-title">${t('budget.titleLabel')}</label>
       <input type="text" class="form-input" id="bm-title"
-             placeholder="${t('budget.titlePlaceholder')}" value="${escHtml(isEdit ? entry.title : '')}">
+             placeholder="${t('budget.titlePlaceholder')}" value="${esc(isEdit ? entry.title : '')}">
     </div>
 
     <div class="form-group">
@@ -484,9 +485,3 @@ async function deleteEntry(id) {
 // Hilfsfunktion
 // --------------------------------------------------------
 
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

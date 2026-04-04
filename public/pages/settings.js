@@ -6,6 +6,7 @@
 
 import { api, auth } from '/api.js';
 import { t, formatDate, formatTime } from '/i18n.js';
+import { esc } from '/utils/html.js';
 import '/components/oikos-locale-picker.js';
 
 /**
@@ -89,12 +90,12 @@ export async function render(container, { user }) {
 
         <div class="settings-card">
           <div class="settings-user-info">
-            <div class="settings-avatar" style="background:${user?.avatar_color ?? '#007AFF'}">
-              ${initials(user?.display_name)}
+            <div class="settings-avatar" style="background:${esc(user?.avatar_color) || '#007AFF'}">
+              ${esc(initials(user?.display_name))}
             </div>
             <div>
-              <div class="settings-user-info__name">${user?.display_name ?? ''}</div>
-              <div class="settings-user-info__username">@${user?.username ?? ''}</div>
+              <div class="settings-user-info__name">${esc(user?.display_name)}</div>
+              <div class="settings-user-info__username">@${esc(user?.username)}</div>
             </div>
           </div>
         </div>
@@ -484,28 +485,16 @@ function bindDeleteButtons(container, user) {
   });
 }
 
-// --------------------------------------------------------
-// Helfer
-// --------------------------------------------------------
-
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
 
 function memberHtml(u) {
   return `
     <li class="settings-member" data-id="${u.id}">
-      <div class="settings-avatar settings-avatar--sm" style="background:${escHtml(u.avatar_color)}">${initials(u.display_name)}</div>
+      <div class="settings-avatar settings-avatar--sm" style="background:${esc(u.avatar_color)}">${initials(u.display_name)}</div>
       <div class="settings-member__info">
-        <span class="settings-member__name">${escHtml(u.display_name)}</span>
-        <span class="settings-member__meta">@${escHtml(u.username)} · ${u.role === 'admin' ? t('settings.roleAdmin') : t('settings.roleMember')}</span>
+        <span class="settings-member__name">${esc(u.display_name)}</span>
+        <span class="settings-member__meta">@${esc(u.username)} · ${u.role === 'admin' ? t('settings.roleAdmin') : t('settings.roleMember')}</span>
       </div>
-      <button class="btn btn--icon btn--danger-outline" data-delete-user="${u.id}" data-name="${escHtml(u.display_name)}" aria-label="${escHtml(u.display_name)} ${t('settings.deleteMemberLabel')}" title="${t('settings.deleteMemberLabel')}">
+      <button class="btn btn--icon btn--danger-outline" data-delete-user="${u.id}" data-name="${esc(u.display_name)}" aria-label="${esc(u.display_name)} ${t('settings.deleteMemberLabel')}" title="${t('settings.deleteMemberLabel')}">
         <i data-lucide="trash-2" aria-hidden="true"></i>
       </button>
     </li>

@@ -8,6 +8,7 @@ import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal as closeSharedModal } from '/components/modal.js';
 import { stagger } from '/utils/ux.js';
 import { t, formatDate } from '/i18n.js';
+import { esc } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -203,9 +204,9 @@ function renderSlot(date, type, mealsForDay) {
            data-action="edit-meal"
            data-meal-id="${meal.id}"
            role="button" tabindex="0">
-        <div class="meal-card__title">${escHtml(meal.title)}</div>
+        <div class="meal-card__title">${esc(meal.title)}</div>
         ${ingLabel ? `<div class="meal-card__meta">
-          <span class="meal-card__ingredients-count">${ingLabel}${escHtml(ingDoneLabel)}</span>
+          <span class="meal-card__ingredients-count">${ingLabel}${esc(ingDoneLabel)}</span>
         </div>` : ''}
         <div class="meal-card__actions">
           ${canTransfer ? `<button class="meal-card__action-btn meal-card__action-btn--shopping"
@@ -450,7 +451,7 @@ function openMealModal(opts) {
             if (!res.data.length) { acDropdown.hidden = true; return; }
             acIndex = -1;
             acDropdown.innerHTML = res.data.map((s) => `
-              <div class="meal-modal__autocomplete-item" data-title="${escHtml(s.title)}">${escHtml(s.title)}</div>
+              <div class="meal-modal__autocomplete-item" data-title="${esc(s.title)}">${esc(s.title)}</div>
             `).join('');
             acDropdown.hidden = false;
           } catch { acDropdown.hidden = true; }
@@ -526,7 +527,7 @@ function buildModalContent({ mode, date, mealType, meal }) {
   ).join('');
 
   const listOpts = state.lists.length
-    ? state.lists.map((l) => `<option value="${l.id}">${escHtml(l.name)}</option>`).join('')
+    ? state.lists.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')
     : `<option value="" disabled>${t('meals.noShoppingLists')}</option>`;
 
   const ingRows = isEdit && meal.ingredients?.length
@@ -551,7 +552,7 @@ function buildModalContent({ mode, date, mealType, meal }) {
       <label class="form-label" for="modal-title">${t('meals.titleLabel')}</label>
       <input type="text" class="form-input" id="modal-title"
              placeholder="${t('meals.titlePlaceholder')}"
-             value="${escHtml(isEdit ? meal.title : '')}"
+             value="${esc(isEdit ? meal.title : '')}"
              autocomplete="off">
       <div id="modal-autocomplete" class="meal-modal__autocomplete" hidden></div>
     </div>
@@ -559,7 +560,7 @@ function buildModalContent({ mode, date, mealType, meal }) {
     <div class="form-group">
       <label class="form-label" for="modal-notes">${t('meals.notesLabel')}</label>
       <textarea class="form-input" id="modal-notes" rows="2"
-                placeholder="${t('meals.notesPlaceholder')}">${escHtml(isEdit && meal.notes ? meal.notes : '')}</textarea>
+                placeholder="${t('meals.notesPlaceholder')}">${esc(isEdit && meal.notes ? meal.notes : '')}</textarea>
     </div>
 
     <div class="form-group">
@@ -592,8 +593,8 @@ function buildModalContent({ mode, date, mealType, meal }) {
 function ingredientRowHTML(name, qty, id) {
   return `
     <div class="ingredient-row" data-ing-id="${id ?? ''}">
-      <input type="text" class="form-input ingredient-row__name" placeholder="${t('meals.ingredientNamePlaceholder')}" value="${escHtml(name)}">
-      <input type="text" class="form-input ingredient-row__qty" placeholder="${t('meals.ingredientQtyPlaceholder')}" value="${escHtml(qty)}">
+      <input type="text" class="form-input ingredient-row__name" placeholder="${t('meals.ingredientNamePlaceholder')}" value="${esc(name)}">
+      <input type="text" class="form-input ingredient-row__qty" placeholder="${t('meals.ingredientQtyPlaceholder')}" value="${esc(qty)}">
       <button class="ingredient-row__remove" data-action="remove-ingredient" type="button" aria-label="${t('meals.removeIngredient')}">
         <i data-lucide="x" style="width:14px;height:14px;" aria-hidden="true"></i>
       </button>
@@ -719,11 +720,3 @@ async function transferMeal(mealId) {
 // Hilfsfunktion
 // --------------------------------------------------------
 
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

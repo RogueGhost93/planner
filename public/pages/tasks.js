@@ -9,15 +9,7 @@ import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js
 import { openModal as openSharedModal, closeModal, wireBlurValidation, btnSuccess, btnError } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t, formatDate } from '/i18n.js';
-
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+import { esc } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -161,10 +153,10 @@ function renderTaskCard(task, opts = {}) {
              data-subtask-id="${s.id}">
           <button class="subtask-item__checkbox ${s.status === 'done' ? 'subtask-item__checkbox--done' : ''}"
                   data-action="toggle-subtask" data-id="${s.id}"
-                  data-status="${s.status}" aria-label="${t('tasks.subtaskMarkDone', { title: s.title })}">
+                  data-status="${s.status}" aria-label="${t('tasks.subtaskMarkDone', { title: esc(s.title) })}">
             ${s.status === 'done' ? '<i data-lucide="check" style="width:10px;height:10px;color:#fff" aria-hidden="true"></i>' : ''}
           </button>
-          <span class="subtask-item__title">${escHtml(s.title)}</span>
+          <span class="subtask-item__title">${esc(s.title)}</span>
         </div>`).join('')
     : '';
 
@@ -173,13 +165,13 @@ function renderTaskCard(task, opts = {}) {
       <div class="task-card__main">
         <button class="task-status-btn task-status-btn--${task.status}"
                 data-action="toggle-status" data-id="${task.id}" data-status="${task.status}"
-                aria-label="${t('tasks.markDone', { title: task.title })}">
+                aria-label="${t('tasks.markDone', { title: esc(task.title) })}">
           <i data-lucide="check" class="task-status-btn__check" aria-hidden="true"></i>
         </button>
 
         <div class="task-card__body">
           <div class="task-card__title" data-action="open-task" data-id="${task.id}">
-            ${escHtml(task.title)}
+            ${esc(task.title)}
           </div>
           <div class="task-card__meta">
             ${renderPriorityBadge(task.priority)}
@@ -190,9 +182,9 @@ function renderTaskCard(task, opts = {}) {
         </div>
 
         ${task.assigned_color ? `
-          <div class="task-avatar" style="background-color:${task.assigned_color}"
-               title="${task.assigned_name ?? ''}">
-            ${initials(task.assigned_name ?? '')}
+          <div class="task-avatar" style="background-color:${esc(task.assigned_color)}"
+               title="${esc(task.assigned_name)}">
+            ${esc(initials(task.assigned_name ?? ''))}
           </div>` : ''}
 
         <button class="btn btn--ghost btn--icon" data-action="edit-task" data-id="${task.id}"
@@ -252,7 +244,7 @@ function renderModalContent({ task = null, users = [] } = {}) {
   const isEdit = !!task;
 
   const userOptions = users.map((u) =>
-    `<option value="${u.id}" ${task?.assigned_to === u.id ? 'selected' : ''}>${u.display_name}</option>`
+    `<option value="${u.id}" ${task?.assigned_to === u.id ? 'selected' : ''}>${esc(u.display_name)}</option>`
   ).join('');
 
   const catLabels = CATEGORY_LABELS();
@@ -272,7 +264,7 @@ function renderModalContent({ task = null, users = [] } = {}) {
         <div class="form-field">
           <label class="label" for="task-title">${t('tasks.titleLabel')}</label>
           <input class="input" type="text" id="task-title" name="title"
-                 value="${task?.title ?? ''}" placeholder="${t('tasks.titlePlaceholder')}"
+                 value="${esc(task?.title)}" placeholder="${t('tasks.titlePlaceholder')}"
                  required autocomplete="off">
           <div class="form-field__error">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -288,7 +280,7 @@ function renderModalContent({ task = null, users = [] } = {}) {
         <label class="label" for="task-description">${t('tasks.descriptionLabel')}</label>
         <textarea class="input" id="task-description" name="description"
                   rows="2" placeholder="${t('tasks.descriptionPlaceholder')}"
-                  style="resize:vertical">${task?.description ?? ''}</textarea>
+                  style="resize:vertical">${esc(task?.description)}</textarea>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
@@ -513,7 +505,7 @@ function renderKanbanCard(task) {
   return `
     <div class="kanban-card ${task.status === 'done' ? 'kanban-card--done' : ''}"
          data-task-id="${task.id}" draggable="true">
-      <div class="kanban-card__title">${escHtml(task.title)}</div>
+      <div class="kanban-card__title">${esc(task.title)}</div>
       <div class="kanban-card__meta">
         ${renderPriorityBadge(task.priority)}
         ${due ? `<span class="due-date ${due.cls}"><i data-lucide="clock" style="width:10px;height:10px" aria-hidden="true"></i> ${due.label}</span>` : ''}

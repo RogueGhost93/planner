@@ -9,6 +9,7 @@ import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
 import { stagger } from '/utils/ux.js';
 import { t, formatTime } from '/i18n.js';
+import { esc } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -380,9 +381,9 @@ function renderMonthDay(date, inMonth) {
   const evHtml = shown.map((ev) => `
     <div class="month-day__event"
          data-id="${ev.id}"
-         style="background-color:${escHtml(ev.color)};"
-         title="${escHtml(ev.title)}"
-    >${escHtml(ev.title)}</div>
+         style="background-color:${esc(ev.color)};"
+         title="${esc(ev.title)}"
+    >${esc(ev.title)}</div>
   `).join('');
 
   return `
@@ -428,8 +429,8 @@ function renderWeekView(container) {
         ${days.map((d, i) => `
           <div class="allday-cell">
             ${alldayEvs[i].map((ev) => `
-              <div class="allday-event" data-id="${ev.id}" style="background-color:${escHtml(ev.color)};"
-                   title="${escHtml(ev.title)}">${escHtml(ev.title)}</div>
+              <div class="allday-event" data-id="${ev.id}" style="background-color:${esc(ev.color)};"
+                   title="${esc(ev.title)}">${esc(ev.title)}</div>
             `).join('')}
           </div>
         `).join('')}
@@ -500,8 +501,8 @@ function renderWeekEvent(ev) {
 
   return `
     <div class="week-event" data-id="${ev.id}"
-         style="top:${top}px;height:${height}px;background-color:${escHtml(ev.color)};">
-      <div class="week-event__title">${escHtml(ev.title)}</div>
+         style="top:${top}px;height:${height}px;background-color:${esc(ev.color)};">
+      <div class="week-event__title">${esc(ev.title)}</div>
       <div class="week-event__time">${formatTime(ev.start_datetime)}${ev.end_datetime ? '–' + formatTime(ev.end_datetime) : ''}</div>
     </div>
   `;
@@ -539,8 +540,8 @@ function renderDayView(container) {
         <div style="padding:2px 4px 2px 0;font-size:10px;color:var(--color-text-disabled);text-align:right;line-height:24px;">${t('calendar.allDayShort')}</div>
         <div class="allday-cell">
           ${allday.map((ev) => `
-            <div class="allday-event" data-id="${ev.id}" style="background-color:${escHtml(ev.color)};">
-              ${escHtml(ev.title)}
+            <div class="allday-event" data-id="${ev.id}" style="background-color:${esc(ev.color)};">
+              ${esc(ev.title)}
             </div>`).join('')}
         </div>
       </div>` : ''}
@@ -634,16 +635,16 @@ function renderAgendaEvent(ev) {
 
   return `
     <div class="agenda-event" data-id="${ev.id}">
-      <div class="agenda-event__color" style="background-color:${escHtml(ev.color)};"></div>
+      <div class="agenda-event__color" style="background-color:${esc(ev.color)};"></div>
       <div class="agenda-event__body">
-        <div class="agenda-event__title">${escHtml(ev.title)}${(ev.recurrence_rule || ev.is_recurring_instance) ? ' <i data-lucide="repeat" style="width:12px;height:12px;display:inline;vertical-align:middle;opacity:0.5" aria-hidden="true"></i>' : ''}</div>
+        <div class="agenda-event__title">${esc(ev.title)}${(ev.recurrence_rule || ev.is_recurring_instance) ? ' <i data-lucide="repeat" style="width:12px;height:12px;display:inline;vertical-align:middle;opacity:0.5" aria-hidden="true"></i>' : ''}</div>
         <div class="agenda-event__meta">
           <span>${timeStr}</span>
-          ${ev.location ? `<span>📍 ${escHtml(ev.location)}</span>` : ''}
+          ${ev.location ? `<span>📍 ${esc(ev.location)}</span>` : ''}
           ${ev.assigned_name ? `
             <span class="agenda-event__assigned">
-              <span class="agenda-event__avatar" style="background-color:${escHtml(ev.assigned_color || '#8E8E93')}">${initials}</span>
-              ${escHtml(ev.assigned_name)}
+              <span class="agenda-event__avatar" style="background-color:${esc(ev.assigned_color || '#8E8E93')}">${initials}</span>
+              ${esc(ev.assigned_name)}
             </span>` : ''}
         </div>
       </div>
@@ -668,13 +669,13 @@ function showEventPopup(ev, anchor) {
       + (ev.end_datetime ? ` – ${formatTime(ev.end_datetime)}${t('calendar.timeSuffix') ? ' ' + t('calendar.timeSuffix') : ''}`.trim() : '');
 
   popup.innerHTML = `
-    <div class="event-popup__color-bar" style="background-color:${escHtml(ev.color)};"></div>
-    <div class="event-popup__title">${escHtml(ev.title)}</div>
+    <div class="event-popup__color-bar" style="background-color:${esc(ev.color)};"></div>
+    <div class="event-popup__title">${esc(ev.title)}</div>
     <div class="event-popup__meta">
       <div>${timeStr}</div>
-      ${ev.location ? `<div>📍 ${escHtml(ev.location)}</div>` : ''}
-      ${ev.description ? `<div>${escHtml(ev.description)}</div>` : ''}
-      ${ev.assigned_name ? `<div>👤 ${escHtml(ev.assigned_name)}</div>` : ''}
+      ${ev.location ? `<div>📍 ${esc(ev.location)}</div>` : ''}
+      ${ev.description ? `<div>${esc(ev.description)}</div>` : ''}
+      ${ev.assigned_name ? `<div>👤 ${esc(ev.assigned_name)}</div>` : ''}
     </div>
     <div class="event-popup__actions">
       <button class="btn btn--secondary" style="flex:1;" id="popup-edit">${t('calendar.popupEdit')}</button>
@@ -782,7 +783,7 @@ function buildEventModalContent({ mode, event, date }) {
   const userOpts = [
     `<option value="">${t('calendar.assignedNobody')}</option>`,
     ...state.users.map((u) =>
-      `<option value="${u.id}" ${isEdit && event.assigned_to === u.id ? 'selected' : ''}>${escHtml(u.display_name)}</option>`
+      `<option value="${u.id}" ${isEdit && event.assigned_to === u.id ? 'selected' : ''}>${esc(u.display_name)}</option>`
     ),
   ].join('');
 
@@ -790,7 +791,7 @@ function buildEventModalContent({ mode, event, date }) {
     <div class="form-group">
       <label class="form-label" for="modal-title">${t('calendar.titleLabel')}</label>
       <input type="text" class="form-input" id="modal-title"
-             placeholder="${t('calendar.titlePlaceholder')}" value="${escHtml(isEdit ? event.title : '')}">
+             placeholder="${t('calendar.titlePlaceholder')}" value="${esc(isEdit ? event.title : '')}">
     </div>
 
     <div class="form-group">
@@ -839,7 +840,7 @@ function buildEventModalContent({ mode, event, date }) {
     <div class="form-group">
       <label class="form-label" for="modal-location">${t('calendar.locationLabel')}</label>
       <input type="text" class="form-input" id="modal-location"
-             placeholder="${t('calendar.locationPlaceholder')}" value="${escHtml(isEdit && event.location ? event.location : '')}">
+             placeholder="${t('calendar.locationPlaceholder')}" value="${esc(isEdit && event.location ? event.location : '')}">
     </div>
 
     <div class="form-group">
@@ -860,7 +861,7 @@ function buildEventModalContent({ mode, event, date }) {
     <div class="form-group">
       <label class="form-label" for="modal-description">${t('calendar.descriptionLabel')}</label>
       <textarea class="form-input" id="modal-description" rows="2"
-                placeholder="${t('calendar.descriptionPlaceholder')}">${escHtml(isEdit && event.description ? event.description : '')}</textarea>
+                placeholder="${t('calendar.descriptionPlaceholder')}">${esc(isEdit && event.description ? event.description : '')}</textarea>
     </div>
 
     ${renderRRuleFields('event', isEdit ? event.recurrence_rule : null)}
@@ -950,15 +951,3 @@ async function deleteEvent(id) {
   }
 }
 
-// --------------------------------------------------------
-// Hilfsfunktion
-// --------------------------------------------------------
-
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

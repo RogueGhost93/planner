@@ -7,6 +7,7 @@
 import { api } from '/api.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
+import { esc } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -86,7 +87,7 @@ function renderTabs(container) {
     return `
       <button class="list-tab ${list.id === state.activeListId ? 'list-tab--active' : ''}"
               data-action="switch-list" data-id="${list.id}">
-        ${list.name}
+        ${esc(list.name)}
         ${list.item_total > 0 ? `<span class="list-tab__count">${unchecked > 0 ? unchecked : '✓'}</span>` : ''}
       </button>`;
   }).join('');
@@ -124,7 +125,7 @@ function renderListContent(container) {
     <div class="list-header">
       <span class="list-header__name" data-action="rename-list" data-id="${state.activeList.id}"
             role="button" tabindex="0" aria-label="${t('shopping.renameListLabel')}">
-        ${state.activeList.name}
+        ${esc(state.activeList.name)}
         <i data-lucide="pencil" class="list-header__edit-icon" aria-hidden="true"></i>
       </span>
       <div class="list-header__actions">
@@ -216,15 +217,15 @@ function renderItem(item) {
            data-item-id="${item.id}">
         <button class="item-check ${isDone ? 'item-check--checked' : ''}"
                 data-action="toggle-item" data-id="${item.id}" data-checked="${item.is_checked}"
-                aria-label="${isDone ? t('shopping.markUndoneLabel', { name: escHtml(item.name) }) : t('shopping.markDoneLabel', { name: escHtml(item.name) })}">
+                aria-label="${isDone ? t('shopping.markUndoneLabel', { name: esc(item.name) }) : t('shopping.markDoneLabel', { name: esc(item.name) })}">
           <i data-lucide="check" class="item-check__icon" aria-hidden="true"></i>
         </button>
         <div class="item-body">
-          <div class="item-name">${escHtml(item.name)}</div>
-          ${item.quantity ? `<div class="item-quantity">${escHtml(item.quantity)}</div>` : ''}
+          <div class="item-name">${esc(item.name)}</div>
+          ${item.quantity ? `<div class="item-quantity">${esc(item.quantity)}</div>` : ''}
         </div>
         <button class="item-delete" data-action="delete-item" data-id="${item.id}"
-                aria-label="${t('shopping.deleteItemLabel', { name: escHtml(item.name) })}">
+                aria-label="${t('shopping.deleteItemLabel', { name: esc(item.name) })}">
           <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
         </button>
       </div>
@@ -256,7 +257,7 @@ function wireAutocomplete(container) {
         if (!suggestions.length) { dropdown.hidden = true; return; }
 
         dropdown.innerHTML = suggestions.map((s, i) =>
-          `<div class="autocomplete-item" data-idx="${i}" data-value="${s}">${s}</div>`
+          `<div class="autocomplete-item" data-idx="${i}" data-value="${esc(s)}">${esc(s)}</div>`
         ).join('');
         dropdown.hidden = false;
         activeIdx = -1;
@@ -746,15 +747,3 @@ export async function render(container, { user }) {
   });
 }
 
-// --------------------------------------------------------
-// HTML-Escaping
-// --------------------------------------------------------
-
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

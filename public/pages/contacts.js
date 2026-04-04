@@ -8,6 +8,7 @@ import { api } from '/api.js';
 import { openModal as openSharedModal, closeModal } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
+import { esc } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -78,7 +79,7 @@ export async function render(container, { user }) {
       <div class="contacts-filters" id="contacts-filters">
         <button class="contact-filter-chip contact-filter-chip--active" data-cat="">${t('contacts.filterAll')}</button>
         ${CATEGORIES.map((c) => `
-          <button class="contact-filter-chip" data-cat="${escHtml(c)}">${CATEGORY_ICONS[c] || ''} ${CATEGORY_LABELS()[c] || escHtml(c)}</button>
+          <button class="contact-filter-chip" data-cat="${esc(c)}">${CATEGORY_ICONS[c] || ''} ${CATEGORY_LABELS()[c] || esc(c)}</button>
         `).join('')}
       </div>
       <div id="contacts-list" class="contacts-list"></div>
@@ -196,7 +197,7 @@ function renderList() {
     .sort(([a], [b]) => CATEGORIES.indexOf(a) - CATEGORIES.indexOf(b))
     .map(([cat, items]) => `
       <div class="contact-group">
-        <div class="contact-group__header">${CATEGORY_ICONS[cat] || ''} ${CATEGORY_LABELS()[cat] || escHtml(cat)}</div>
+        <div class="contact-group__header">${CATEGORY_ICONS[cat] || ''} ${CATEGORY_LABELS()[cat] || esc(cat)}</div>
         ${items.map((c) => renderContactItem(c)).join('')}
       </div>
     `).join('');
@@ -220,8 +221,8 @@ function renderList() {
 }
 
 function renderContactItem(c) {
-  const phone   = c.phone  ? `<a href="tel:${escHtml(c.phone)}"   class="contact-action-btn contact-action-btn--call"  aria-label="${t('contacts.callLabel')}"><i data-lucide="phone" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
-  const email   = c.email  ? `<a href="mailto:${escHtml(c.email)}" class="contact-action-btn contact-action-btn--mail"  aria-label="${t('contacts.emailActionLabel')}"><i data-lucide="mail" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
+  const phone   = c.phone  ? `<a href="tel:${esc(c.phone)}"   class="contact-action-btn contact-action-btn--call"  aria-label="${t('contacts.callLabel')}"><i data-lucide="phone" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
+  const email   = c.email  ? `<a href="mailto:${esc(c.email)}" class="contact-action-btn contact-action-btn--mail"  aria-label="${t('contacts.emailActionLabel')}"><i data-lucide="mail" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
   const maps    = c.address ? `<a href="https://maps.google.com/?q=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="contact-action-btn contact-action-btn--maps" aria-label="${t('contacts.mapsLabel')}"><i data-lucide="map-pin" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
   const meta    = [c.phone, c.email].filter(Boolean).join(' · ');
 
@@ -229,12 +230,12 @@ function renderContactItem(c) {
     <div class="contact-item" data-id="${c.id}">
       <div class="contact-item__icon">${CATEGORY_ICONS[c.category] || '📋'}</div>
       <div class="contact-item__body">
-        <div class="contact-item__name">${escHtml(c.name)}</div>
-        ${meta ? `<div class="contact-item__meta">${escHtml(meta)}</div>` : ''}
+        <div class="contact-item__name">${esc(c.name)}</div>
+        ${meta ? `<div class="contact-item__meta">${esc(meta)}</div>` : ''}
       </div>
       <div class="contact-item__actions">
         ${phone}${email}${maps}
-        <a href="/api/v1/contacts/${c.id}/vcard" download="${escHtml(c.name)}.vcf"
+        <a href="/api/v1/contacts/${c.id}/vcard" download="${esc(c.name)}.vcf"
            class="contact-action-btn" aria-label="${t('contacts.exportLabel')}" title="${t('contacts.exportTooltip')}">
           <i data-lucide="download" style="width:16px;height:16px;" aria-hidden="true"></i>
         </a>
@@ -252,11 +253,11 @@ function renderContactItem(c) {
 
 function openContactModal({ mode, contact = null }) {
   const isEdit = mode === 'edit';
-  const v      = (field) => escHtml(isEdit && contact[field] ? contact[field] : '');
+  const v      = (field) => esc(isEdit && contact[field] ? contact[field] : '');
 
   const catLabels = CATEGORY_LABELS();
   const catOpts = CATEGORIES.map((c) =>
-    `<option value="${c}" ${isEdit && contact.category === c ? 'selected' : ''}>${catLabels[c] || escHtml(c)}</option>`
+    `<option value="${c}" ${isEdit && contact.category === c ? 'selected' : ''}>${catLabels[c] || esc(c)}</option>`
   ).join('');
 
   const content = `
@@ -362,12 +363,6 @@ async function deleteContact(id) {
   }
 }
 
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
 
 /**
  * Minimaler vCard 3.0/4.0 Parser.
