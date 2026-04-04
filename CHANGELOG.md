@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-04-04
+
+### Fixed
+- Fix flash of unstyled content (FOUC) during page transitions - old module stylesheet is now kept until old content is removed from DOM, new content hidden until render completes
+- Smooth nav-item tap transition (0.12s ease) instead of abrupt scale snap
+- Add `:focus-visible` outline to interactive cards, buttons, FABs, and toggles for keyboard navigation
+
+### Added
+- Custom iOS-style toggle switch component (`.toggle`) replacing native checkboxes in calendar, notes, and budget modals
+- Toast notification icons - SVG checkmark (success), alert circle (danger), warning triangle (warning) alongside color coding
+- Empty-state fade-in animation (0.4s ease-out, respects `prefers-reduced-motion`)
+- Swipe haptic feedback at threshold - `vibrate(15)` fires when swipe reaches 80px during touchmove in tasks and shopping
+- Interface design system documentation (`.interface-design/system.md`)
+
 ## [0.7.4] - 2026-04-04
 
 ### Fixed
