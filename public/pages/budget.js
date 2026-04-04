@@ -377,9 +377,10 @@ function openBudgetModal({ mode, entry = null }) {
     </div>
 
     <div class="form-group">
-      <label class="allday-toggle">
+      <label class="toggle">
         <input type="checkbox" id="bm-recurring" ${isEdit && entry.is_recurring ? 'checked' : ''}>
-        <span class="allday-toggle__label">${t('budget.recurringLabel')}</span>
+        <span class="toggle__track"></span>
+        <span>${t('budget.recurringLabel')}</span>
       </label>
     </div>
 

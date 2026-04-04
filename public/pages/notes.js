@@ -379,9 +379,10 @@ function openNoteModal({ mode, note = null }) {
       </div>
     </div>
     <div class="form-group">
-      <label class="allday-toggle">
+      <label class="toggle">
         <input type="checkbox" id="note-pinned" ${isEdit && note.pinned ? 'checked' : ''}>
-        <span class="allday-toggle__label">${t('notes.pinnedLabel')}</span>
+        <span class="toggle__track"></span>
+        <span>${t('notes.pinnedLabel')}</span>
       </label>
     </div>
 

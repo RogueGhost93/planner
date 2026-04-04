@@ -350,6 +350,7 @@ function wireSwipeGestures(container) {
     let startX = 0, startY = 0;
     let dx = 0;
     let locked = false; // false | 'swipe' | 'scroll'
+    let thresholdHit = false;
     const card = row.querySelector('.shopping-item');
     if (!card) return;
 
@@ -367,6 +368,7 @@ function wireSwipeGestures(container) {
       startY = e.touches[0].clientY;
       dx     = 0;
       locked = false;
+      thresholdHit = false;
       card.style.transition = '';
     }, { passive: true });
 
@@ -407,6 +409,12 @@ function wireSwipeGestures(container) {
       } else {
         row.querySelector('.swipe-reveal--delete').style.opacity = String(progress);
         row.querySelector('.swipe-reveal--done').style.opacity   = '0';
+      }
+
+      // Haptic-Feedback beim Erreichen des Schwellwerts
+      if (!thresholdHit && Math.abs(dx) >= SWIPE_THRESHOLD) {
+        thresholdHit = true;
+        vibrate(15);
       }
     }, { passive: false });
 

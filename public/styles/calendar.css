@@ -555,19 +555,6 @@
   transform: scale(1.1);
 }
 
-/* Allday-Toggle */
-.allday-toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  cursor: pointer;
-}
-
-.allday-toggle__label {
-  font-size: var(--text-sm);
-  color: var(--color-text-primary);
-}
-
 /* --------------------------------------------------------
  * Termin-Detailansicht (Popup beim Klick)
  * -------------------------------------------------------- */

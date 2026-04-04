@@ -795,9 +795,10 @@ function buildEventModalContent({ mode, event, date }) {
     </div>
 
     <div class="form-group">
-      <label class="allday-toggle">
+      <label class="toggle">
         <input type="checkbox" id="modal-allday" ${isEdit && event.all_day ? 'checked' : ''}>
-        <span class="allday-toggle__label">${t('calendar.allDayToggle')}</span>
+        <span class="toggle__track"></span>
+        <span>${t('calendar.allDayToggle')}</span>
       </label>
     </div>
 
