@@ -68,13 +68,17 @@
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   outline-offset: 2px;
 }
 
 .notes-toolbar__search-input:focus {
   outline: 2px solid var(--color-accent);
   border-color: transparent;
+}
+
+@media (min-width: 1024px) {
+  .notes-toolbar__search-input { font-size: var(--text-sm); }
 }
 
 /* --------------------------------------------------------

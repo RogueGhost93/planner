@@ -65,6 +65,31 @@ function updateThemeColorForRoute(route) {
 }
 
 // --------------------------------------------------------
+// Dynamisches Stylesheet-Loading pro Seitenmodul
+// --------------------------------------------------------
+let activePageStyle = null;
+
+function loadPageStyle(moduleName) {
+  if (!moduleName) return Promise.resolve();
+  const href = `/styles/${moduleName}.css`;
+  if (activePageStyle?.getAttribute('href') === href) return Promise.resolve();
+
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = href;
+
+  const loaded = new Promise((resolve) => {
+    link.onload = resolve;
+    link.onerror = resolve;
+  });
+
+  if (activePageStyle) activePageStyle.remove();
+  document.head.appendChild(link);
+  activePageStyle = link;
+  return loaded;
+}
+
+// --------------------------------------------------------
 // Modul-Cache: verhindert redundante dynamic imports bei Navigation
 // --------------------------------------------------------
 const moduleCache = new Map();
@@ -170,7 +195,10 @@ async function renderPage(route, previousPath = null) {
   if (loading) loading.hidden = true;
 
   try {
-    const module = await importPage(route.page);
+    const [module] = await Promise.all([
+      importPage(route.page),
+      loadPageStyle(route.module),
+    ]);
 
     if (typeof module.render !== 'function') {
       throw new Error(`Seite ${route.page} exportiert keine render()-Funktion.`);

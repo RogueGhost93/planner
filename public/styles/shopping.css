@@ -165,7 +165,7 @@
   border: 1.5px solid var(--color-border);
   background-color: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: var(--text-base);
+  font-size: var(--text-md);
   transition: border-color var(--transition-fast);
   min-height: 44px;
 }
@@ -186,7 +186,7 @@
   border: 1px solid var(--color-border);
   background-color: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   text-align: center;
   min-height: auto;
   height: auto;
@@ -206,7 +206,7 @@
   border: 1.5px solid var(--color-border);
   background-color: var(--color-surface);
   color: var(--color-text-secondary);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   cursor: pointer;
   min-height: 44px;
 }
@@ -214,6 +214,12 @@
 .quick-add__cat:focus {
   outline: none;
   border-color: var(--color-accent);
+}
+
+@media (min-width: 1024px) {
+  .quick-add__input { font-size: var(--text-base); }
+  .quick-add__qty   { font-size: var(--text-sm); }
+  .quick-add__cat   { font-size: var(--text-sm); }
 }
 
 .quick-add__btn {

@@ -61,7 +61,7 @@
   border: 1.5px solid var(--color-border);
   background-color: var(--color-surface-2);
   color: var(--color-text-primary);
-  font-size: var(--text-sm);
+  font-size: var(--text-md);
   transition: border-color var(--transition-fast);
   min-height: 36px;
 }
@@ -70,6 +70,10 @@
   outline: none;
   border-color: var(--color-accent);
   background-color: var(--color-surface);
+}
+
+@media (min-width: 1024px) {
+  .contacts-toolbar__search-input { font-size: var(--text-sm); }
 }
 
 /* --------------------------------------------------------
