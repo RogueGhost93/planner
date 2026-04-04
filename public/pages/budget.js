@@ -16,20 +16,20 @@ import { esc } from '/utils/html.js';
 // --------------------------------------------------------
 
 const CATEGORIES = [
-  'Lebensmittel', 'Miete', 'Versicherung', 'Mobilität',
-  'Freizeit', 'Kleidung', 'Gesundheit', 'Bildung', 'Sonstiges',
+  'Groceries', 'Rent', 'Insurance', 'Transport',
+  'Leisure', 'Clothing', 'Health', 'Education', 'Other',
 ];
 
 const CATEGORY_LABELS = () => ({
-  'Lebensmittel': t('budget.catFood'),
-  'Miete':        t('budget.catRent'),
-  'Versicherung': t('budget.catInsurance'),
-  'Mobilität':    t('budget.catMobility'),
-  'Freizeit':     t('budget.catLeisure'),
-  'Kleidung':     t('budget.catClothing'),
-  'Gesundheit':   t('budget.catHealth'),
-  'Bildung':      t('budget.catEducation'),
-  'Sonstiges':    t('budget.catMisc'),
+  'Groceries':  t('budget.catFood'),
+  'Rent':       t('budget.catRent'),
+  'Insurance':  t('budget.catInsurance'),
+  'Transport':  t('budget.catMobility'),
+  'Leisure':    t('budget.catLeisure'),
+  'Clothing':   t('budget.catClothing'),
+  'Health':     t('budget.catHealth'),
+  'Education':  t('budget.catEducation'),
+  'Other':      t('budget.catMisc'),
 });
 
 function getMonthName(monthIndex) {

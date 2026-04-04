@@ -69,45 +69,45 @@ async function main() {
     .get();
 
   if (existingAdmin) {
-    console.log('ℹ  Es existiert bereits ein Admin-Account.\n');
-    const proceed = await prompt('Trotzdem einen weiteren Admin anlegen? (j/N): ');
-    if (proceed.toLowerCase() !== 'j') {
-      console.log('Setup abgebrochen.');
+    console.log('ℹ  An admin account already exists.\n');
+    const proceed = await prompt('Create another admin anyway? (y/N): ');
+    if (proceed.toLowerCase() !== 'y') {
+      console.log('Setup cancelled.');
       rl.close();
       process.exit(0);
     }
   }
 
-  console.log('Admin-Account anlegen:\n');
+  console.log('Create admin account:\n');
 
-  const username = (await prompt('Benutzername: ')).trim();
+  const username = (await prompt('Username: ')).trim();
   if (!username || username.length < 3) {
-    console.error('Fehler: Benutzername muss mindestens 3 Zeichen lang sein.');
+    console.error('Error: Username must be at least 3 characters long.');
     process.exit(1);
   }
 
-  const displayName = (await prompt('Anzeigename (z.B. "Max Mustermann"): ')).trim();
+  const displayName = (await prompt('Display name (e.g. "John Doe"): ')).trim();
   if (!displayName) {
-    console.error('Fehler: Anzeigename darf nicht leer sein.');
+    console.error('Error: Display name cannot be empty.');
     process.exit(1);
   }
 
-  const password = await promptPassword('Passwort: ');
+  const password = await promptPassword('Password: ');
   if (password.length < 8) {
-    console.error('Fehler: Passwort muss mindestens 8 Zeichen lang sein.');
+    console.error('Error: Password must be at least 8 characters long.');
     process.exit(1);
   }
 
-  const passwordConfirm = await promptPassword('Passwort bestätigen: ');
+  const passwordConfirm = await promptPassword('Confirm password: ');
   if (password !== passwordConfirm) {
-    console.error('Fehler: Passwörter stimmen nicht überein.');
+    console.error('Error: Passwords do not match.');
     process.exit(1);
   }
 
   const avatarColors = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#FF2D55'];
   const avatarColor = avatarColors[Math.floor(Math.random() * avatarColors.length)];
 
-  console.log('\nAccount wird erstellt …');
+  console.log('\nCreating account…');
 
   const hash = await bcrypt.hash(password, 12);
 
@@ -122,23 +122,23 @@ async function main() {
     const port = process.env.PORT || 3000;
     const host = getLocalIP();
 
-    console.log(`\n✅ Admin-Account erfolgreich erstellt!`);
+    console.log(`\n✅ Admin account created successfully!`);
     console.log(`${'─'.repeat(40)}`);
-    console.log(`  Benutzername: ${username}`);
-    console.log(`  Anzeigename:  ${displayName}`);
-    console.log(`  Rolle:        Admin`);
+    console.log(`  Username:     ${username}`);
+    console.log(`  Display name: ${displayName}`);
+    console.log(`  Role:         Admin`);
     console.log(`${'─'.repeat(40)}`);
-    console.log(`\n🌐 Oikos ist erreichbar unter:\n`);
-    console.log(`   Lokal:     http://localhost:${port}`);
+    console.log(`\n🌐 Oikos is available at:\n`);
+    console.log(`   Local:    http://localhost:${port}`);
     if (host) {
-      console.log(`   Netzwerk:  http://${host}:${port}`);
+      console.log(`   Network:  http://${host}:${port}`);
     }
-    console.log(`\n   Melde dich mit deinem neuen Account an. Viel Spaß!\n`);
+    console.log(`\n   Log in with your new account. Enjoy!\n`);
   } catch (err) {
     if (err.message?.includes('UNIQUE constraint')) {
-      console.error(`\nFehler: Benutzername "${username}" ist bereits vergeben.`);
+      console.error(`\nError: Username "${username}" is already taken.`);
     } else {
-      console.error('\nFehler beim Erstellen:', err.message);
+      console.error('\nError creating account:', err.message);
     }
     process.exit(1);
   }
@@ -148,6 +148,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('Unerwarteter Fehler:', err.message);
+  console.error('Unexpected error:', err.message);
   process.exit(1);
 });

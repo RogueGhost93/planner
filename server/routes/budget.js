@@ -64,8 +64,8 @@ function generateRecurringInstances(database, month) {
 }
 
 const VALID_CATEGORIES = [
-  'Lebensmittel', 'Miete', 'Versicherung', 'Mobilität',
-  'Freizeit', 'Kleidung', 'Gesundheit', 'Bildung', 'Sonstiges',
+  'Groceries', 'Rent', 'Insurance', 'Transport',
+  'Leisure', 'Clothing', 'Health', 'Education', 'Other',
 ];
 
 // --------------------------------------------------------

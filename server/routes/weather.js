@@ -104,7 +104,7 @@ router.get('/', async (req, res) => {
 router.get('/icon/:code', async (req, res) => {
   const { code } = req.params;
   if (!/^[a-zA-Z0-9]{2,4}$/.test(code)) {
-    return res.status(400).json({ error: 'Ungültiger Icon-Code.', code: 400 });
+    return res.status(400).json({ error: 'Invalid icon code.', code: 400 });
   }
 
   try {
@@ -112,7 +112,7 @@ router.get('/icon/:code', async (req, res) => {
     const url = `https://openweathermap.org/img/wn/${code}@2x.png`;
     const upstream = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!upstream.ok) {
-      return res.status(502).json({ error: 'Icon nicht verfügbar.', code: 502 });
+      return res.status(502).json({ error: 'Icon not available.', code: 502 });
     }
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Cache-Control', 'public, max-age=86400'); // 24 Stunden

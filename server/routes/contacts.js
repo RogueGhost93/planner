@@ -13,8 +13,8 @@ const log = createLogger('Contacts');
 
 const router  = express.Router();
 
-const VALID_CATEGORIES = ['Arzt', 'Schule/Kita', 'Behörde', 'Versicherung',
-                           'Handwerker', 'Notfall', 'Sonstiges'];
+const VALID_CATEGORIES = ['Doctor', 'School/Nursery', 'Authority', 'Insurance',
+                           'Tradesperson', 'Emergency', 'Other'];
 
 /**
  * GET /api/v1/contacts

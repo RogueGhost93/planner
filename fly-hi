@@ -1,0 +1,177 @@
+#!/bin/bash
+set -euo pipefail
+
+##############################
+# Fly-Hi
+##############################
+
+FLYHI_VERSION="1.1.0"
+
+# --- Determine MAIN_USER/MAIN_HOME (cron-safe) ---
+# Rule: primary interactive user is always UID 1000.
+UID1000_USER="$(getent passwd 1000 | cut -d: -f1 || true)"
+UID1000_HOME="$(getent passwd 1000 | cut -d: -f6 || true)"
+
+if [[ -n "${SUDO_USER:-}" && "${SUDO_USER:-}" != "root" ]]; then
+  MAIN_USER="$SUDO_USER"
+  MAIN_HOME="$(getent passwd "$MAIN_USER" | cut -d: -f6)"
+elif [[ $EUID -eq 0 && -n "$UID1000_USER" && -n "$UID1000_HOME" ]]; then
+  # root cron: use UID 1000
+  MAIN_USER="$UID1000_USER"
+  MAIN_HOME="$UID1000_HOME"
+else
+  MAIN_USER="${USER:-root}"
+  MAIN_HOME="$(getent passwd "$MAIN_USER" | cut -d: -f6)"
+fi
+
+# --- Install location ---
+# Use explicit env override if provided, otherwise default to MAIN_HOME/Docker.
+install_location="${INSTALL_LOCATION:-<install_location>}"
+if [[ "$install_location" == "<install_location>" || -z "$install_location" ]]; then
+  install_location="${MAIN_HOME}/Docker"
+fi
+
+dc_network="docker compose --project-directory ${install_location}/network -f ${install_location}/network/docker-compose.yaml"
+dc_management="docker compose --project-directory ${install_location}/management -f ${install_location}/management/docker-compose.yaml"
+dc_media="docker compose --project-directory ${install_location}/media -f ${install_location}/media/docker-compose.yaml"
+dc_starrs="docker compose --project-directory ${install_location}/starrs -f ${install_location}/starrs/docker-compose.yaml"
+
+# Stack order:
+# start:   network -> management -> media -> starrs
+# stop:    starrs -> media -> management -> network
+STACKS_START=(network management media starrs)
+STACKS_STOP=(starrs media management network)
+STACKS_ALL=(network management media starrs)
+
+option=${1:-help}
+compose_file=${2:-""}
+
+OLLAMA_URL="http://localhost:11434/api/chat"
+OLLAMA_MODEL="qwen2.5:7b-instruct-q5_K_M"
+BACKUP_DIR="/media/backupdrive"
+DOCKER_STACK="${install_location}"
+DOCKER_BACKUP="$BACKUP_DIR/Docker"
+CONFIG_BACKUP_DIR="/media/data/Personal/Petar/Backups/Homelab/$MAIN_USER"
+my_domain="letsflyhi.com"
+NAS_IP="10.0.100.83"
+NAS_SHARE="//10.0.100.83/NAS/Data"
+NAS_MOUNTPOINT="/media/data"
+DNS1="10.0.100.1"
+DNS2="10.0.100.80"
+
+# --- Load user config overrides ---
+FLYHI_CONFIG="$MAIN_HOME/fly-hi-config"
+if [[ -f "$FLYHI_CONFIG" ]]; then
+  source "$FLYHI_CONFIG"
+fi
+
+##############################
+# Messages
+##############################
+
+green() { echo -e "\e[32m$1\e[0m"; }
+red() { echo -e "\e[31m$1\e[0m"; }
+blue() { echo -e "\e[34m$1\e[0m"; }
+
+##############################
+# Run as MAIN user
+##############################
+
+# Run a command as the non-root "main" user with a sane HOME and login env
+as_main() {
+  sudo -u "$MAIN_USER" -H bash -lc "cd \"$MAIN_HOME\" && $*"
+}
+
+# ── Source all command modules ────────────────────────────────────────────
+FLYHI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+source "$FLYHI_DIR/cmd/help.sh"
+source "$FLYHI_DIR/cmd/stack.sh"
+source "$FLYHI_DIR/cmd/network.sh"
+source "$FLYHI_DIR/cmd/links.sh"
+source "$FLYHI_DIR/cmd/storage.sh"
+source "$FLYHI_DIR/cmd/system.sh"
+source "$FLYHI_DIR/cmd/ai.sh"
+source "$FLYHI_DIR/cmd/market.sh"
+source "$FLYHI_DIR/cmd/doctor.sh"
+
+##############################
+# Main
+##############################
+
+case "$option" in
+    help) help ;;
+    version) echo "fly-hi $FLYHI_VERSION" ;;
+    start)
+      if [[ -z "$compose_file" ]]; then
+        run_all start
+      elif is_stack "$compose_file"; then
+        run_stack "$compose_file" start
+      else
+        run_container "$compose_file" start
+      fi && green "Started"
+      ;;
+    stop)
+      if [[ -z "$compose_file" ]]; then
+        run_all stop
+      elif is_stack "$compose_file"; then
+        run_stack "$compose_file" stop
+      else
+        run_container "$compose_file" stop
+      fi
+      ;;
+    restart)
+      if [[ -z "$compose_file" ]]; then
+        run_all restart
+      elif is_stack "$compose_file"; then
+        run_stack "$compose_file" restart
+      else
+        run_container "$compose_file" restart
+      fi && green "Restarted"
+      ;;
+    update)
+      if [[ -z "$compose_file" ]]; then
+        run_all update
+      elif is_stack "$compose_file"; then
+        run_stack "$compose_file" update
+      else
+        run_container "$compose_file" update
+      fi && green "Updated"
+      ;;
+    down)
+      if [[ -z "$compose_file" ]]; then
+        run_all down
+      elif is_stack "$compose_file"; then
+        run_stack "$compose_file" down
+      else
+        run_container "$compose_file" down
+      fi
+      ;;
+    ip) check_ip ;;
+    vpn) vpn_check ;;
+    ports) docker ps --format '{{.Names}}\t{{.Ports}}' ;;
+    links) links "$compose_file" "${3:-}" ;;
+    backup-configs) backup_configs ;;
+    restore-configs) restore_configs ;;
+    backup-docker) backup_docker ;;
+    restore-docker) restore_docker ;;
+    disk) disk_check ;;
+    update-system) update_server ;;
+    status) status_check ;;
+    youtube) youtube_run ;;
+    shutdown) shutdown_all ;;
+    uninstall) uninstall_flyhi ;;
+    dns) dns_check ;;
+    nas) nas_mount ;;
+    nas-off) nas_umount ;;
+    config) show_config ;;
+    doctor) doctor ;;
+    ai-log) shift; ai_log "$@" ;;
+    ai-log-deep) shift; ai_log_deep "$@" ;;
+    ai-summary) shift; ai_summary "$@" ;;
+    ask-system) shift; ai_ask_system "$@" ;;
+    history) ai_container_history;;
+    ask) shift; ask "$@" ;;
+    market-monitor) btc_monitor ;;
+    *) help ;;
+esac

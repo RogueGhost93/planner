@@ -14,28 +14,28 @@ import { esc } from '/utils/html.js';
 // Konstanten
 // --------------------------------------------------------
 
-const CATEGORIES = ['Arzt', 'Schule/Kita', 'Behörde', 'Versicherung',
-                    'Handwerker', 'Notfall', 'Sonstiges'];
+const CATEGORIES = ['Doctor', 'School/Nursery', 'Authority', 'Insurance',
+                    'Tradesperson', 'Emergency', 'Other'];
 
 const CATEGORY_ICONS = {
-  'Arzt':         '🏥',
-  'Schule/Kita':  '🏫',
-  'Behörde':      '🏛️',
-  'Versicherung': '🛡️',
-  'Handwerker':   '🔧',
-  'Notfall':      '🚨',
-  'Sonstiges':    '📋',
+  'Doctor':        '🏥',
+  'School/Nursery':'🏫',
+  'Authority':     '🏛️',
+  'Insurance':     '🛡️',
+  'Tradesperson':  '🔧',
+  'Emergency':     '🚨',
+  'Other':         '📋',
 };
 
 function CATEGORY_LABELS() {
   return {
-    'Arzt':         t('contacts.categoryDoctor'),
-    'Schule/Kita':  t('contacts.categorySchool'),
-    'Behörde':      t('contacts.categoryAuthority'),
-    'Versicherung': t('contacts.categoryInsurance'),
-    'Handwerker':   t('contacts.categoryCraftsman'),
-    'Notfall':      t('contacts.categoryEmergency'),
-    'Sonstiges':    t('contacts.categoryOther'),
+    'Doctor':        t('contacts.categoryDoctor'),
+    'School/Nursery':t('contacts.categorySchool'),
+    'Authority':     t('contacts.categoryAuthority'),
+    'Insurance':     t('contacts.categoryInsurance'),
+    'Tradesperson':  t('contacts.categoryCraftsman'),
+    'Emergency':     t('contacts.categoryEmergency'),
+    'Other':         t('contacts.categoryOther'),
   };
 }
 
@@ -395,7 +395,7 @@ function parseVCard(text) {
 
   const notes    = get('NOTE') || null;
   const catRaw   = get('CATEGORIES') || null;
-  const category = CATEGORIES.find((c) => catRaw?.toLowerCase().includes(c.toLowerCase())) || 'Sonstiges';
+  const category = CATEGORIES.find((c) => catRaw?.toLowerCase().includes(c.toLowerCase())) || 'Other';
 
   return { name, phone, email, address, notes, category };
 }

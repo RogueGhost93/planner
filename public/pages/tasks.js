@@ -29,19 +29,19 @@ const STATUSES = () => [
 ];
 
 const CATEGORIES = [
-  'Haushalt', 'Schule', 'Einkauf', 'Reparatur',
-  'Gesundheit', 'Finanzen', 'Freizeit', 'Sonstiges',
+  'Household', 'School', 'Shopping', 'Repairs',
+  'Health', 'Finance', 'Leisure', 'Other',
 ];
 
 const CATEGORY_LABELS = () => ({
-  'Haushalt':    t('tasks.categoryHousehold'),
-  'Schule':      t('tasks.categorySchool'),
-  'Einkauf':     t('tasks.categoryShopping'),
-  'Reparatur':   t('tasks.categoryRepair'),
-  'Gesundheit':  t('tasks.categoryHealth'),
-  'Finanzen':    t('tasks.categoryFinance'),
-  'Freizeit':    t('tasks.categoryLeisure'),
-  'Sonstiges':   t('tasks.categoryMisc'),
+  'Household': t('tasks.categoryHousehold'),
+  'School':    t('tasks.categorySchool'),
+  'Shopping':  t('tasks.categoryShopping'),
+  'Repairs':   t('tasks.categoryRepair'),
+  'Health':    t('tasks.categoryHealth'),
+  'Finance':   t('tasks.categoryFinance'),
+  'Leisure':   t('tasks.categoryLeisure'),
+  'Other':     t('tasks.categoryMisc'),
 });
 
 const PRIORITY_LABELS = () => Object.fromEntries(PRIORITIES().map((p) => [p.value, p.label]));
@@ -73,7 +73,7 @@ function groupBy(tasks, mode) {
 
   if (mode === 'category') {
     for (const t of tasks) {
-      const key = t.category || 'Sonstiges';
+      const key = t.category || 'Other';
       (groups[key] = groups[key] || []).push(t);
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'de'));
@@ -177,7 +177,7 @@ function renderTaskCard(task, opts = {}) {
             ${renderPriorityBadge(task.priority)}
             ${renderDueDate(task.due_date)}
             ${task.is_recurring ? `<span class="due-date" aria-label="${t('tasks.recurring')}"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>` : ''}
-            ${task.category !== 'Sonstiges' ? `<span class="due-date">${CATEGORY_LABELS()[task.category] ?? task.category}</span>` : ''}
+            ${task.category !== 'Other' ? `<span class="due-date">${CATEGORY_LABELS()[task.category] ?? task.category}</span>` : ''}
           </div>
         </div>
 
@@ -249,7 +249,7 @@ function renderModalContent({ task = null, users = [] } = {}) {
 
   const catLabels = CATEGORY_LABELS();
   const categoryOptions = CATEGORIES.map((c) =>
-    `<option value="${c}" ${(task?.category ?? 'Sonstiges') === c ? 'selected' : ''}>${catLabels[c] ?? c}</option>`
+    `<option value="${c}" ${(task?.category ?? 'Other') === c ? 'selected' : ''}>${catLabels[c] ?? c}</option>`
   ).join('');
 
   const priorityOptions = PRIORITIES().map((p) =>

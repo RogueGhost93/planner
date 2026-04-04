@@ -29,12 +29,12 @@ const RRULE_RE    = /^(FREQ=(DAILY|WEEKLY|MONTHLY)(;INTERVAL=\d{1,2})?(;BYDAY=[A
  */
 function str(val, field, { max = MAX_TITLE, required = true } = {}) {
   if (val === undefined || val === null || val === '') {
-    if (required) return { value: null, error: `${field} ist erforderlich.` };
+    if (required) return { value: null, error: `${field} is required.` };
     return { value: null, error: null };
   }
   const s = String(val).trim();
-  if (required && !s) return { value: null, error: `${field} darf nicht leer sein.` };
-  if (s.length > max)  return { value: null, error: `${field} darf maximal ${max} Zeichen haben.` };
+  if (required && !s) return { value: null, error: `${field} must not be empty.` };
+  if (s.length > max)  return { value: null, error: `${field} must be at most ${max} characters.` };
   return { value: s || null, error: null };
 }
 
@@ -48,7 +48,7 @@ function str(val, field, { max = MAX_TITLE, required = true } = {}) {
 function oneOf(val, allowed, field) {
   if (val === undefined || val === null || val === '') return { value: null, error: null };
   if (!allowed.includes(val))
-    return { value: null, error: `${field} muss eines von: ${allowed.join(', ')} sein.` };
+    return { value: null, error: `${field} must be one of: ${allowed.join(', ')}.` };
   return { value: val, error: null };
 }
 
@@ -60,11 +60,11 @@ function oneOf(val, allowed, field) {
  */
 function date(val, field, required = false) {
   if (!val) {
-    if (required) return { value: null, error: `${field} ist erforderlich.` };
+    if (required) return { value: null, error: `${field} is required.` };
     return { value: null, error: null };
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(val)))
-    return { value: null, error: `${field} muss im Format YYYY-MM-DD sein.` };
+    return { value: null, error: `${field} must be in YYYY-MM-DD format.` };
   return { value: String(val), error: null };
 }
 
@@ -74,7 +74,7 @@ function date(val, field, required = false) {
 function time(val, field) {
   if (!val) return { value: null, error: null };
   if (!/^\d{2}:\d{2}$/.test(String(val)))
-    return { value: null, error: `${field} muss im Format HH:MM sein.` };
+    return { value: null, error: `${field} must be in HH:MM format.` };
   return { value: String(val), error: null };
 }
 
@@ -87,7 +87,7 @@ function num(val, field, { required = false } = {}) {
     return { value: null, error: null };
   }
   const n = Number(val);
-  if (!isFinite(n)) return { value: null, error: `${field} muss eine gültige Zahl sein.` };
+  if (!isFinite(n)) return { value: null, error: `${field} must be a valid number.` };
   return { value: n, error: null };
 }
 
@@ -97,7 +97,7 @@ function num(val, field, { required = false } = {}) {
 function color(val, field) {
   if (!val) return { value: null, error: null };
   if (!/^#[0-9A-Fa-f]{6}$/.test(String(val)))
-    return { value: null, error: `${field} muss ein gültiger HEX-Farbwert sein (#RRGGBB).` };
+    return { value: null, error: `${field} must be a valid hex color (#RRGGBB).` };
   return { value: String(val), error: null };
 }
 
@@ -119,7 +119,7 @@ function datetime(val, field, required = false) {
     return { value: null, error: null };
   }
   if (!DATETIME_RE.test(String(val)))
-    return { value: null, error: `${field} muss im Format YYYY-MM-DD oder YYYY-MM-DDTHH:MM sein.` };
+    return { value: null, error: `${field} must be in YYYY-MM-DD or YYYY-MM-DDTHH:MM format.` };
   return { value: String(val), error: null };
 }
 
@@ -129,7 +129,7 @@ function datetime(val, field, required = false) {
 function month(val, field) {
   if (!val) return { value: null, error: null };
   if (!MONTH_RE.test(String(val)))
-    return { value: null, error: `${field} muss im Format YYYY-MM sein.` };
+    return { value: null, error: `${field} must be in YYYY-MM format.` };
   return { value: String(val), error: null };
 }
 
@@ -140,10 +140,10 @@ function rrule(val, field) {
   if (!val) return { value: null, error: null };
   const s = String(val).trim();
   if (s.length > MAX_RRULE)
-    return { value: null, error: `${field} darf maximal ${MAX_RRULE} Zeichen haben.` };
+    return { value: null, error: `${field} must be at most ${MAX_RRULE} characters.` };
   // Grundlegende Struktur: KEY=VALUE;KEY=VALUE
   if (!/^FREQ=(DAILY|WEEKLY|MONTHLY)/.test(s))
-    return { value: null, error: `${field}: Ungültige Wiederholungsregel.` };
+    return { value: null, error: `${field}: Invalid recurrence rule.` };
   return { value: s, error: null };
 }
 
@@ -152,7 +152,7 @@ function rrule(val, field) {
  */
 function id(val, field) {
   const n = parseInt(val, 10);
-  if (!n || n < 1) return { value: null, error: `${field} muss eine positive Zahl sein.` };
+  if (!n || n < 1) return { value: null, error: `${field} must be a positive number.` };
   return { value: n, error: null };
 }
 
