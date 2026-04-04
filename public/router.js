@@ -177,13 +177,13 @@ async function renderPage(route, previousPath = null) {
     }
 
     // App-Shell einmalig aufbauen BEVOR render() aufgerufen wird -
-    // page-content muss im DOM existieren damit document.getElementById()
+    // main-content muss im DOM existieren damit document.getElementById()
     // in Seiten-Modulen funktioniert.
     if (!document.querySelector('.nav-bottom') && currentUser) {
       renderAppShell(app);
     }
 
-    const content = document.getElementById('page-content') || app;
+    const content = document.getElementById('main-content') || app;
 
     // Richtung bestimmen (previousPath ist der alte Pfad vor der Navigation)
     const direction = getDirection(previousPath, route.path);
@@ -216,7 +216,7 @@ async function renderPage(route, previousPath = null) {
  */
 function renderAppShell(container) {
   container.innerHTML = `
-    <a href="#page-content" class="sr-only">${t('common.skipToContent')}</a>
+    <a href="#main-content" class="sr-only">${t('common.skipToContent')}</a>
     <nav class="nav-sidebar" aria-label="${t('nav.main')}">
       <div class="nav-sidebar__logo"><span>Oikos</span></div>
       <div class="nav-sidebar__items" role="list">
@@ -224,7 +224,7 @@ function renderAppShell(container) {
       </div>
     </nav>
 
-    <main class="app-content" id="page-content" aria-live="polite">
+    <main class="app-content" id="main-content" aria-live="polite">
     </main>
 
     <nav class="nav-bottom" aria-label="${t('nav.navigation')}">
@@ -416,7 +416,7 @@ window.addEventListener('auth:expired', () => {
 window.addEventListener('locale-changed', () => {
   const navSidebarItems = document.querySelector('.nav-sidebar__items');
   const navBottomPages  = document.querySelectorAll('.nav-bottom__page');
-  const skipLink        = document.querySelector('.sr-only[href="#page-content"]');
+  const skipLink        = document.querySelector('.sr-only[href="#main-content"]');
   const navSidebar      = document.querySelector('.nav-sidebar');
   const navBottom       = document.querySelector('.nav-bottom');
 

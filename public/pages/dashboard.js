@@ -56,6 +56,13 @@ function formatDueDate(dateStr) {
   };
 }
 
+const PRIORITY_LABELS = () => ({
+  urgent: t('tasks.priorityUrgent'),
+  high:   t('tasks.priorityHigh'),
+  medium: t('tasks.priorityMedium'),
+  low:    t('tasks.priorityLow'),
+});
+
 const MEAL_LABELS = () => ({
   breakfast: t('meals.typeBreakfast'),
   lunch:     t('meals.typeLunch'),
@@ -160,7 +167,8 @@ function renderUrgentTasks(tasks) {
     const due = formatDueDate(t.due_date);
     return `
       <div class="task-item" data-route="/tasks" role="button" tabindex="0">
-        <div class="task-item__priority task-item__priority--${t.priority}"></div>
+        <div class="task-item__priority task-item__priority--${t.priority}" aria-hidden="true"></div>
+        <span class="sr-only">${PRIORITY_LABELS()[t.priority] ?? t.priority}</span>
         <div class="task-item__content">
           <div class="task-item__title">${esc(t.title)}</div>
           ${due ? `<div class="task-item__meta ${due.overdue ? 'task-item__meta--overdue' : ''}">${due.text}</div>` : ''}

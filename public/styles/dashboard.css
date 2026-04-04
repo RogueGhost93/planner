@@ -89,7 +89,9 @@
  * Begrüßungs-Widget
  * -------------------------------------------------------- */
 .widget-greeting {
-  background: linear-gradient(135deg, #1D4ED8, #2563EB);
+  --greeting-from: var(--color-accent-active);
+  --greeting-to: var(--color-accent);
+  background: linear-gradient(135deg, var(--greeting-from), var(--greeting-to));
   border-radius: var(--radius-md);
   padding: var(--space-4) var(--space-5);
   color: #ffffff;
@@ -99,7 +101,7 @@
 .widget-greeting__content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0h);
 }
 
 .widget-greeting__title {
