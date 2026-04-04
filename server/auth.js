@@ -118,7 +118,7 @@ const loginLimiter = rateLimit({
   skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Zu viele Login-Versuche. Bitte warte kurz.', code: 429 },
+  message: { error: 'Too many login attempts. Please wait a moment.', code: 429 },
 });
 
 // --------------------------------------------------------
@@ -133,7 +133,7 @@ function requireAuth(req, res, next) {
   if (req.session && req.session.userId) {
     return next();
   }
-  res.status(401).json({ error: 'Nicht authentifiziert.', code: 401 });
+  res.status(401).json({ error: 'Not authenticated.', code: 401 });
 }
 
 /**
@@ -143,7 +143,7 @@ function requireAdmin(req, res, next) {
   if (req.session && req.session.role === 'admin') {
     return next();
   }
-  res.status(403).json({ error: 'Keine Berechtigung.', code: 403 });
+  res.status(403).json({ error: 'Forbidden.', code: 403 });
 }
 
 // --------------------------------------------------------
@@ -160,11 +160,11 @@ router.post('/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
-      return res.status(400).json({ error: 'Benutzername und Passwort erforderlich.', code: 400 });
+      return res.status(400).json({ error: 'Username and password are required.', code: 400 });
     }
 
     if (username.length > 64 || password.length > 1024) {
-      return res.status(400).json({ error: 'Eingabe zu lang.', code: 400 });
+      return res.status(400).json({ error: 'Input too long.', code: 400 });
     }
 
     const user = db.get().prepare('SELECT * FROM users WHERE username = ?').get(username);
@@ -172,18 +172,18 @@ router.post('/login', loginLimiter, async (req, res) => {
     if (!user) {
       // Timing-Attack-Schutz: trotzdem bcrypt ausführen
       await bcrypt.compare(password, '$2b$12$invalidhashfortimingprotection000000000000000000000');
-      return res.status(401).json({ error: 'Ungültige Anmeldedaten.', code: 401 });
+      return res.status(401).json({ error: 'Invalid credentials.', code: 401 });
     }
 
     const valid = await bcrypt.compare(password, user.password_hash);
     if (!valid) {
-      return res.status(401).json({ error: 'Ungültige Anmeldedaten.', code: 401 });
+      return res.status(401).json({ error: 'Invalid credentials.', code: 401 });
     }
 
     req.session.regenerate((err) => {
       if (err) {
         log.error('Session-Regenerierung fehlgeschlagen:', err);
-        return res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+        return res.status(500).json({ error: 'Internal server error.', code: 500 });
       }
 
       req.session.userId    = user.id;
@@ -210,7 +210,7 @@ router.post('/login', loginLimiter, async (req, res) => {
     });
   } catch (err) {
     log.error('Login-Fehler:', err);
-    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
@@ -222,7 +222,7 @@ router.post('/logout', requireAuth, csrfMiddleware, (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       log.error('Logout-Fehler:', err);
-      return res.status(500).json({ error: 'Logout fehlgeschlagen.', code: 500 });
+      return res.status(500).json({ error: 'Logout failed.', code: 500 });
     }
     res.clearCookie('oikos.sid');
     res.json({ ok: true });
@@ -241,13 +241,13 @@ router.get('/me', requireAuth, (req, res) => {
 
     if (!user) {
       req.session.destroy(() => {});
-      return res.status(401).json({ error: 'Benutzer nicht gefunden.', code: 401 });
+      return res.status(401).json({ error: 'User not found.', code: 401 });
     }
 
     res.json({ user });
   } catch (err) {
     log.error('/me Fehler:', err);
-    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
@@ -264,7 +264,7 @@ router.get('/users', requireAuth, requireAdmin, (req, res) => {
     res.json({ data: users });
   } catch (err) {
     log.error('Users-Fehler:', err);
-    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
@@ -279,23 +279,23 @@ router.post('/users', requireAuth, requireAdmin, csrfMiddleware, async (req, res
     const { username, display_name, password, avatar_color = '#007AFF', role = 'member' } = req.body;
 
     if (!username || !display_name || !password) {
-      return res.status(400).json({ error: 'Benutzername, Anzeigename und Passwort erforderlich.', code: 400 });
+      return res.status(400).json({ error: 'Username, display name and password are required.', code: 400 });
     }
 
     if (password.length < 8) {
-      return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben.', code: 400 });
+      return res.status(400).json({ error: 'Password must be at least 8 characters.', code: 400 });
     }
 
     if (!/^[a-zA-Z0-9._-]{3,64}$/.test(username)) {
-      return res.status(400).json({ error: 'Benutzername muss 3-64 Zeichen lang sein und darf nur Buchstaben, Zahlen, Punkte, Bindestriche und Unterstriche enthalten.', code: 400 });
+      return res.status(400).json({ error: 'Username must be 3-64 characters and may only contain letters, numbers, dots, hyphens and underscores.', code: 400 });
     }
 
     if (display_name.length > 128) {
-      return res.status(400).json({ error: 'Anzeigename darf maximal 128 Zeichen lang sein.', code: 400 });
+      return res.status(400).json({ error: 'Display name must be 128 characters or fewer.', code: 400 });
     }
 
     if (!['admin', 'member'].includes(role)) {
-      return res.status(400).json({ error: 'Ungültige Rolle.', code: 400 });
+      return res.status(400).json({ error: 'Invalid role.', code: 400 });
     }
 
     const hash = await bcrypt.hash(password, 12);
@@ -312,10 +312,10 @@ router.post('/users', requireAuth, requireAdmin, csrfMiddleware, async (req, res
     });
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE constraint')) {
-      return res.status(409).json({ error: 'Benutzername bereits vergeben.', code: 409 });
+      return res.status(409).json({ error: 'Username already taken.', code: 409 });
     }
     log.error('User-Erstellen-Fehler:', err);
-    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
@@ -330,17 +330,17 @@ router.patch('/me/password', requireAuth, csrfMiddleware, async (req, res) => {
     const { current_password, new_password } = req.body;
 
     if (!current_password || !new_password) {
-      return res.status(400).json({ error: 'Aktuelles und neues Passwort erforderlich.', code: 400 });
+      return res.status(400).json({ error: 'Current and new password are required.', code: 400 });
     }
     if (new_password.length < 8) {
-      return res.status(400).json({ error: 'Neues Passwort muss mindestens 8 Zeichen haben.', code: 400 });
+      return res.status(400).json({ error: 'New password must be at least 8 characters.', code: 400 });
     }
 
     const user = db.get().prepare('SELECT password_hash FROM users WHERE id = ?').get(req.session.userId);
-    if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden.', code: 404 });
+    if (!user) return res.status(404).json({ error: 'User not found.', code: 404 });
 
     const valid = await bcrypt.compare(current_password, user.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Aktuelles Passwort falsch.', code: 401 });
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect.', code: 401 });
 
     const hash = await bcrypt.hash(new_password, 12);
     db.get().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, req.session.userId);
@@ -361,7 +361,7 @@ router.patch('/me/password', requireAuth, csrfMiddleware, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     log.error('Passwort-Aendern-Fehler:', err);
-    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 
@@ -375,13 +375,13 @@ router.delete('/users/:id', requireAuth, requireAdmin, csrfMiddleware, (req, res
     const userId = parseInt(req.params.id, 10);
 
     if (userId === req.session.userId) {
-      return res.status(400).json({ error: 'Eigenes Konto kann nicht gelöscht werden.', code: 400 });
+      return res.status(400).json({ error: 'Cannot delete your own account.', code: 400 });
     }
 
     const result = db.get().prepare('DELETE FROM users WHERE id = ?').run(userId);
 
     if (result.changes === 0) {
-      return res.status(404).json({ error: 'Benutzer nicht gefunden.', code: 404 });
+      return res.status(404).json({ error: 'User not found.', code: 404 });
     }
 
     // Alle aktiven Sessions des geloeschten Users invalidieren
@@ -398,7 +398,7 @@ router.delete('/users/:id', requireAuth, requireAdmin, csrfMiddleware, (req, res
     res.json({ ok: true });
   } catch (err) {
     log.error('User-Loeschen-Fehler:', err);
-    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
   }
 });
 

@@ -21,8 +21,8 @@ const router  = express.Router();
 // --------------------------------------------------------
 
 const ITEM_CATEGORIES = [
-  'Obst & Gemüse', 'Backwaren', 'Milchprodukte', 'Fleisch & Fisch',
-  'Tiefkühl', 'Getränke', 'Haushalt', 'Drogerie', 'Sonstiges',
+  'Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
+  'Frozen', 'Drinks', 'Household', 'Toiletries', 'Other',
 ];
 
 // --------------------------------------------------------
@@ -71,7 +71,7 @@ router.patch('/items/:itemId', (req, res) => {
 
     if (!name?.trim()) return res.status(400).json({ error: 'name darf nicht leer sein.', code: 400 });
     if (category && !ITEM_CATEGORIES.includes(category))
-      return res.status(400).json({ error: 'Ungültige Kategorie.', code: 400 });
+      return res.status(400).json({ error: 'Invalid category.', code: 400 });
 
     db.get().prepare(`
       UPDATE shopping_items

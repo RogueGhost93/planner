@@ -77,10 +77,10 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // JSON-Parse-Fehler abfangen (gibt sonst HTML zurück)
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') {
-    return res.status(400).json({ error: 'Ungültiges JSON im Request-Body.', code: 400 });
+    return res.status(400).json({ error: 'Invalid JSON in request body.', code: 400 });
   }
   if (err.type === 'entity.too.large') {
-    return res.status(413).json({ error: 'Request-Body zu groß (max. 1 MB).', code: 413 });
+    return res.status(413).json({ error: 'Request body too large (max. 1 MB).', code: 413 });
   }
   next(err);
 });
@@ -138,7 +138,7 @@ const apiLimiter = rateLimit({
   max: 300,                 // 300 Requests/Minute pro IP (großzügig für Familien-App)
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Zu viele Anfragen. Bitte warte kurz.', code: 429 },
+  message: { error: 'Too many requests. Please wait a moment.', code: 429 },
   skip: (req) => req.path === '/health', // Health-Check ausgenommen
 });
 app.use('/api/', apiLimiter);
@@ -176,7 +176,7 @@ const spaLimiter = rateLimit({
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Zu viele Anfragen. Bitte warte kurz.', code: 429 },
+  message: { error: 'Too many requests. Please wait a moment.', code: 429 },
 });
 
 // --------------------------------------------------------

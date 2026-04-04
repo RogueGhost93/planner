@@ -117,7 +117,7 @@ router.get('/', (req, res) => {
     const to   = req.query.to   || `${year}-${month}-31`;
 
     if (!DATE_RE.test(from) || !DATE_RE.test(to))
-      return res.status(400).json({ error: 'from/to müssen YYYY-MM-DD sein', code: 400 });
+      return res.status(400).json({ error: 'from/to must be YYYY-MM-DD', code: 400 });
 
     let sql = `
       SELECT e.*,
@@ -332,10 +332,10 @@ router.post('/apple/sync', requireAdmin, async (req, res) => {
 router.post('/apple/connect', requireAdmin, async (req, res) => {
   const { url, username, password } = req.body;
   if (!url || typeof url !== 'string' || !url.startsWith('http')) {
-    return res.status(400).json({ error: 'url muss eine gültige HTTP(S)-URL sein.', code: 400 });
+    return res.status(400).json({ error: 'url must be a valid HTTP(S) URL.', code: 400 });
   }
   if (!username || typeof username !== 'string' || username.length > 254) {
-    return res.status(400).json({ error: 'username fehlt oder ungültig.', code: 400 });
+    return res.status(400).json({ error: 'username is missing or invalid.', code: 400 });
   }
   if (!password || typeof password !== 'string' || password.length < 1) {
     return res.status(400).json({ error: 'password fehlt.', code: 400 });

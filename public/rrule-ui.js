@@ -5,20 +5,20 @@
  */
 
 const FREQ_OPTIONS = [
-  { value: '',        label: 'Keine Wiederholung' },
-  { value: 'DAILY',   label: 'Täglich' },
-  { value: 'WEEKLY',  label: 'Wöchentlich' },
-  { value: 'MONTHLY', label: 'Monatlich' },
+  { value: '',        label: 'No recurrence' },
+  { value: 'DAILY',   label: 'Daily' },
+  { value: 'WEEKLY',  label: 'Weekly' },
+  { value: 'MONTHLY', label: 'Monthly' },
 ];
 
 const WEEKDAYS = [
   { value: 'MO', label: 'Mo' },
-  { value: 'TU', label: 'Di' },
-  { value: 'WE', label: 'Mi' },
-  { value: 'TH', label: 'Do' },
+  { value: 'TU', label: 'Tu' },
+  { value: 'WE', label: 'We' },
+  { value: 'TH', label: 'Th' },
   { value: 'FR', label: 'Fr' },
   { value: 'SA', label: 'Sa' },
-  { value: 'SU', label: 'So' },
+  { value: 'SU', label: 'Su' },
 ];
 
 /**
@@ -88,7 +88,7 @@ export function renderRRuleFields(prefix, existingRule) {
   return `
     <div class="rrule-fields" id="${prefix}-rrule-fields">
       <div class="form-group">
-        <label class="label form-label" for="${prefix}-rrule-freq">Wiederholung</label>
+        <label class="label form-label" for="${prefix}-rrule-freq">Recurrence</label>
         <select class="input form-input" id="${prefix}-rrule-freq" style="min-height:44px">
           ${freqOpts}
         </select>
@@ -97,7 +97,7 @@ export function renderRRuleFields(prefix, existingRule) {
       <div class="rrule-details" id="${prefix}-rrule-details" ${parsed.freq ? '' : 'hidden'}>
         <div class="rrule-row">
           <div class="form-group" style="margin-bottom:0">
-            <label class="label form-label" for="${prefix}-rrule-interval">Alle</label>
+            <label class="label form-label" for="${prefix}-rrule-interval">Every</label>
             <div class="rrule-interval-wrap">
               <input class="input form-input" type="number" id="${prefix}-rrule-interval"
                      min="1" max="99" value="${parsed.interval}" style="width:64px;text-align:center">
@@ -107,12 +107,12 @@ export function renderRRuleFields(prefix, existingRule) {
         </div>
 
         <div class="rrule-weekdays" id="${prefix}-rrule-weekdays" ${parsed.freq === 'WEEKLY' ? '' : 'hidden'}>
-          <label class="label form-label">An diesen Tagen</label>
+          <label class="label form-label">On these days</label>
           <div class="rrule-day-grid">${dayBtns}</div>
         </div>
 
         <div class="form-group" style="margin-top:var(--space-3)">
-          <label class="label form-label" for="${prefix}-rrule-until">Endet am (optional)</label>
+          <label class="label form-label" for="${prefix}-rrule-until">Ends on (optional)</label>
           <input class="input form-input" type="date" id="${prefix}-rrule-until" value="${parsed.until}">
         </div>
       </div>
@@ -122,9 +122,9 @@ export function renderRRuleFields(prefix, existingRule) {
 
 function unitLabel(freq, interval) {
   const n = interval > 1;
-  if (freq === 'DAILY')   return n ? 'Tage'   : 'Tag';
-  if (freq === 'WEEKLY')  return n ? 'Wochen'  : 'Woche';
-  if (freq === 'MONTHLY') return n ? 'Monate'  : 'Monat';
+  if (freq === 'DAILY')   return n ? 'days'   : 'day';
+  if (freq === 'WEEKLY')  return n ? 'weeks'  : 'week';
+  if (freq === 'MONTHLY') return n ? 'months' : 'month';
   return '';
 }
 

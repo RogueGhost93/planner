@@ -19,32 +19,32 @@ const SWIPE_MAX_VERT  = 12;   // px - vertikaler Toleranzbereich
 const SWIPE_LOCK_VERT = 30;   // px - ab diesem Weg gilt es als Scroll
 
 const ITEM_CATEGORIES = [
-  'Obst & Gemüse', 'Backwaren', 'Milchprodukte', 'Fleisch & Fisch',
-  'Tiefkühl', 'Getränke', 'Haushalt', 'Drogerie', 'Sonstiges',
+  'Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
+  'Frozen', 'Drinks', 'Household', 'Toiletries', 'Other',
 ];
 
 const CATEGORY_LABELS = () => ({
-  'Obst & Gemüse':   t('shopping.catFruitVeg'),
-  'Backwaren':       t('shopping.catBakery'),
-  'Milchprodukte':   t('shopping.catDairy'),
-  'Fleisch & Fisch': t('shopping.catMeatFish'),
-  'Tiefkühl':        t('shopping.catFrozen'),
-  'Getränke':        t('shopping.catDrinks'),
-  'Haushalt':        t('shopping.catHousehold'),
-  'Drogerie':        t('shopping.catDrugstore'),
-  'Sonstiges':       t('shopping.catMisc'),
+  'Fruit & Veg':  t('shopping.catFruitVeg'),
+  'Bakery':       t('shopping.catBakery'),
+  'Dairy':        t('shopping.catDairy'),
+  'Meat & Fish':  t('shopping.catMeatFish'),
+  'Frozen':       t('shopping.catFrozen'),
+  'Drinks':       t('shopping.catDrinks'),
+  'Household':    t('shopping.catHousehold'),
+  'Toiletries':   t('shopping.catDrugstore'),
+  'Other':        t('shopping.catMisc'),
 });
 
 const CATEGORY_ICONS = {
-  'Obst & Gemüse':  'apple',
-  'Backwaren':      'wheat',
-  'Milchprodukte':  'milk',
-  'Fleisch & Fisch':'beef',
-  'Tiefkühl':       'snowflake',
-  'Getränke':       'cup-soda',
-  'Haushalt':       'spray-can',
-  'Drogerie':       'pill',
-  'Sonstiges':      'shopping-basket',
+  'Fruit & Veg':  'apple',
+  'Bakery':       'wheat',
+  'Dairy':        'milk',
+  'Meat & Fish':  'beef',
+  'Frozen':       'snowflake',
+  'Drinks':       'cup-soda',
+  'Household':    'spray-can',
+  'Toiletries':   'pill',
+  'Other':        'shopping-basket',
 };
 
 // --------------------------------------------------------
@@ -65,7 +65,7 @@ const state = {
 function groupItemsByCategory(items) {
   const grouped = {};
   for (const item of items) {
-    const cat = item.category || 'Sonstiges';
+    const cat = item.category || 'Other';
     (grouped[cat] = grouped[cat] || []).push(item);
   }
   // In Supermarkt-Gang-Reihenfolge zurückgeben
@@ -94,7 +94,7 @@ function renderTabs(container) {
 
   bar.innerHTML = `
     ${tabsHtml}
-    <button class="list-tab__new" data-action="new-list" aria-label="Neue Liste erstellen">
+    <button class="list-tab__new" data-action="new-list" aria-label="Create new list">
       <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i>
     </button>
   `;

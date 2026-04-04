@@ -425,9 +425,9 @@ router.post('/week-to-shopping-list', (req, res) => {
     const { listId, week, category = 'Sonstiges' } = req.body;
 
     if (!listId)
-      return res.status(400).json({ error: 'listId ist erforderlich', code: 400 });
+      return res.status(400).json({ error: 'listId is required', code: 400 });
     if (!week || !DATE_RE.test(week))
-      return res.status(400).json({ error: 'Gültiges Datum (YYYY-MM-DD) erforderlich', code: 400 });
+      return res.status(400).json({ error: 'Valid date (YYYY-MM-DD) required', code: 400 });
 
     const list = db.get().prepare('SELECT id FROM shopping_lists WHERE id = ?').get(listId);
     if (!list) return res.status(404).json({ error: 'Einkaufsliste nicht gefunden', code: 404 });

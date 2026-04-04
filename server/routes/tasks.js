@@ -20,8 +20,8 @@ const router = express.Router();
 
 const VALID_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const VALID_STATUSES   = ['open', 'in_progress', 'done'];
-const VALID_CATEGORIES = ['Haushalt', 'Schule', 'Einkauf', 'Reparatur',
-                          'Gesundheit', 'Finanzen', 'Freizeit', 'Sonstiges'];
+const VALID_CATEGORIES = ['Household', 'School', 'Shopping', 'Repairs',
+                          'Health', 'Finance', 'Leisure', 'Other'];
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -161,7 +161,7 @@ router.post('/', (req, res) => {
     if (parent_task_id) {
       const parent = db.get().prepare('SELECT parent_task_id FROM tasks WHERE id = ?')
         .get(parent_task_id);
-      if (!parent) return res.status(404).json({ error: 'Übergeordnete Aufgabe nicht gefunden.', code: 404 });
+      if (!parent) return res.status(404).json({ error: 'Parent task not found.', code: 404 });
       if (parent.parent_task_id)
         return res.status(400).json({ error: 'Maximal 2 Verschachtelungsebenen erlaubt.', code: 400 });
     }
@@ -252,7 +252,7 @@ router.patch('/:id/status', (req, res) => {
   try {
     const { status } = req.body;
     if (!VALID_STATUSES.includes(status))
-      return res.status(400).json({ error: `Ungültiger Status. Erlaubt: ${VALID_STATUSES.join(', ')}`, code: 400 });
+      return res.status(400).json({ error: `Invalid status. Allowed: ${VALID_STATUSES.join(', ')}`, code: 400 });
 
     const result = db.get().prepare('UPDATE tasks SET status = ? WHERE id = ?')
       .run(status, req.params.id);
