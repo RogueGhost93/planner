@@ -129,14 +129,14 @@
 .nav-bottom__dots {
   display: flex;
   justify-content: center;
-  gap: 6px;
-  padding: 5px 0 2px;
+  gap: var(--space-2);
+  padding: var(--space-1) 0 var(--space-0h);
 }
 
 .nav-bottom__dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
+  width: var(--space-1);
+  height: var(--space-1);
+  border-radius: var(--radius-full);
   background-color: var(--color-text-tertiary);
   opacity: 0.25;
   transition: opacity 0.2s ease, transform 0.2s ease;
@@ -196,8 +196,8 @@
 }
 
 .nav-item__icon {
-  width: 22px;
-  height: 22px;
+  width: var(--space-5);
+  height: var(--space-5);
   flex-shrink: 0;
 }
 
@@ -394,8 +394,8 @@
     content: '';
     position: absolute;
     left: 0;
-    top: 6px;
-    bottom: 6px;
+    top: var(--space-2);
+    bottom: var(--space-2);
     width: 3px;
     border-radius: 0 var(--radius-full) var(--radius-full) 0;
     background: var(--active-module-accent, var(--color-accent));
@@ -776,12 +776,12 @@
 .btn--primary {
   background-color: var(--color-btn-primary);
   color: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-sm);
 }
 
 .btn--primary:hover {
   background-color: var(--color-btn-primary-hover);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .btn--secondary {

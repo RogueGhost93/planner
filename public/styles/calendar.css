@@ -161,8 +161,8 @@
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
-  width: 26px;
-  height: 26px;
+  width: var(--space-6);
+  height: var(--space-6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -183,9 +183,9 @@
 .month-day__event {
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
-  padding: 1px 5px;
+  padding: var(--space-px) var(--space-1);
   border-radius: var(--radius-xs);
-  margin-bottom: 2px;
+  margin-bottom: var(--space-0h);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -325,7 +325,7 @@
   top: -4px;
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   background-color: var(--color-danger);
 }
 
@@ -334,7 +334,7 @@
   left: 2px;
   right: 2px;
   border-radius: var(--radius-xs);
-  padding: 2px 5px;
+  padding: var(--space-0h) var(--space-1);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
   color: #ffffff;
@@ -467,7 +467,7 @@
   height: 10px;
   border-radius: var(--radius-full);
   flex-shrink: 0;
-  margin-top: 5px;
+  margin-top: var(--space-1);
 }
 
 .agenda-event__body {
@@ -629,12 +629,12 @@
 .allday-event {
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
-  padding: 1px 6px;
+  padding: var(--space-px) var(--space-1);
   border-radius: var(--radius-xs);
   color: #ffffff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 2px;
+  margin-bottom: var(--space-0h);
   cursor: pointer;
 }

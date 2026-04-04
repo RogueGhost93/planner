@@ -110,7 +110,7 @@
   background-color: var(--color-surface);
   color: var(--color-text-secondary);
   transition: all var(--transition-fast);
-  min-height: 34px;
+  min-height: 32px;
 }
 
 .filter-chip:hover:not(.filter-chip--active) {
@@ -227,8 +227,8 @@
 
 /* Status-Checkbox */
 .task-status-btn {
-  width: 22px;
-  height: 22px;
+  width: var(--space-5);
+  height: var(--space-5);
   border-radius: var(--radius-full);
   border: 2px solid var(--color-border);
   background: none;
@@ -315,8 +315,8 @@
 .priority-badge--urgent  { color: var(--color-priority-urgent); background-color: var(--color-priority-urgent-bg); }
 
 .priority-dot {
-  width: 6px;
-  height: 6px;
+  width: var(--space-1);
+  height: var(--space-1);
   border-radius: var(--radius-full);
   flex-shrink: 0;
 }
@@ -332,7 +332,7 @@
   color: var(--color-text-secondary);
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .due-date--overdue { color: var(--color-danger); font-weight: var(--font-weight-semibold); }

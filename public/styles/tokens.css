@@ -131,6 +131,12 @@
   --color-overlay: rgba(0, 0, 0, 0.45);
   --color-overlay-light: rgba(0, 0, 0, 0.2);
 
+  /* Glass-Overlays (fuer Elemente auf farbigen Hintergruenden) */
+  --color-glass:       rgba(255, 255, 255, 0.18);
+  --color-glass-hover: rgba(255, 255, 255, 0.3);
+  --color-glass-border: rgba(255, 255, 255, 0.15);
+  --color-danger-translucent: rgba(255, 59, 48, 0.35);
+
   /* --------------------------------------------------------
    * 8. Schatten
    *    3 Stufen: subtle (Karten), medium (Dropdowns, Hover),

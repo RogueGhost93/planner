@@ -72,14 +72,14 @@
 }
 
 .list-tab__count {
-  background-color: rgba(255, 255, 255, 0.25);
+  background-color: var(--color-glass);
   border-radius: var(--radius-full);
-  padding: 1px 6px;
+  padding: var(--space-px) var(--space-1);
   font-size: var(--text-xs);
 }
 
 .list-tab--active .list-tab__count {
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: var(--color-glass-hover);
 }
 
 .list-tab__new {
@@ -126,8 +126,8 @@
 }
 
 .list-header__edit-icon {
-  width: 15px;
-  height: 15px;
+  width: var(--space-4);
+  height: var(--space-4);
   color: var(--color-text-disabled);
 }
 
@@ -301,8 +301,8 @@
 }
 
 .item-category__icon {
-  width: 14px;
-  height: 14px;
+  width: var(--space-3);
+  height: var(--space-3);
 }
 
 /* --------------------------------------------------------
@@ -360,8 +360,8 @@
 }
 
 .item-check__icon {
-  width: 14px;
-  height: 14px;
+  width: var(--space-3);
+  height: var(--space-3);
   color: #ffffff;
   display: none;
 }
