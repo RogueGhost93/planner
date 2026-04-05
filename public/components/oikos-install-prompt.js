@@ -41,14 +41,6 @@ class OikosInstallPrompt extends HTMLElement {
       return;
     }
 
-    // locale-changed: Banner neu rendern wenn Sprache wechselt
-    this._onLocaleChanged = () => {
-      if (this._currentIsIOS !== undefined) {
-        this._showBanner(this._currentIsIOS);
-      }
-    };
-    window.addEventListener('locale-changed', this._onLocaleChanged);
-
     // Noch nicht genug Interaktionen
     const interactions = Number(localStorage.getItem(INTERACTION_KEY) || '0');
     if (interactions < INTERACTION_THRESHOLD) {
@@ -66,9 +58,6 @@ class OikosInstallPrompt extends HTMLElement {
   disconnectedCallback() {
     window.removeEventListener('beforeinstallprompt', this._onBeforeInstall);
     if (this._offInteraction) this._offInteraction();
-    if (this._onLocaleChanged) {
-      window.removeEventListener('locale-changed', this._onLocaleChanged);
-    }
   }
 
   _waitForInteractions() {

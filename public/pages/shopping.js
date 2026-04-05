@@ -546,6 +546,7 @@ async function switchList(listId, container) {
   state.activeListId = listId;
   renderTabs(container);
   try {
+
     await loadItems(listId);
   } catch (err) {
     console.error('[Shopping] loadItems Fehler:', err);
@@ -554,7 +555,6 @@ async function switchList(listId, container) {
     window.oikos?.showToast(t('shopping.itemsLoadError'), 'danger');
   }
   renderListContent(container);
-  wireListContentEvents(container);
 }
 
 // --------------------------------------------------------
@@ -661,7 +661,6 @@ function wireListContentEvents(container) {
         state.activeList = data.data;
         renderTabs(container);
         renderListContent(container);
-        wireListContentEvents(container);
       } catch (err) {
         window.oikos.showToast(err.message, 'danger');
       }
@@ -719,7 +718,16 @@ export async function render(container, { user }) {
   try {
     await loadLists();
     if (state.lists.length) {
-      state.activeListId = state.lists[0].id;
+      const pendingListId = localStorage.getItem('shopping-open-list');
+      if (pendingListId) {
+        localStorage.removeItem('shopping-open-list');
+        const found = state.lists.find((l) => l.id === parseInt(pendingListId, 10));
+        state.activeListId = found ? found.id : state.lists[0].id;
+        state._focusInput = true;
+      } else {
+        state.activeListId = state.lists[0].id;
+        state._focusInput = false;
+      }
       await loadItems(state.activeListId);
     }
   } catch (err) {
@@ -742,6 +750,16 @@ export async function render(container, { user }) {
   wireTabBar(container);
   renderListContent(container);
   wireListContentEvents(container);
+
+  // Dashboard shopping list → focus the quick-add input immediately
+  if (state._focusInput) {
+    state._focusInput = false;
+    const input = container.querySelector('#item-name-input');
+    if (input) {
+      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input.focus();
+    }
+  }
 
   container.querySelector('#fab-new-item')?.addEventListener('click', () => {
     const input = container.querySelector('#item-name-input');

@@ -100,8 +100,17 @@
 
 .widget-greeting__content {
   display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.widget-greeting__left {
+  display: flex;
   flex-direction: column;
   gap: var(--space-0h);
+  min-width: 0;
 }
 
 .widget-greeting__title {
@@ -116,15 +125,23 @@
 }
 
 .widget-greeting__date {
-  font-size: var(--text-sm);
-  opacity: 0.85;
+  text-align: right;
+  flex-shrink: 0;
+  font-size: var(--text-base);
+  opacity: 0.9;
+  line-height: 1.3;
+}
+
+.widget-greeting__day {
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
 }
 
 .widget-greeting__chips {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  margin-top: var(--space-2);
+  margin-top: var(--space-1);
 }
 
 .greeting-chip {
@@ -188,6 +205,10 @@
   align-items: center;
   gap: 2px;
   transition: opacity var(--transition-fast);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .widget__link:hover {
@@ -385,6 +406,11 @@
   color: var(--color-accent);
 }
 
+.event-rel-label {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-medium);
+}
+
 /* --------------------------------------------------------
  * Essen-Widget (Slot-Grid)
  * -------------------------------------------------------- */
@@ -395,8 +421,10 @@
 .meal-slots {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
   gap: 1px;
   background-color: var(--color-border);
+  flex: 1;
 }
 
 .meal-slot {
@@ -487,13 +515,96 @@
 }
 
 /* --------------------------------------------------------
+ * Shopping-Widget
+ * -------------------------------------------------------- */
+#shopping-widget .widget__body {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.shopping-widget__list {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+.shopping-widget__list:last-child { border-bottom: none; }
+
+.shopping-widget__list-name {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-1);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  width: fit-content;
+}
+.shopping-widget__list-name:hover {
+  color: var(--color-accent);
+}
+
+.shopping-widget__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  padding: var(--space-1) 0;
+  color: var(--color-text-primary);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.shopping-widget__item--checking {
+  opacity: 0;
+  transform: translateX(12px);
+  pointer-events: none;
+}
+
+.shopping-widget__check {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.shopping-widget__check:hover { color: var(--color-success); }
+
+.shopping-widget__item-name { flex: 1; }
+
+.shopping-widget__qty {
+  color: var(--color-text-secondary);
+  font-size: .85em;
+}
+
+.shopping-widget__more {
+  background: none;
+  border: none;
+  padding: var(--space-1) 0;
+  font-size: var(--text-xs);
+  color: var(--color-accent);
+  cursor: pointer;
+  text-align: left;
+}
+.shopping-widget__more:hover { text-decoration: underline; }
+
+/* --------------------------------------------------------
  * Notizen-Grid-Widget
  * -------------------------------------------------------- */
 .notes-grid-widget {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+@media (min-width: 640px) {
+  .notes-grid-widget {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (min-width: 1024px) {
@@ -530,7 +641,7 @@
   font-size: var(--text-xs);
   color: var(--color-text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

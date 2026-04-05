@@ -330,9 +330,9 @@ function navItems() {
     { path: '/',         label: t('nav.dashboard'), icon: 'layout-dashboard' },
     { path: '/tasks',    label: t('nav.tasks'),     icon: 'check-square'     },
     { path: '/calendar', label: t('nav.calendar'),  icon: 'calendar'         },
-    { path: '/meals',    label: t('nav.meals'),     icon: 'utensils'         },
-    { path: '/shopping', label: t('nav.shopping'),  icon: 'shopping-cart'    },
     { path: '/notes',    label: t('nav.notes'),     icon: 'sticky-note'      },
+    { path: '/shopping', label: t('nav.shopping'),  icon: 'shopping-cart'    },
+    { path: '/meals',    label: t('nav.meals'),     icon: 'utensils'         },
     { path: '/contacts', label: t('nav.contacts'),  icon: 'book-user'        },
     { path: '/budget',   label: t('nav.budget'),    icon: 'wallet'           },
     { path: '/settings', label: t('nav.settings'),  icon: 'settings'         },
@@ -465,37 +465,6 @@ window.addEventListener('auth:expired', () => {
   navigate('/login');
 });
 
-// Sprache geändert: Navigation neu rendern damit Labels aktualisiert werden
-window.addEventListener('locale-changed', () => {
-  const navSidebarItems = document.querySelector('.nav-sidebar__items');
-  const navBottomPages  = document.querySelectorAll('.nav-bottom__page');
-  const skipLink        = document.querySelector('.sr-only[href="#main-content"]');
-  const navSidebar      = document.querySelector('.nav-sidebar');
-  const navBottom       = document.querySelector('.nav-bottom');
-
-  if (skipLink)  skipLink.textContent = t('common.skipToContent');
-  if (navSidebar) navSidebar.setAttribute('aria-label', t('nav.main'));
-  if (navBottom)  navBottom.setAttribute('aria-label', t('nav.navigation'));
-
-  if (navSidebarItems) {
-    navSidebarItems.innerHTML = navItems().map(navItemHtml).join('');
-  }
-  if (navBottomPages.length >= 2) {
-    navBottomPages[0].innerHTML = navItems().slice(0, 5).map(navItemHtml).join('');
-    navBottomPages[1].innerHTML = navItems().slice(5).map(navItemHtml).join('');
-  }
-
-  // Klick-Handler für neu gerenderte Nav-Links
-  document.querySelectorAll('[data-route]').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      navigate(el.dataset.route);
-    });
-  });
-
-  // Aktiven Zustand und Icons wiederherstellen
-  updateNav(currentPath);
-});
 
 // --------------------------------------------------------
 // Virtuelle Tastatur: FAB ausblenden wenn Keyboard offen

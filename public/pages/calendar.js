@@ -181,13 +181,41 @@ export async function render(container, { user }) {
     </div>
   `;
 
+  const pending = localStorage.getItem('calendar-open-event');
+  if (pending) {
+    localStorage.removeItem('calendar-open-event');
+    try {
+      const { id, date } = JSON.parse(pending);
+      if (date) state.cursor = date;
+    } catch { /* ignore malformed value */ }
+  }
+
   const { from, to } = getMonthRange(state.cursor);
   await Promise.all([loadRange(from, to), loadUsers()]);
 
   renderToolbar();
   renderView();
 
+  if (pending) {
+    try {
+      const { id } = JSON.parse(pending);
+      const ev = state.events.find((e) => e.id === id);
+      if (ev) showEventPopup(ev, centeredAnchor());
+    } catch { /* ignore */ }
+  }
+
   container.querySelector('#fab-new-event')?.addEventListener('click', () => openEventModal({ mode: 'create' }));
+}
+
+function centeredAnchor() {
+  return {
+    getBoundingClientRect: () => ({
+      bottom: window.innerHeight / 2 - 60,
+      left:   Math.max(8, window.innerWidth  / 2 - 160),
+      top:    window.innerHeight / 2 - 60,
+      right:  window.innerWidth  / 2 + 160,
+    }),
+  };
 }
 
 // --------------------------------------------------------
@@ -213,8 +241,26 @@ function renderToolbar() {
                 data-view="${v}">${VIEW_LABELS()[v]}</button>
       `).join('')}
     </div>
-    <button class="btn btn--primary btn--icon" id="cal-add" aria-label="${t('calendar.addEvent')}"
-            style="margin-left:auto;">
+    <label class="btn btn--secondary btn--icon" title="Import .ics" aria-label="Import .ics file" style="margin-left:auto;cursor:pointer;">
+      <i data-lucide="upload" aria-hidden="true"></i>
+      <input type="file" id="cal-import-input" accept=".ics,text/calendar" style="display:none">
+    </label>
+    <div class="cal-more-wrap" style="position:relative;">
+      <button class="btn btn--secondary btn--icon" id="cal-more-btn" aria-label="More options">
+        <i data-lucide="more-vertical" aria-hidden="true"></i>
+      </button>
+      <div class="cal-more-dropdown" id="cal-more-dropdown" hidden>
+        <button class="cal-more-option cal-more-option--danger" id="cal-clear-imported">
+          <i data-lucide="trash-2" style="width:14px;height:14px;" aria-hidden="true"></i>
+          Clear imported events
+        </button>
+        <button class="cal-more-option cal-more-option--danger" id="cal-clear-all">
+          <i data-lucide="trash-2" style="width:14px;height:14px;" aria-hidden="true"></i>
+          Clear all events
+        </button>
+      </div>
+    </div>
+    <button class="btn btn--primary btn--icon" id="cal-add" aria-label="${t('calendar.addEvent')}">
       <i data-lucide="plus" aria-hidden="true"></i>
     </button>
     <div class="cal-toolbar__nav">
@@ -232,6 +278,70 @@ function renderToolbar() {
   bar.querySelector('#cal-next').addEventListener('click', () => navigate(1));
   bar.querySelector('#cal-today').addEventListener('click', goToday);
   bar.querySelector('#cal-add').addEventListener('click', () => openEventModal({ mode: 'create' }));
+
+  bar.querySelector('#cal-import-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    try {
+      const ics = await file.text();
+      const res = await api.post('/calendar/import', { ics });
+      const { imported, skipped } = res.data;
+      const msg = skipped > 0
+        ? `${imported} imported, ${skipped} already existed`
+        : `${imported} event(s) imported`;
+      window.oikos?.showToast(msg, 'success');
+      const { from, to } = getMonthRange(state.cursor);
+      await loadRange(from, to);
+      renderView();
+    } catch (err) {
+      window.oikos?.showToast(err.data?.error ?? 'Import failed', 'danger');
+    }
+  });
+
+  // ⋮ dropdown
+  const moreBtn      = bar.querySelector('#cal-more-btn');
+  const moreDropdown = bar.querySelector('#cal-more-dropdown');
+  moreBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreDropdown.hidden = !moreDropdown.hidden;
+  });
+  setTimeout(() => {
+    document.addEventListener('click', function closeDrop(e) {
+      if (!moreDropdown.contains(e.target) && e.target !== moreBtn) {
+        moreDropdown.hidden = true;
+        document.removeEventListener('click', closeDrop);
+      }
+    });
+  }, 0);
+
+  bar.querySelector('#cal-clear-imported').addEventListener('click', async () => {
+    moreDropdown.hidden = true;
+    if (!confirm('Delete all imported events? Manually created events will be kept.')) return;
+    try {
+      const res = await api.delete('/calendar/clear?scope=imported');
+      window.oikos?.showToast(`${res.data.deleted} imported event(s) deleted`, 'success');
+      const { from, to } = getMonthRange(state.cursor);
+      await loadRange(from, to);
+      renderView();
+    } catch (err) {
+      window.oikos?.showToast(err.data?.error ?? 'Failed to clear events', 'danger');
+    }
+  });
+
+  bar.querySelector('#cal-clear-all').addEventListener('click', async () => {
+    moreDropdown.hidden = true;
+    if (!confirm('Delete ALL events? This cannot be undone.')) return;
+    try {
+      const res = await api.delete('/calendar/clear?scope=all');
+      window.oikos?.showToast(`${res.data.deleted} event(s) deleted`, 'success');
+      const { from, to } = getMonthRange(state.cursor);
+      await loadRange(from, to);
+      renderView();
+    } catch (err) {
+      window.oikos?.showToast(err.data?.error ?? 'Failed to clear events', 'danger');
+    }
+  });
 
   bar.querySelectorAll('[data-view]').forEach((btn) => {
     btn.addEventListener('click', async () => {
@@ -656,6 +766,14 @@ function renderAgendaEvent(ev) {
 // Event-Popup (Detail-Ansicht bei Klick auf Termin)
 // --------------------------------------------------------
 
+function recurrenceLabel(rule) {
+  if (!rule) return '';
+  const m = /FREQ=([A-Z]+)/i.exec(rule);
+  if (!m) return '';
+  const labels = { DAILY: 'Repeats daily', WEEKLY: 'Repeats weekly', MONTHLY: 'Repeats monthly', YEARLY: 'Repeats yearly' };
+  return labels[m[1].toUpperCase()] || `Repeats (${m[1]})`;
+}
+
 function showEventPopup(ev, anchor) {
   document.querySelector('#event-popup')?.remove();
 
@@ -676,6 +794,7 @@ function showEventPopup(ev, anchor) {
       ${ev.location ? `<div>📍 ${esc(ev.location)}</div>` : ''}
       ${ev.description ? `<div>${esc(ev.description)}</div>` : ''}
       ${ev.assigned_name ? `<div>👤 ${esc(ev.assigned_name)}</div>` : ''}
+      ${ev.recurrence_rule ? `<div>🔁 ${recurrenceLabel(ev.recurrence_rule)}</div>` : ''}
     </div>
     <div class="event-popup__actions">
       <button class="btn btn--secondary" style="flex:1;" id="popup-edit">${t('calendar.popupEdit')}</button>
@@ -695,25 +814,46 @@ function showEventPopup(ev, anchor) {
   popup.style.top  = `${Math.max(8, top)}px`;
   popup.style.left = `${Math.max(8, left)}px`;
 
-  popup.querySelector('#popup-edit').addEventListener('click', () => {
+  // Push history state so Android back button can close the popup
+  history.pushState({ eventPopup: true }, '');
+
+  function removePopup() {
+    if (!popup.isConnected) return;
     popup.remove();
+    document.removeEventListener('click', closeOnOutsideClick, { capture: true });
+    window.removeEventListener('popstate', closeOnBack);
+  }
+
+  // Use capture phase so this fires BEFORE calendar day-click handlers,
+  // and stopPropagation prevents the calendar from opening a create-modal.
+  function closeOnOutsideClick(e) {
+    if (popup.contains(e.target)) return;
+    e.stopPropagation();
+    removePopup();
+    // If we stopped propagation, popstate state is now stale — clean it up
+    if (history.state?.eventPopup) history.back();
+  }
+
+  function closeOnBack() {
+    removePopup();
+  }
+
+  popup.querySelector('#popup-edit').addEventListener('click', () => {
+    removePopup();
+    if (history.state?.eventPopup) history.back();
     openEventModal({ mode: 'edit', event: ev });
   });
 
   popup.querySelector('#popup-delete').addEventListener('click', async () => {
     if (!confirm(t('calendar.deleteConfirm', { title: ev.title }))) return;
-    popup.remove();
+    removePopup();
+    if (history.state?.eventPopup) history.back();
     await deleteEvent(ev.id);
   });
 
-  // Schließen bei Klick außerhalb
   setTimeout(() => {
-    document.addEventListener('click', function closePopup(e) {
-      if (!popup.isConnected || !popup.contains(e.target)) {
-        popup.remove();
-        document.removeEventListener('click', closePopup);
-      }
-    });
+    document.addEventListener('click', closeOnOutsideClick, { capture: true });
+    window.addEventListener('popstate', closeOnBack, { once: true });
   }, 0);
 }
 

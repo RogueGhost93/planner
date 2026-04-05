@@ -154,7 +154,7 @@ router.get('/', (req, res) => {
     res.json({ data: events, from, to });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -192,7 +192,7 @@ router.get('/upcoming', (req, res) => {
     res.json({ data: expanded });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -271,7 +271,7 @@ router.get('/google/status', (req, res) => {
     res.json(googleCalendar.getStatus());
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -286,7 +286,7 @@ router.delete('/google/disconnect', requireAdmin, (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -303,7 +303,7 @@ router.get('/apple/status', (req, res) => {
     res.json(appleCalendar.getStatus());
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -365,7 +365,7 @@ router.delete('/apple/disconnect', requireAdmin, (req, res) => {
     res.status(204).end();
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -392,7 +392,7 @@ router.get('/:id', (req, res) => {
     res.json({ data: event });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -450,7 +450,7 @@ router.post('/', (req, res) => {
     res.status(201).json({ data: event });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -521,7 +521,7 @@ router.put('/:id', (req, res) => {
     res.json({ data: updated });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -530,17 +530,196 @@ router.put('/:id', (req, res) => {
 // Termin löschen.
 // Response: 204 No Content
 // --------------------------------------------------------
+// --------------------------------------------------------
+// DELETE /api/v1/calendar/clear?scope=imported|all
+// Delete imported events (external_uid IS NOT NULL) or all events.
+// Response: { data: { deleted: number } }
+// --------------------------------------------------------
+router.delete('/clear', (req, res) => {
+  try {
+    const scope = req.query.scope;
+    if (scope !== 'imported' && scope !== 'all')
+      return res.status(400).json({ error: 'scope must be "imported" or "all"', code: 400 });
+
+    const sql = scope === 'imported'
+      ? 'DELETE FROM calendar_events WHERE external_uid IS NOT NULL'
+      : 'DELETE FROM calendar_events';
+
+    const result = db.get().prepare(sql).run();
+    res.json({ data: { deleted: result.changes } });
+  } catch (err) {
+    log.error('clear events', err);
+    res.status(500).json({ error: 'Internal server error', code: 500 });
+  }
+});
+
 router.delete('/:id', (req, res) => {
   try {
     const id     = parseInt(req.params.id, 10);
     const result = db.get().prepare('DELETE FROM calendar_events WHERE id = ?').run(id);
     if (result.changes === 0)
-      return res.status(404).json({ error: 'Termin nicht gefunden', code: 404 });
+      return res.status(404).json({ error: 'Event not found', code: 404 });
     res.status(204).end();
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
+
+// --------------------------------------------------------
+// POST /api/v1/calendar/import
+// Import events from an ICS file.
+// Body: { ics: string }
+// Response: { data: { imported: number } }
+// --------------------------------------------------------
+router.post('/import', (req, res) => {
+  try {
+    const ics = req.body?.ics;
+    if (!ics || typeof ics !== 'string')
+      return res.status(400).json({ error: 'ICS content required', code: 400 });
+
+    const events = parseICS(ics);
+    if (!events.length)
+      return res.status(400).json({ error: 'No valid events found in file', code: 400 });
+
+    const insert = db.get().prepare(`
+      INSERT INTO calendar_events
+        (title, description, start_datetime, end_datetime, all_day,
+         location, color, created_by, recurrence_rule, external_uid)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const exists = db.get().prepare(
+      'SELECT 1 FROM calendar_events WHERE external_uid = ?'
+    );
+
+    const userId = req.session.userId;
+    let imported = 0;
+    let skipped  = 0;
+    db.get().transaction(() => {
+      for (const e of events) {
+        if (e.uid && exists.get(e.uid)) { skipped++; continue; }
+        insert.run(
+          e.title, e.description, e.start_datetime, e.end_datetime,
+          e.all_day, e.location, '#007AFF', userId, e.recurrence_rule,
+          e.uid ?? null
+        );
+        imported++;
+      }
+    })();
+
+    log.info(`Imported ${imported}, skipped ${skipped} (already exist)`);
+    res.json({ data: { imported, skipped } });
+  } catch (err) {
+    log.error('ICS import', err);
+    res.status(500).json({ error: 'Internal server error', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// ICS parsing helpers
+// --------------------------------------------------------
+
+function parseICS(text) {
+  // Unfold continued lines (RFC 5545 §3.1: CRLF + SPACE/TAB = continuation)
+  const unfolded = text.replace(/\r?\n[ \t]/g, '');
+
+  const events = [];
+  const blockRe = /BEGIN:VEVENT([\s\S]*?)END:VEVENT/gi;
+  let blockMatch;
+
+  while ((blockMatch = blockRe.exec(unfolded)) !== null) {
+    const block = blockMatch[1];
+
+    // Extract a property: returns { params, value } or null
+    const get = (prop) => {
+      const re = new RegExp(`^${prop}((?:;[^:]*)*):(.*?)$`, 'im');
+      const m  = re.exec(block);
+      if (!m) return null;
+      return { params: m[1].toUpperCase(), value: m[2].trim() };
+    };
+
+    // Skip events with no title
+    const summaryField = get('SUMMARY');
+    const title = summaryField ? unescapeICS(summaryField.value).trim().slice(0, 200) : '';
+    if (!title) continue;
+
+    const dtstart = get('DTSTART');
+    if (!dtstart) continue;
+
+    const dtend  = get('DTEND');
+    const rruleF = get('RRULE');
+    const descF  = get('DESCRIPTION');
+    const locF   = get('LOCATION');
+    const uidF   = get('UID');
+
+    const allDay = dtstart.params.includes('VALUE=DATE');
+
+    let startDatetime, endDatetime;
+
+    if (allDay) {
+      startDatetime = icsDateToISO(dtstart.value);
+      // ICS all-day DTEND is the exclusive next day — store start as end
+      endDatetime = startDatetime;
+    } else {
+      const startIsUTC = dtstart.value.endsWith('Z') || dtstart.value.endsWith('z');
+      startDatetime = icsDatetimeToISO(dtstart.value, startIsUTC);
+      if (dtend) {
+        const endIsUTC = dtend.value.endsWith('Z') || dtend.value.endsWith('z');
+        endDatetime = icsDatetimeToISO(dtend.value, endIsUTC);
+      } else {
+        // No DTEND: default +1 hour
+        const d = new Date(startDatetime);
+        d.setHours(d.getHours() + 1);
+        endDatetime = d.toISOString().slice(0, 16);
+      }
+    }
+
+    if (!startDatetime) continue;
+
+    events.push({
+      title,
+      description:     descF   ? unescapeICS(descF.value).slice(0, 2000)  : null,
+      start_datetime:  startDatetime,
+      end_datetime:    endDatetime,
+      all_day:         allDay ? 1 : 0,
+      location:        locF    ? unescapeICS(locF.value).slice(0, 200)    : null,
+      recurrence_rule: rruleF  ? rruleF.value.slice(0, 500)               : null,
+      uid:             uidF    ? uidF.value.slice(0, 255)                  : null,
+    });
+  }
+
+  return events;
+}
+
+/** YYYYMMDD → YYYY-MM-DD */
+function icsDateToISO(s) {
+  if (!/^\d{8}$/.test(s)) return null;
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+}
+
+/** YYYYMMDDTHHmmss[Z] → YYYY-MM-DDTHH:mm
+ *  isUTC=true: convert from UTC to server local time */
+function icsDatetimeToISO(s, isUTC) {
+  const clean = s.replace(/Z$/i, '');
+  const m = clean.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+  if (!m) return null;
+  const iso = `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`;
+  if (isUTC) {
+    // Shift UTC → server local (relies on server being in user's timezone)
+    const d = new Date(iso + 'Z');
+    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+  return iso; // TZID-qualified → treat as local time
+}
+
+/** Unescape ICS text field values */
+function unescapeICS(s) {
+  return String(s || '')
+    .replace(/\\n/gi, '\n')
+    .replace(/\\,/g,  ',')
+    .replace(/\\;/g,  ';')
+    .replace(/\\\\/g, '\\');
+}
 
 export default router;

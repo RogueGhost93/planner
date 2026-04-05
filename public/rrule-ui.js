@@ -9,6 +9,7 @@ const FREQ_OPTIONS = [
   { value: 'DAILY',   label: 'Daily' },
   { value: 'WEEKLY',  label: 'Weekly' },
   { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'YEARLY',  label: 'Yearly' },
 ];
 
 const WEEKDAYS = [
@@ -125,6 +126,7 @@ function unitLabel(freq, interval) {
   if (freq === 'DAILY')   return n ? 'days'   : 'day';
   if (freq === 'WEEKLY')  return n ? 'weeks'  : 'week';
   if (freq === 'MONTHLY') return n ? 'months' : 'month';
+  if (freq === 'YEARLY')  return n ? 'years'  : 'year';
   return '';
 }
 

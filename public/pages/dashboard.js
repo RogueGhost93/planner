@@ -15,6 +15,15 @@ let _fabController = null;
 // Hilfsfunktionen
 // --------------------------------------------------------
 
+function renderMarkdownLight(text) {
+  if (!text) return '';
+  return esc(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,     '<em>$1</em>')
+    .replace(/^- (.+)$/gm,     '• $1')
+    .replace(/\n/g,            '<br>');
+}
+
 function greeting(displayName) {
   const h = new Date().getHours();
   if (h < 12) return t('dashboard.greetingMorning', { name: esc(displayName) });
@@ -40,20 +49,40 @@ function formatDateTime(isoString) {
   return `${dateStr}, ${timeStr}${suffix ? ' ' + suffix : ''}`.trim();
 }
 
+function diffCalendarDays(dateStr) {
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const targetMidnight = dateStr.length === 10
+    ? new Date(dateStr + 'T00:00:00')
+    : new Date(dateStr);
+  targetMidnight.setHours(0, 0, 0, 0);
+  return Math.round((targetMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+}
+
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
-  const due = new Date(dateStr);
-  const now = new Date();
-  const diffMs = due - now;
-  const diffH = diffMs / (1000 * 60 * 60);
+  const diff = diffCalendarDays(dateStr);
+  const dateLabel = formatDate(
+    dateStr.length === 10 ? new Date(dateStr + 'T00:00:00') : new Date(dateStr)
+  );
 
-  if (diffMs < 0) return { text: t('dashboard.overdue'),     overdue: true };
-  if (diffH < 24) return { text: t('dashboard.dueSoon'),    overdue: false };
-  if (diffH < 48) return { text: t('dashboard.dueTomorrow'), overdue: false };
-  return {
-    text: formatDate(due),
-    overdue: false,
-  };
+  if (diff < 0)   return { text: t('dashboard.overdue'),    overdue: true  };
+  if (diff === 0) return { text: t('dashboard.dueSoon'),    overdue: false };
+  if (diff === 1) return { text: t('dashboard.dueTomorrow'), overdue: false };
+  if (diff <= 7)  return { text: `${dateLabel} · ${t('dashboard.inDays', { count: diff })}`,  overdue: false };
+  if (diff <= 14) return { text: `${dateLabel} · ${t('dashboard.nextWeek')}`,                 overdue: false };
+  return                 { text: dateLabel,                                                    overdue: false };
+}
+
+/** Returns a short relative label for calendar events (null = show nothing extra) */
+function eventRelativeLabel(dateStr) {
+  if (!dateStr) return null;
+  const diff = diffCalendarDays(dateStr.length === 10 ? dateStr : dateStr.slice(0, 10));
+  if (diff <= 0)  return null; // today already shown via badge
+  if (diff === 1) return t('common.tomorrow').toLowerCase();
+  if (diff <= 7)  return t('dashboard.inDays', { count: diff });
+  if (diff <= 14) return t('dashboard.nextWeek');
+  return null;
 }
 
 const PRIORITY_LABELS = () => ({
@@ -93,9 +122,9 @@ function widgetHeader(icon, title, count, linkHref, linkLabel) {
         ${title}
         ${badge}
       </span>
-      <a href="${linkHref}" data-route="${linkHref}" class="widget__link">
+      <button data-route="${linkHref}" class="widget__link">
         ${linkLabel}
-      </a>
+      </button>
     </div>
   `;
 }
@@ -141,12 +170,20 @@ function renderGreeting(user, stats = {}) {
       ${t('dashboard.todayMealChip', { title: esc(todayMealTitle) })}
     </span>`);
 
+  const now = new Date();
+  const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()];
+
   return `
     <div class="widget-greeting">
       <div class="widget-greeting__content">
-        <div class="widget-greeting__title">${greeting(user.display_name)}</div>
-        <div class="widget-greeting__date">${formatDate(new Date())}</div>
-        ${statChips.length ? `<div class="widget-greeting__chips">${statChips.join('')}</div>` : ''}
+        <div class="widget-greeting__left">
+          <div class="widget-greeting__title">${greeting(user.display_name)}</div>
+          ${statChips.length ? `<div class="widget-greeting__chips">${statChips.join('')}</div>` : ''}
+        </div>
+        <div class="widget-greeting__date">
+          <div class="widget-greeting__day">${dayName}</div>
+          <div>${formatDate(now)}</div>
+        </div>
       </div>
     </div>
   `;
@@ -166,7 +203,7 @@ function renderUrgentTasks(tasks) {
   const items = tasks.map((t) => {
     const due = formatDueDate(t.due_date);
     return `
-      <div class="task-item" data-route="/tasks" role="button" tabindex="0">
+      <div class="task-item" data-route="/tasks" data-task-id="${t.id}" role="button" tabindex="0">
         <div class="task-item__priority task-item__priority--${t.priority}" aria-hidden="true"></div>
         <span class="sr-only">${PRIORITY_LABELS()[t.priority] ?? t.priority}</span>
         <div class="task-item__content">
@@ -203,14 +240,16 @@ function renderUpcomingEvents(events) {
     const isToday = d.toDateString() === today;
     const _suffix = t('calendar.timeSuffix');
     const timeStr = e.all_day ? t('dashboard.allDay') : `${formatTime(d)}${_suffix ? ' ' + _suffix : ''}`.trim();
+    const relLabel = eventRelativeLabel(e.start_datetime);
     return `
-      <div class="event-item" data-route="/calendar" role="button" tabindex="0">
+      <div class="event-item" data-route="/calendar" data-event-id="${e.id}" data-event-date="${e.start_datetime.slice(0, 10)}" role="button" tabindex="0">
         <div class="event-item__bar" style="background-color:${esc(e.color) || 'var(--color-accent)'}"></div>
         <div class="event-item__content">
           <div class="event-item__title">${esc(e.title)}</div>
           <div class="event-item__time">
             <span class="event-time-badge ${isToday ? 'event-time-badge--today' : ''}">${isToday ? t('common.today') : formatDateTime(e.start_datetime).split(',')[0]}</span>
             ${timeStr}
+            ${relLabel ? ` · <span class="event-rel-label">${relLabel}</span>` : ''}
             ${e.location ? ` · ${esc(e.location)}` : ''}
           </div>
         </div>
@@ -260,13 +299,68 @@ function renderPinnedNotes(notes) {
     <div class="note-item" data-route="/notes" role="button" tabindex="0"
          style="--note-color:${esc(n.color)};">
       ${n.title ? `<div class="note-item__title">${esc(n.title)}</div>` : ''}
-      <div class="note-item__content">${esc(n.content)}</div>
+      <div class="note-item__content">${renderMarkdownLight(n.content)}</div>
     </div>
   `).join('');
 
   return `<div class="widget widget--wide">
     ${widgetHeader('pin', t('nav.notes'), notes.length, '/notes')}
     <div class="notes-grid-widget">${items}</div>
+  </div>`;
+}
+
+const SHOPPING_COLLAPSE_AT = 6;
+
+function renderShoppingWidget(lists, items) {
+  const totalUnchecked = lists.reduce((sum, l) => sum + l.unchecked_count, 0);
+
+  if (!lists.length) {
+    return `<div class="widget">
+      ${widgetHeader('shopping-cart', t('nav.shopping'), 0, '/shopping')}
+      <div class="widget__empty">
+        <i data-lucide="shopping-cart" class="empty-state__icon" aria-hidden="true"></i>
+        <div>${t('dashboard.noShoppingItems')}</div>
+      </div>
+    </div>`;
+  }
+
+  const rows = lists.map((list) => {
+    const listItems = items.filter((i) => i.list_id === list.id);
+    const visible   = listItems.slice(0, SHOPPING_COLLAPSE_AT);
+    const hidden    = listItems.slice(SHOPPING_COLLAPSE_AT);
+
+    const renderItem = (i) => `
+      <div class="shopping-widget__item" data-item-id="${i.id}" data-list-id="${list.id}">
+        <button class="shopping-widget__check" data-action="check-item" data-id="${i.id}"
+                aria-label="Mark ${esc(i.name)} as done">
+          <i data-lucide="circle" style="width:14px;height:14px" aria-hidden="true"></i>
+        </button>
+        <span class="shopping-widget__item-name">${esc(i.name)}${i.quantity
+          ? ` <span class="shopping-widget__qty">${esc(i.quantity)}</span>` : ''}</span>
+      </div>`;
+
+    return `
+      <div class="shopping-widget__list" data-list-id="${list.id}">
+        <div class="shopping-widget__list-name" data-route="/shopping" data-list-id="${list.id}" role="button" tabindex="0">
+          ${esc(list.name)}
+          <span class="widget__badge" style="margin-left:var(--space-1)" data-badge="${list.id}">${list.unchecked_count}</span>
+        </div>
+        <div class="shopping-widget__items">
+          ${visible.map(renderItem).join('')}
+          ${hidden.length ? `
+            <div class="shopping-widget__overflow" hidden data-overflow="${list.id}">
+              ${hidden.map(renderItem).join('')}
+            </div>
+            <button class="shopping-widget__more" data-action="show-more" data-list-id="${list.id}">
+              +${hidden.length} more
+            </button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  return `<div class="widget" id="shopping-widget">
+    ${widgetHeader('shopping-cart', t('nav.shopping'), totalUnchecked, '/shopping')}
+    <div class="widget__body" id="shopping-widget-body">${rows}</div>
   </div>`;
 }
 
@@ -393,7 +487,28 @@ function initFab(container, signal) {
 function wireLinks(container) {
   container.querySelectorAll('[data-route]').forEach((el) => {
     if (el.id === 'fab-main' || el.closest('#fab-actions')) return;
-    const go = () => window.oikos.navigate(el.dataset.route);
+    const go = () => {
+      // Tasks "All" link → open kanban view
+      if (el.dataset.route === '/tasks' && el.classList.contains('widget__link')) {
+        localStorage.setItem('tasks-view', 'kanban');
+      }
+      // Calendar event item → open that specific event on arrival
+      if (el.dataset.eventId) {
+        localStorage.setItem('calendar-open-event', JSON.stringify({
+          id:   parseInt(el.dataset.eventId, 10),
+          date: el.dataset.eventDate,
+        }));
+      }
+      // Task item → open that specific task on arrival
+      if (el.dataset.taskId) {
+        localStorage.setItem('tasks-open-task', el.dataset.taskId);
+      }
+      // Shopping list name → open that specific list on arrival
+      if (el.dataset.listId) {
+        localStorage.setItem('shopping-open-list', el.dataset.listId);
+      }
+      window.oikos.navigate(el.dataset.route);
+    };
     if (el.tagName === 'A') {
       el.addEventListener('click', (e) => { e.preventDefault(); go(); });
     } else {
@@ -418,8 +533,13 @@ export async function render(container, { user }) {
       <div class="dashboard__grid">
         <div class="widget-greeting" style="grid-column:1/-1">
           <div class="widget-greeting__content">
-            <div class="widget-greeting__title">${greeting(user.display_name)}</div>
-            <div class="widget-greeting__date">${formatDate(new Date())}</div>
+            <div class="widget-greeting__left">
+              <div class="widget-greeting__title">${greeting(user.display_name)}</div>
+            </div>
+            <div class="widget-greeting__date">
+              <div class="widget-greeting__day">${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]}</div>
+              <div>${formatDate(new Date())}</div>
+            </div>
           </div>
         </div>
         ${skeletonWidget(3)}
@@ -431,7 +551,7 @@ export async function render(container, { user }) {
     ${renderFab()}
   `;
 
-  let data    = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [] };
+  let data    = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], shoppingLists: [], shoppingItems: [] };
   let weather = null;
   try {
     const [dashRes, weatherRes] = await Promise.all([
@@ -464,6 +584,7 @@ export async function render(container, { user }) {
         ${renderWeatherWidget(weather)}
         ${renderUrgentTasks(data.urgentTasks ?? [])}
         ${renderUpcomingEvents(data.upcomingEvents ?? [])}
+        ${renderShoppingWidget(data.shoppingLists ?? [], data.shoppingItems ?? [])}
         ${renderTodayMeals(data.todayMeals ?? [])}
         ${renderPinnedNotes(data.pinnedNotes ?? [])}
       </div>
@@ -473,6 +594,7 @@ export async function render(container, { user }) {
 
   wireLinks(container);
   initFab(container, _fabController.signal);
+  wireShoppingWidget(container, data);
   if (window.lucide) window.lucide.createIcons();
 
   // Wetter-Refresh: Button + 30-Minuten-Interval
@@ -500,6 +622,66 @@ export async function render(container, { user }) {
     const timerId = setInterval(doWeatherRefresh, 30 * 60 * 1000);
     _fabController.signal.addEventListener('abort', () => clearInterval(timerId));
   }
+}
+
+function wireShoppingWidget(container, data) {
+  const body = container.querySelector('#shopping-widget-body');
+  if (!body) return;
+
+  body.addEventListener('click', async (e) => {
+    // Show more toggle
+    const moreBtn = e.target.closest('[data-action="show-more"]');
+    if (moreBtn) {
+      e.stopPropagation();
+      const listId  = moreBtn.dataset.listId;
+      const overflow = body.querySelector(`[data-overflow="${listId}"]`);
+      if (overflow) {
+        overflow.hidden = false;
+        moreBtn.remove();
+        if (window.lucide) window.lucide.createIcons({ el: overflow });
+      }
+      return;
+    }
+
+    // Check item
+    const checkBtn = e.target.closest('[data-action="check-item"]');
+    if (checkBtn) {
+      e.stopPropagation();
+      const id      = Number(checkBtn.dataset.id);
+      const itemEl  = checkBtn.closest('.shopping-widget__item');
+      const listEl  = checkBtn.closest('.shopping-widget__list');
+      const listId  = Number(listEl?.dataset.listId);
+      const badge   = body.querySelector(`[data-badge="${listId}"]`);
+
+      // Optimistic: strike through and fade out
+      itemEl.classList.add('shopping-widget__item--checking');
+      setTimeout(() => itemEl.remove(), 300);
+
+      // Update badge count
+      if (badge) {
+        const cur = parseInt(badge.textContent, 10) - 1;
+        if (cur <= 0) {
+          listEl.remove();
+        } else {
+          badge.textContent = cur;
+        }
+      }
+
+      // Update total badge in header
+      const totalBadge = container.querySelector('#shopping-widget .widget__badge');
+      if (totalBadge) {
+        const total = parseInt(totalBadge.textContent, 10) - 1;
+        totalBadge.textContent = total > 0 ? total : 0;
+      }
+
+      try {
+        await api.patch(`/shopping/items/${id}`, { is_checked: 1 });
+      } catch {
+        window.oikos?.showToast('Could not update item', 'danger');
+      }
+      return;
+    }
+  });
 }
 
 function wireWeatherRefresh(container) {

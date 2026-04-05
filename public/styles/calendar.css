@@ -39,6 +39,7 @@
   background-color: var(--color-surface);
   flex-shrink: 0;
   border-top: 3px solid var(--module-accent);
+  flex-wrap: wrap;
 }
 
 .cal-toolbar__nav {
@@ -73,6 +74,17 @@
   background-color: var(--color-surface-2);
   border-radius: var(--radius-sm);
   padding: 2px;
+  order: 10;
+  flex-basis: 100%;
+  justify-content: center;
+}
+
+@media (min-width: 640px) {
+  .cal-toolbar__views {
+    order: 0;
+    flex-basis: auto;
+    justify-content: flex-start;
+  }
 }
 
 .cal-toolbar__view-btn {
@@ -98,6 +110,40 @@
   color: var(--color-text-primary);
   box-shadow: var(--shadow-sm);
 }
+
+.cal-more-dropdown {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown, 100);
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.cal-more-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  text-align: left;
+  color: var(--color-text-primary);
+  transition: background-color var(--transition-fast);
+}
+
+.cal-more-option:last-child { border-bottom: none; }
+.cal-more-option:hover { background-color: var(--color-surface-2); }
+.cal-more-option--danger { color: var(--color-danger); }
+.cal-more-option--danger:hover { background-color: var(--color-danger-light, #fff0f0); }
 
 /* --------------------------------------------------------
  * Monatsansicht

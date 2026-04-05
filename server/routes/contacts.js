@@ -46,7 +46,7 @@ router.get('/', (req, res) => {
     res.json({ data: contacts });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -59,25 +59,25 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   try {
     const vName    = str(req.body.name,     'Name',    { max: MAX_TITLE });
-    const vCat     = oneOf(req.body.category || 'Sonstiges', VALID_CATEGORIES, 'Kategorie');
-    const vPhone   = str(req.body.phone,   'Telefon', { max: MAX_SHORT, required: false });
-    const vEmail   = str(req.body.email,   'E-Mail',  { max: MAX_TITLE, required: false });
-    const vAddress = str(req.body.address, 'Adresse', { max: MAX_TEXT,  required: false });
-    const vNotes   = str(req.body.notes,   'Notizen', { max: MAX_TEXT,  required: false });
+    const vCat     = oneOf(req.body.category || 'Other', VALID_CATEGORIES, 'Category');
+    const vPhone   = str(req.body.phone,   'Phone',   { max: MAX_SHORT, required: false });
+    const vEmail   = str(req.body.email,   'Email',   { max: MAX_TITLE, required: false });
+    const vAddress = str(req.body.address, 'Address', { max: MAX_TEXT,  required: false });
+    const vNotes   = str(req.body.notes,   'Notes',   { max: MAX_TEXT,  required: false });
     const errors   = collectErrors([vName, vCat, vPhone, vEmail, vAddress, vNotes]);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const result = db.get().prepare(`
       INSERT INTO contacts (name, category, phone, email, address, notes)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(vName.value, vCat.value || 'Sonstiges', vPhone.value, vEmail.value,
+    `).run(vName.value, vCat.value || 'Other', vPhone.value, vEmail.value,
            vAddress.value, vNotes.value);
 
     const contact = db.get().prepare('SELECT * FROM contacts WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json({ data: contact });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -91,15 +91,15 @@ router.put('/:id', (req, res) => {
   try {
     const id      = parseInt(req.params.id, 10);
     const contact = db.get().prepare('SELECT * FROM contacts WHERE id = ?').get(id);
-    if (!contact) return res.status(404).json({ error: 'Kontakt nicht gefunden', code: 404 });
+    if (!contact) return res.status(404).json({ error: 'Contact not found', code: 404 });
 
     const checks = [];
-    if (req.body.name     !== undefined) checks.push(str(req.body.name,     'Name',    { max: MAX_TITLE, required: false }));
-    if (req.body.category !== undefined) checks.push(oneOf(req.body.category, VALID_CATEGORIES, 'Kategorie'));
-    if (req.body.phone    !== undefined) checks.push(str(req.body.phone,    'Telefon', { max: MAX_SHORT, required: false }));
-    if (req.body.email    !== undefined) checks.push(str(req.body.email,    'E-Mail',  { max: MAX_TITLE, required: false }));
-    if (req.body.address  !== undefined) checks.push(str(req.body.address,  'Adresse', { max: MAX_TEXT,  required: false }));
-    if (req.body.notes    !== undefined) checks.push(str(req.body.notes,    'Notizen', { max: MAX_TEXT,  required: false }));
+    if (req.body.name     !== undefined) checks.push(str(req.body.name,     'Name',     { max: MAX_TITLE, required: false }));
+    if (req.body.category !== undefined) checks.push(oneOf(req.body.category, VALID_CATEGORIES, 'Category'));
+    if (req.body.phone    !== undefined) checks.push(str(req.body.phone,    'Phone',    { max: MAX_SHORT, required: false }));
+    if (req.body.email    !== undefined) checks.push(str(req.body.email,    'Email',    { max: MAX_TITLE, required: false }));
+    if (req.body.address  !== undefined) checks.push(str(req.body.address,  'Address',  { max: MAX_TEXT,  required: false }));
+    if (req.body.notes    !== undefined) checks.push(str(req.body.notes,    'Notes',    { max: MAX_TEXT,  required: false }));
     const errors = collectErrors(checks);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
@@ -126,7 +126,7 @@ router.put('/:id', (req, res) => {
     res.json({ data: updated });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -140,11 +140,11 @@ router.delete('/:id', (req, res) => {
     const id     = parseInt(req.params.id, 10);
     const result = db.get().prepare('DELETE FROM contacts WHERE id = ?').run(id);
     if (result.changes === 0)
-      return res.status(404).json({ error: 'Kontakt nicht gefunden', code: 404 });
+      return res.status(404).json({ error: 'Contact not found', code: 404 });
     res.status(204).end();
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -158,7 +158,7 @@ router.get('/meta', (_req, res) => {
     res.json({ data: { categories: VALID_CATEGORIES } });
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 
@@ -171,7 +171,7 @@ router.get('/:id/vcard', (req, res) => {
   try {
     const id      = parseInt(req.params.id, 10);
     const contact = db.get().prepare('SELECT * FROM contacts WHERE id = ?').get(id);
-    if (!contact) return res.status(404).json({ error: 'Kontakt nicht gefunden', code: 404 });
+    if (!contact) return res.status(404).json({ error: 'Contact not found', code: 404 });
 
     const esc = (v) => String(v || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/,/g, '\\,').replace(/;/g, '\\;');
 
@@ -196,7 +196,7 @@ router.get('/:id/vcard', (req, res) => {
     res.send(vcf);
   } catch (err) {
     log.error('', err);
-    res.status(500).json({ error: 'Interner Fehler', code: 500 });
+    res.status(500).json({ error: 'Internal server error', code: 500 });
   }
 });
 

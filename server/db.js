@@ -296,6 +296,15 @@ const MIGRATIONS = [
       CREATE INDEX IF NOT EXISTS idx_budget_parent ON budget_entries(recurrence_parent_id);
     `,
   },
+  {
+    version: 4,
+    description: 'Add external_uid to calendar_events for ICS import deduplication',
+    up: `
+      ALTER TABLE calendar_events ADD COLUMN external_uid TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_external_uid ON calendar_events(external_uid)
+        WHERE external_uid IS NOT NULL;
+    `,
+  },
 ];
 
 /**

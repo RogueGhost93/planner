@@ -121,6 +121,32 @@ router.get('/', (req, res) => {
     result.users = [];
   }
 
+  // Unchecked shopping items per list (max 5 items per list, all lists)
+  try {
+    result.shoppingLists = d.prepare(`
+      SELECT
+        sl.id,
+        sl.name,
+        COUNT(si.id) AS unchecked_count
+      FROM shopping_lists sl
+      JOIN shopping_items si ON si.list_id = sl.id AND si.is_checked = 0
+      GROUP BY sl.id
+      ORDER BY sl.updated_at DESC
+    `).all();
+
+    result.shoppingItems = d.prepare(`
+      SELECT si.id, si.list_id, si.name, si.quantity
+      FROM shopping_items si
+      JOIN shopping_lists sl ON sl.id = si.list_id
+      WHERE si.is_checked = 0
+      ORDER BY sl.updated_at DESC, si.id ASC
+    `).all();
+  } catch (err) {
+    log.error('shoppingItems-Fehler:', err.message);
+    result.shoppingLists = [];
+    result.shoppingItems = [];
+  }
+
   res.json(result);
   } catch (err) {
     log.error('Kritischer Fehler:', err.message);
