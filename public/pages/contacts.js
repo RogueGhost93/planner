@@ -47,6 +47,8 @@ let state = {
   contacts:       [],
   activeCategory: null,
   searchQuery:    '',
+  selectMode:     false,
+  selected:       new Set(),
 };
 let _container = null;
 
@@ -71,6 +73,10 @@ export async function render(container, { user }) {
           ${t('contacts.importButton')}
           <input type="file" id="contacts-import-input" accept=".vcf,text/vcard" style="display:none">
         </label>
+        <button class="btn btn--secondary" id="contacts-select-btn">
+          <i data-lucide="check-square" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
+          Select
+        </button>
         <button class="btn btn--primary" id="contacts-add-btn">
           <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
           ${t('contacts.addButton')}
@@ -94,6 +100,37 @@ export async function render(container, { user }) {
   const res        = await api.get('/contacts');
   state.contacts   = res.data;
   renderList();
+
+  // Single delegated click handler for the contacts list — attached once per page load
+  _container.querySelector('#contacts-list').addEventListener('click', async (e) => {
+    const item = e.target.closest('.contact-item[data-id]');
+
+    if (state.selectMode) {
+      if (!item) return;
+      const id = parseInt(item.dataset.id, 10);
+      if (state.selected.has(id)) state.selected.delete(id);
+      else state.selected.add(id);
+      // Re-render this item so the lucide icon updates correctly
+      const c = state.contacts.find((c) => c.id === id);
+      if (c) {
+        item.outerHTML = renderContactItem(c);
+        if (window.lucide) lucide.createIcons();
+      }
+      renderSelectBar();
+      return;
+    }
+
+    if (e.target.closest('[data-action="delete"]')) {
+      const id = parseInt(e.target.closest('[data-action="delete"]').dataset.id, 10);
+      if (!confirm(t('contacts.deleteConfirm'))) return;
+      await deleteContact(id);
+      return;
+    }
+    if (item && !e.target.closest('a') && !e.target.closest('[data-action]')) {
+      const c = state.contacts.find((c) => c.id === parseInt(item.dataset.id, 10));
+      if (c) openContactModal({ mode: 'edit', contact: c });
+    }
+  });
 
   // Suche
   let searchTimer;
@@ -121,23 +158,171 @@ export async function render(container, { user }) {
   _container.querySelector('#contacts-add-btn').addEventListener('click', addHandler);
   _container.querySelector('#fab-new-contact').addEventListener('click', addHandler);
 
+  // Select mode
+  _container.querySelector('#contacts-select-btn').addEventListener('click', () => {
+    state.selectMode = true;
+    state.selected   = new Set();
+    renderList();
+    renderSelectBar();
+  });
+
   // vCard-Import
   _container.querySelector('#contacts-import-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     e.target.value = '';
     try {
-      const text    = await file.text();
-      const contact = parseVCard(text);
-      if (!contact.name) { window.oikos?.showToast(t('contacts.vcardNoName'), 'warning'); return; }
-      const res = await api.post('/contacts', contact);
-      state.contacts.push(res.data);
+      const text   = await file.text();
+      // Split multi-contact VCF into individual vCard blocks
+      const blocks = text.split(/(?=BEGIN:VCARD)/i).map((b) => b.trim()).filter((b) => b);
+      const contacts = blocks.map(parseVCard).filter((c) => c.name);
+
+      if (!contacts.length) { window.oikos?.showToast(t('contacts.vcardNoName'), 'warning'); return; }
+
+      let imported = 0;
+      for (const contact of contacts) {
+        const res = await api.post('/contacts', contact);
+        state.contacts.push(res.data);
+        imported++;
+      }
       renderList();
-      window.oikos?.showToast(t('contacts.importedToast', { name: res.data.name }), 'success');
+      window.oikos?.showToast(
+        imported === 1
+          ? t('contacts.importedToast', { name: contacts[0].name })
+          : `${imported} contacts imported`,
+        'success'
+      );
     } catch (err) {
       window.oikos?.showToast(t('contacts.importError', { error: err.message }), 'danger');
     }
   });
+}
+
+// --------------------------------------------------------
+// Select-Modus
+// --------------------------------------------------------
+
+function renderSelectBar() {
+  let bar = _container.querySelector('#contacts-select-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'contacts-select-bar';
+    bar.className = 'contacts-select-bar';
+    _container.querySelector('.contacts-page').prepend(bar);
+  }
+
+  const n = state.selected.size;
+  const total = filterContacts().length;
+
+  bar.innerHTML = `
+    <button class="btn btn--secondary btn--sm" id="csb-cancel">Cancel</button>
+    <span class="contacts-select-bar__count">${n} selected</span>
+    <button class="btn btn--secondary btn--sm" id="csb-all">${n === total ? 'Deselect All' : 'Select All'}</button>
+    <div class="csb-actions">
+      <div class="csb-move-wrap">
+        <button class="btn btn--secondary btn--sm" id="csb-move" ${n === 0 ? 'disabled' : ''}>
+          <i data-lucide="folder-symlink" style="width:14px;height:14px;margin-right:4px;" aria-hidden="true"></i>
+          Move to
+        </button>
+        <div class="csb-move-dropdown" id="csb-move-dropdown" hidden>
+          ${CATEGORIES.map((cat) => `
+            <button class="csb-move-option" data-cat="${esc(cat)}">
+              ${CATEGORY_ICONS[cat] || ''} ${CATEGORY_LABELS()[cat] || esc(cat)}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+      <button class="btn btn--secondary btn--sm" id="csb-export" ${n === 0 ? 'disabled' : ''}>
+        <i data-lucide="download" style="width:14px;height:14px;margin-right:4px;" aria-hidden="true"></i>
+        Export
+      </button>
+      <button class="btn btn--danger btn--sm" id="csb-delete" ${n === 0 ? 'disabled' : ''}>
+        <i data-lucide="trash-2" style="width:14px;height:14px;margin-right:4px;" aria-hidden="true"></i>
+        Delete (${n})
+      </button>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+
+  bar.querySelector('#csb-cancel').addEventListener('click', exitSelectMode);
+
+  bar.querySelector('#csb-all').addEventListener('click', () => {
+    const visible = filterContacts();
+    if (state.selected.size === visible.length) {
+      state.selected.clear();
+    } else {
+      visible.forEach((c) => state.selected.add(c.id));
+    }
+    renderList();
+    renderSelectBar();
+  });
+
+  // Move to group
+  const moveBtn      = bar.querySelector('#csb-move');
+  const moveDropdown = bar.querySelector('#csb-move-dropdown');
+
+  moveBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    moveDropdown.hidden = !moveDropdown.hidden;
+  });
+
+  moveDropdown.querySelectorAll('.csb-move-option').forEach((opt) => {
+    opt.addEventListener('click', async () => {
+      const cat = opt.dataset.cat;
+      moveDropdown.hidden = true;
+      const ids = [...state.selected];
+      for (const id of ids) {
+        await api.put(`/contacts/${id}`, { category: cat });
+        const c = state.contacts.find((c) => c.id === id);
+        if (c) c.category = cat;
+      }
+      window.oikos?.showToast(`${ids.length} contact(s) moved to ${CATEGORY_LABELS()[cat] || cat}`, 'success');
+      exitSelectMode();
+    });
+  });
+
+  // Close dropdown on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function closeDrop(e) {
+      if (!moveDropdown.contains(e.target) && e.target !== moveBtn) {
+        moveDropdown.hidden = true;
+        document.removeEventListener('click', closeDrop);
+      }
+    });
+  }, 0);
+
+  bar.querySelector('#csb-export').addEventListener('click', () => {
+    const contacts = [...state.selected]
+      .map((id) => state.contacts.find((c) => c.id === id))
+      .filter(Boolean);
+    if (!contacts.length) return;
+    const vcf  = contacts.map(contactToVCard).join('\r\n');
+    const blob = new Blob([vcf], { type: 'text/vcard;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = contacts.length === 1 ? `${contacts[0].name.replace(/[^a-zA-Z0-9-_ ]/g, '_')}.vcf` : 'contacts.vcf';
+    a.click();
+    URL.revokeObjectURL(url);
+    exitSelectMode();
+  });
+
+  bar.querySelector('#csb-delete').addEventListener('click', async () => {
+    if (!state.selected.size) return;
+    if (!confirm(`Delete ${state.selected.size} contact(s)?`)) return;
+    const ids = [...state.selected];
+    for (const id of ids) {
+      await deleteContact(id);
+    }
+    exitSelectMode();
+  });
+}
+
+function exitSelectMode() {
+  state.selectMode = false;
+  state.selected.clear();
+  _container.querySelector('#contacts-select-bar')?.remove();
+  renderList();
 }
 
 // --------------------------------------------------------
@@ -204,23 +389,25 @@ function renderList() {
 
   if (window.lucide) lucide.createIcons();
   stagger(container.querySelectorAll('.contact-item'));
-
-  // Event-Delegation
-  container.addEventListener('click', async (e) => {
-    if (e.target.closest('[data-action="delete"]')) {
-      const id = parseInt(e.target.closest('[data-action="delete"]').dataset.id, 10);
-      await deleteContact(id);
-      return;
-    }
-    const item = e.target.closest('.contact-item[data-id]');
-    if (item && !e.target.closest('a') && !e.target.closest('[data-action]')) {
-      const c = state.contacts.find((c) => c.id === parseInt(item.dataset.id, 10));
-      if (c) openContactModal({ mode: 'edit', contact: c });
-    }
-  });
 }
 
 function renderContactItem(c) {
+  const isSelected = state.selected.has(c.id);
+
+  if (state.selectMode) {
+    const meta = [c.phone, c.email].filter(Boolean).join(' · ');
+    return `
+      <div class="contact-item ${isSelected ? 'contact-item--selected' : ''}" data-id="${c.id}">
+        <div class="contact-item__check ${isSelected ? 'contact-item__check--on' : ''}">
+          <i data-lucide="${isSelected ? 'check-circle' : 'circle'}" style="width:20px;height:20px;" aria-hidden="true"></i>
+        </div>
+        <div class="contact-item__body">
+          <div class="contact-item__name">${esc(c.name)}</div>
+          ${meta ? `<div class="contact-item__meta">${esc(meta)}</div>` : ''}
+        </div>
+      </div>`;
+  }
+
   const phone   = c.phone  ? `<a href="tel:${esc(c.phone)}"   class="contact-action-btn contact-action-btn--call"  aria-label="${t('contacts.callLabel')}"><i data-lucide="phone" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
   const email   = c.email  ? `<a href="mailto:${esc(c.email)}" class="contact-action-btn contact-action-btn--mail"  aria-label="${t('contacts.emailActionLabel')}"><i data-lucide="mail" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
   const maps    = c.address ? `<a href="https://maps.google.com/?q=${encodeURIComponent(c.address)}" target="_blank" rel="noopener" class="contact-action-btn contact-action-btn--maps" aria-label="${t('contacts.mapsLabel')}"><i data-lucide="map-pin" style="width:16px;height:16px;" aria-hidden="true"></i></a>` : '';
@@ -351,7 +538,6 @@ function openContactModal({ mode, contact = null }) {
 }
 
 async function deleteContact(id) {
-  if (!confirm(t('contacts.deleteConfirm'))) return;
   try {
     await api.delete(`/contacts/${id}`);
     state.contacts = state.contacts.filter((c) => c.id !== id);
@@ -365,6 +551,29 @@ async function deleteContact(id) {
 
 
 /**
+ * Kontakt → vCard 3.0 string (inklusive CATEGORIES-Feld).
+ */
+function contactToVCard(c) {
+  const esc = (v) => String(v || '')
+    .replace(/\\/g, '\\\\').replace(/\n/g, '\\n')
+    .replace(/,/g, '\\,').replace(/;/g, '\\;');
+
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `FN:${esc(c.name)}`,
+    `N:${esc(c.name)};;;;`,
+  ];
+  if (c.phone)    lines.push(`TEL;TYPE=VOICE:${esc(c.phone)}`);
+  if (c.email)    lines.push(`EMAIL:${esc(c.email)}`);
+  if (c.address)  lines.push(`ADR;TYPE=HOME:;;${esc(c.address)};;;;`);
+  if (c.notes)    lines.push(`NOTE:${esc(c.notes)}`);
+  if (c.category) lines.push(`CATEGORIES:${esc(c.category)}`);
+  lines.push('END:VCARD');
+  return lines.join('\r\n');
+}
+
+/**
  * Minimaler vCard 3.0/4.0 Parser.
  * Gibt { name, phone, email, address, notes, category } zurück.
  */
@@ -372,13 +581,32 @@ function parseVCard(text) {
   const unescapeVCard = (s) => String(s || '')
     .replace(/\\n/g, '\n').replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\\\/g, '\\');
 
+  // Decode quoted-printable encoding (=XX hex bytes → UTF-8 string)
+  const decodeQP = (s) => {
+    // Join soft line breaks (= at end of line)
+    const joined = s.replace(/=\r?\n/g, '');
+    // Convert =XX sequences to bytes then decode as UTF-8
+    try {
+      const bytes = joined.replace(/=([0-9A-Fa-f]{2})/g, (_, h) =>
+        String.fromCharCode(parseInt(h, 16))
+      );
+      return decodeURIComponent(escape(bytes));
+    } catch {
+      return joined;
+    }
+  };
+
   // Zeilenfortsetzungen entfalten (RFC 6350 §3.2)
   const unfolded = text.replace(/\r?\n[ \t]/g, '');
 
   const get = (prop) => {
-    const re = new RegExp(`^${prop}(?:;[^:]*)?:(.*)$`, 'im');
+    const re = new RegExp(`^${prop}((?:;[^:]*)*):(.*?)$`, 'im');
     const m  = re.exec(unfolded);
-    return m ? unescapeVCard(m[1].trim()) : null;
+    if (!m) return null;
+    const params = m[1].toUpperCase();
+    const value  = m[2].trim();
+    const decoded = params.includes('QUOTED-PRINTABLE') ? decodeQP(value) : value;
+    return unescapeVCard(decoded);
   };
 
   const name    = get('FN') || get('N')?.split(';')[0] || null;

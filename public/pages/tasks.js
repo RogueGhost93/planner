@@ -353,7 +353,7 @@ let state = {
   users:         [],
   filters:       { status: '', priority: '', assigned_to: '' },
   groupMode:     'category',   // 'category' | 'due'
-  viewMode:      'list',       // 'list' | 'kanban'
+  viewMode:      localStorage.getItem('tasks-view') || 'list',  // 'list' | 'kanban'
   expandedTasks: new Set(),
   dragTaskId:    null,
 };
@@ -866,9 +866,18 @@ function wireFilterChips(container) {
 function wireViewToggle(container) {
   const toggle = container.querySelector('#view-toggle');
   if (!toggle) return;
+
+  // Apply initial view state to toggle buttons
+  toggle.querySelectorAll('[data-view]').forEach((b) =>
+    b.classList.toggle('group-toggle__btn--active', b.dataset.view === state.viewMode)
+  );
+  const groupToggle = container.querySelector('#group-mode-toggle');
+  if (groupToggle) groupToggle.style.display = state.viewMode === 'list' ? '' : 'none';
+
   toggle.querySelectorAll('[data-view]').forEach((btn) => {
     btn.addEventListener('click', () => {
       state.viewMode = btn.dataset.view;
+      localStorage.setItem('tasks-view', state.viewMode);
       toggle.querySelectorAll('[data-view]').forEach((b) =>
         b.classList.toggle('group-toggle__btn--active', b.dataset.view === state.viewMode)
       );
@@ -959,6 +968,9 @@ function wireTaskList(container) {
 // --------------------------------------------------------
 
 export async function render(container, { user }) {
+  // Re-read view preference on each render (handles "All" button from dashboard)
+  state.viewMode = localStorage.getItem('tasks-view') || 'list';
+
   // Initiales Skeleton
   container.innerHTML = `
     <div class="tasks-page">
@@ -1025,4 +1037,12 @@ export async function render(container, { user }) {
   wireTaskList(container);
   renderFilters(container);
   renderTaskList(container);
+
+  // Dashboard task widget → open the specific task that was clicked
+  const pendingTaskId = localStorage.getItem('tasks-open-task');
+  if (pendingTaskId) {
+    localStorage.removeItem('tasks-open-task');
+    const task = state.tasks.find((t) => t.id === parseInt(pendingTaskId, 10));
+    if (task) openTaskModal({ task, users: state.users }, container);
+  }
 }

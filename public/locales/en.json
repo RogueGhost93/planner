@@ -52,6 +52,7 @@
     "allDone": "All done",
     "noEvents": "No events",
     "noPinnedNotes": "No pinned notes",
+    "noShoppingItems": "All lists are empty",
     "todayMeals": "Today's meals",
     "allLink": "All",
     "weekLink": "Week",
@@ -75,6 +76,8 @@
     "overdue": "Overdue",
     "dueSoon": "Due today",
     "dueTomorrow": "Due tomorrow",
+    "inDays": "in {{count}} days",
+    "nextWeek": "next week",
     "allDay": "All day"
   },
 

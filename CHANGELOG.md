@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-04-05
+
+### Added
+- **ICS calendar import** - import `.ics` files (Proton Calendar and standard ICS) via toolbar upload button; events are parsed including RRULE recurrence rules, all-day flags, location, and description
+- **ICS deduplication** - imported events are matched by UID (`external_uid` column, DB migration v4) so re-importing the same file never creates duplicates
+- **Clear calendar events** - new `⋮` dropdown in calendar toolbar with "Clear imported events" and "Clear all events" options
+- **YEARLY recurrence support** - yearly events (holidays, anniversaries) now show "Yearly" in the recurrence dropdown instead of falling back to "No recurrence"
+- **Recurrence label in event popup** - clicking any recurring event now shows "🔁 Repeats monthly / weekly / yearly / daily" directly in the popup without opening the edit form
+- **Bulk VCF export** - selecting multiple contacts and clicking the export button in the select bar downloads a single `.vcf` file containing all selected contacts
+- **Cross-page deep-linking from dashboard widgets**:
+  - Clicking a task in the tasks widget navigates to Tasks and opens that task's edit modal
+  - Clicking a calendar event in the events widget navigates to Calendar, jumps to the correct month, and opens the event popup
+  - Clicking a shopping list name in the shopping widget navigates to Shopping, selects that list, and focuses the quick-add input
+- **Tiered relative due dates on dashboard task widget** - tasks show "Overdue", "Due today", "Due tomorrow", date + "in N days" (2-7), date + "next week" (8-14), or just the date (15+)
+- **Relative event labels on dashboard calendar widget** - upcoming events within 14 days show "tomorrow", "in N days", or "next week" alongside the date
+- **Day of week in greeting widget** - the greeting banner now shows the full day name (e.g. "Sunday") above the date, right-aligned with a slightly larger font
+
+### Changed
+- **English-only** - removed German and Italian locale files (`de.json`, `it.json`), locale picker component, and all i18n switching logic; `i18n.js` now loads `en.json` directly with no fallback chain
+- **Greeting widget layout** - greeting text and chips sit on the left; date and day of week are right-aligned on the same row
+- **Shopping list name** in dashboard widget is now a hover-highlighted link
+
+### Fixed
+- **Express route ordering** - `DELETE /calendar/clear` was being matched as `DELETE /calendar/:id` (with `id = NaN`), returning a German 404 error and never deleting anything; fixed by registering the `/clear` route before `/:id`
+- **Remaining German strings** translated to English in server error responses and `offline.html`
+
 ## [0.7.5] - 2026-04-04
 
 ### Fixed

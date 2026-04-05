@@ -49,3 +49,4 @@ docs/repo-audit-*.md
 *.txt
 !public/robots.txt
 CLAUDE.md
+fly-hi
