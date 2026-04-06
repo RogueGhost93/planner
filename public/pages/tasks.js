@@ -957,11 +957,21 @@ function toggleSelectId(taskId, cardEl) {
 }
 
 function updateBulkBar(container) {
-  const bar = container.querySelector('#bulk-bar');
-  if (!bar) return;
-  bar.hidden = !state.selectMode;
-  const countEl = container.querySelector('#bulk-count');
-  if (countEl) countEl.textContent = t('tasks.selectedCount', { count: state.selectedIds.size });
+  const inSelect = state.selectMode;
+  // Toggle normal toolbar items
+  const newBtn    = container.querySelector('#btn-new-task');
+  const viewToggle = container.querySelector('#view-toggle');
+  const groupToggle = container.querySelector('#group-mode-toggle');
+  if (newBtn)    newBtn.hidden    = inSelect;
+  if (viewToggle) viewToggle.hidden = inSelect;
+  if (groupToggle) groupToggle.hidden = inSelect;
+  // Toggle bulk items
+  const countEl    = container.querySelector('#bulk-count');
+  const deselectBtn = container.querySelector('#btn-deselect-all');
+  const deleteBtn   = container.querySelector('#btn-bulk-delete');
+  if (countEl)    { countEl.hidden    = !inSelect; countEl.textContent = t('tasks.selectedCount', { count: state.selectedIds.size }); }
+  if (deselectBtn) deselectBtn.hidden = !inSelect;
+  if (deleteBtn)   deleteBtn.hidden   = !inSelect;
 }
 
 function wireSelectMode(container) {
@@ -979,8 +989,8 @@ function wireSelectMode(container) {
 
   container.querySelector('#btn-deselect-all')?.addEventListener('click', () => {
     state.selectedIds.clear();
-    renderTaskList(container);
     updateBulkBar(container);
+    renderTaskList(container);
   });
 
   container.querySelector('#btn-bulk-delete')?.addEventListener('click', async () => {
@@ -994,9 +1004,9 @@ function wireSelectMode(container) {
       state.selectMode = false;
       selectBtn.classList.remove('btn--primary');
       selectBtn.setAttribute('aria-pressed', 'false');
+      updateBulkBar(container);
       window.planner.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
       await loadTasks(container);
-      updateBulkBar(container);
     } catch (err) {
       window.planner.showToast(err.message, 'danger');
     }
@@ -1180,26 +1190,21 @@ export async function render(container, { user }) {
             <button class="group-toggle__btn group-toggle__btn--active" data-mode="category">${t('tasks.categoryLabel')}</button>
             <button class="group-toggle__btn" data-mode="due">${t('tasks.dueDateLabel')}</button>
           </div>
-          <button class="btn btn--ghost btn--icon" id="btn-select"
+          <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
                   aria-label="${t('tasks.selectMode')}" aria-pressed="false"
                   title="${t('tasks.selectMode')}">
             <i data-lucide="check-square" style="width:18px;height:18px" aria-hidden="true"></i>
           </button>
-          <button class="btn btn--primary" id="btn-new-task" style="gap:var(--space-1)">
+          <button class="btn btn--primary tasks-toolbar__new-btn" id="btn-new-task" style="gap:var(--space-1)">
             <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i> ${t('tasks.newTask')}
           </button>
+          <span class="bulk-bar__count tasks-toolbar__bulk-count" id="bulk-count" hidden></span>
+          <button class="btn btn--ghost tasks-toolbar__bulk-btn" id="btn-deselect-all" hidden>${t('tasks.deselectAll')}</button>
+          <button class="btn btn--danger tasks-toolbar__bulk-btn" id="btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
         </div>
       </div>
 
       <div class="tasks-filters" id="filter-bar"></div>
-
-      <div class="bulk-bar" id="bulk-bar" hidden>
-        <span class="bulk-bar__count" id="bulk-count"></span>
-        <div class="bulk-bar__actions">
-          <button class="btn btn--ghost" id="btn-deselect-all">${t('tasks.deselectAll')}</button>
-          <button class="btn btn--danger" id="btn-bulk-delete">${t('tasks.bulkDelete')}</button>
-        </div>
-      </div>
 
       <div id="task-list">
         ${[1,2,3].map(() => `
