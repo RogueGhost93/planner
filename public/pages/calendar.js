@@ -124,7 +124,7 @@ function getWeekRange(dateStr) {
 }
 
 function getAgendaRange(dateStr) {
-  return { from: dateStr, to: addDays(dateStr, 30) };
+  return { from: dateStr, to: addDays(dateStr, 180) };
 }
 
 function eventsOnDay(dateStr) {
@@ -389,7 +389,7 @@ async function navigate(dir) {
   } else if (state.view === 'day') {
     state.cursor = addDays(state.cursor, dir);
   } else if (state.view === 'agenda') {
-    state.cursor = addDays(state.cursor, dir * 30);
+    state.cursor = addDays(state.cursor, dir * 60);
   }
   await reloadForView();
   updateLabel();
@@ -705,7 +705,7 @@ function renderDayView(container) {
 
 function renderAgendaView(container) {
   const { from, to } = getAgendaRange(state.cursor);
-  const days = Array.from({ length: 31 }, (_, i) => addDays(from, i));
+  const days = Array.from({ length: 181 }, (_, i) => addDays(from, i));
 
   const groups = days
     .map((d) => ({ date: d, events: eventsOnDay(d) }))

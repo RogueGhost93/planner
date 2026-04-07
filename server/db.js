@@ -336,6 +336,24 @@ const MIGRATIONS = [
       PRAGMA foreign_keys=ON;
     `,
   },
+  {
+    version: 6,
+    description: 'Add sort_order to shopping_lists',
+    up: `
+      ALTER TABLE shopping_lists ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0;
+      UPDATE shopping_lists SET sort_order = (
+        SELECT COUNT(*) FROM shopping_lists sl2 WHERE sl2.id <= shopping_lists.id
+      ) - 1;
+    `,
+  },
+  {
+    version: 7,
+    description: 'Add theme and accent preferences to users',
+    up: `
+      ALTER TABLE users ADD COLUMN theme  TEXT NOT NULL DEFAULT 'system';
+      ALTER TABLE users ADD COLUMN accent TEXT NOT NULL DEFAULT 'blue';
+    `,
+  },
 ];
 
 /**
