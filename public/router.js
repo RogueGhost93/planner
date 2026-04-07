@@ -65,6 +65,30 @@ function updateThemeColorForRoute(route) {
 }
 
 // --------------------------------------------------------
+// Nutzer-Präferenzen anwenden (Theme + Accent aus Serverprofil)
+// --------------------------------------------------------
+function applyUserPreferences(user) {
+  if (!user) return;
+  const theme  = user.theme  || 'system';
+  const accent = user.accent || 'blue';
+  // Apply theme
+  if (theme === 'light' || theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', theme);
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  // Sync to localStorage for flash-prevention on next load
+  try { localStorage.setItem('planner-theme', theme); } catch { /* ignore */ }
+  // Apply accent
+  if (accent && accent !== 'blue') {
+    document.documentElement.setAttribute('data-accent', accent);
+  } else {
+    document.documentElement.removeAttribute('data-accent');
+  }
+  try { localStorage.setItem('planner-accent', accent); } catch { /* ignore */ }
+}
+
+// --------------------------------------------------------
 // Dynamisches Stylesheet-Loading pro Seitenmodul
 // --------------------------------------------------------
 let activePageStyle = null;
@@ -144,6 +168,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
     // Überlastung: navigate(path, user) nach Login vs navigate(path, false) beim Init
     if (typeof userOrPushState === 'object' && userOrPushState !== null) {
       currentUser = userOrPushState;
+      applyUserPreferences(currentUser);
     } else {
       pushState = userOrPushState;
     }
@@ -159,6 +184,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
       try {
         const result = await auth.me();
         currentUser = result.user;
+        applyUserPreferences(currentUser);
       } catch {
         currentPath = null; // Reset damit navigate('/login') nicht geblockt wird
         isNavigating = false;

@@ -535,6 +535,7 @@ function applyTheme(value) {
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
+  api.patch('/auth/me/preferences', { theme: value }).catch(() => {});
 }
 
 const ACCENT_COLORS = [
@@ -559,6 +560,7 @@ function applyAccent(id) {
   } else {
     document.documentElement.setAttribute('data-accent', id);
   }
+  api.patch('/auth/me/preferences', { accent: id }).catch(() => {});
 }
 
 function showError(el, msg) {
