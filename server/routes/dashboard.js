@@ -107,7 +107,6 @@ router.get('/', (req, res) => {
       FROM notes n
       LEFT JOIN users u ON n.created_by = u.id
       ORDER BY n.pinned DESC, n.updated_at DESC
-      LIMIT 3
     `).all();
   } catch (err) {
     log.error('pinnedNotes-Fehler:', err.message);

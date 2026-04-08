@@ -280,9 +280,9 @@ function renderTodayMeals(meals) {
   </div>`;
 }
 
-function renderPinnedNotes(notes) {
-  const isExpanded = localStorage.getItem('board-widget-expanded') !== 'false';
+const BOARD_PREVIEW_COUNT = 4; // Notes shown in collapsed mode
 
+function renderPinnedNotes(notes) {
   if (!notes.length) {
     return `<div class="widget">
       ${widgetHeader('pin', t('nav.notes'), 0, '/notes', undefined, '/notes', 'notes-create-new')}
@@ -293,6 +293,9 @@ function renderPinnedNotes(notes) {
     </div>`;
   }
 
+  const isExpanded = localStorage.getItem('board-widget-expanded') === 'true';
+  const canExpand  = notes.length > BOARD_PREVIEW_COUNT;
+
   const items = notes.map((n) => `
     <div class="note-item" data-route="/notes" role="button" tabindex="0"
          style="--note-color:${esc(n.color)};">
@@ -300,6 +303,14 @@ function renderPinnedNotes(notes) {
       <div class="note-item__content">${renderMarkdownLight(n.content)}</div>
     </div>
   `).join('');
+
+  const toggleBtn = canExpand
+    ? `<button class="board-widget__toggle" id="board-widget-toggle"
+               aria-expanded="${isExpanded}" title="${isExpanded ? 'Collapse' : 'Expand'}">
+         <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}"
+            style="width:16px;height:16px;pointer-events:none" aria-hidden="true"></i>
+       </button>`
+    : '';
 
   return `<div class="widget widget--wide" id="board-widget">
     <div class="widget__header">
@@ -309,40 +320,39 @@ function renderPinnedNotes(notes) {
         <span class="widget__badge">${notes.length}</span>
       </span>
       <div class="widget__header-actions">
+        ${toggleBtn}
         <button class="widget__add-btn" data-route="/notes" data-create-flag="notes-create-new"
                 aria-label="${t('common.add')}">
           <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
         </button>
         <button class="widget__link" data-route="/notes">${t('dashboard.allLink')}</button>
-        <button class="board-widget__toggle" id="board-widget-toggle"
-                aria-label="${isExpanded ? 'Collapse' : 'Expand'}" aria-expanded="${isExpanded}">
-          <i data-lucide="${isExpanded ? 'chevron-up' : 'chevron-down'}"
-             style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-        </button>
       </div>
     </div>
-    <div class="notes-grid-widget ${isExpanded ? '' : 'notes-grid-widget--collapsed'}"
+    <div class="notes-grid-widget ${isExpanded || !canExpand ? 'notes-grid-widget--expanded' : ''}"
          id="board-widget-body">${items}</div>
   </div>`;
 }
 
 function wireBoardWidget(container) {
+  const widget = container.querySelector('#board-widget');
   const toggle = container.querySelector('#board-widget-toggle');
   const body   = container.querySelector('#board-widget-body');
-  if (!toggle || !body) return;
+  if (!widget || !body) return;
+  if (!toggle) return; // No toggle needed (few notes)
 
   toggle.addEventListener('click', (e) => {
     e.stopPropagation();
-    const expanded = toggle.getAttribute('aria-expanded') === 'true';
-    const next = !expanded;
+    e.preventDefault();
+    const isExpanded = body.classList.contains('notes-grid-widget--expanded');
+    const next = !isExpanded;
+    body.classList.toggle('notes-grid-widget--expanded', next);
     toggle.setAttribute('aria-expanded', String(next));
-    toggle.setAttribute('aria-label', next ? 'Collapse' : 'Expand');
+    toggle.title = next ? 'Collapse' : 'Expand';
     localStorage.setItem('board-widget-expanded', String(next));
-    body.classList.toggle('notes-grid-widget--collapsed', !next);
     // Swap the chevron icon
-    const icon = toggle.querySelector('svg, [data-lucide]');
-    if (icon) {
-      icon.setAttribute('data-lucide', next ? 'chevron-up' : 'chevron-down');
+    const svg = toggle.querySelector('svg');
+    if (svg) {
+      svg.setAttribute('data-lucide', next ? 'chevron-up' : 'chevron-down');
       if (window.lucide) window.lucide.createIcons({ el: toggle });
     }
   });
