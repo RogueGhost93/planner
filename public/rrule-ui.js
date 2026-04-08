@@ -1,7 +1,7 @@
 /**
- * Modul: RRULE UI-Helfer
- * Zweck: Wiederholungs-Formular (HTML + Logik) für Aufgaben- und Kalender-Modals
- * Abhängigkeiten: keine
+ * Module: RRULE UI helpers
+ * Purpose: Recurrence form (HTML + logic) for task and calendar modals
+ * Dependencies: none
  */
 
 const FREQ_OPTIONS = [
@@ -23,8 +23,8 @@ const WEEKDAYS = [
 ];
 
 /**
- * Parsed einen RRULE-String in ein Objekt für die UI.
- * @param {string|null} rule - z.B. "FREQ=WEEKLY;BYDAY=MO,TH;INTERVAL=2"
+ * Parses an RRULE string into an object for the UI.
+ * @param {string|null} rule - e.g. "FREQ=WEEKLY;BYDAY=MO,TH;INTERVAL=2"
  * @returns {{ freq: string, interval: number, byday: string[], until: string }}
  */
 export function parseRRule(rule) {
@@ -50,9 +50,9 @@ export function parseRRule(rule) {
 }
 
 /**
- * Baut einen RRULE-String aus den UI-Werten.
+ * Builds an RRULE string from the UI values.
  * @param {{ freq: string, interval: number, byday: string[], until: string }} opts
- * @returns {string|null} - RRULE-String oder null (keine Wiederholung)
+ * @returns {string|null} - RRULE string or null (no recurrence)
  */
 export function buildRRule({ freq, interval, byday, until }) {
   if (!freq) return null;
@@ -69,10 +69,10 @@ export function buildRRule({ freq, interval, byday, until }) {
 }
 
 /**
- * Rendert das HTML für die Wiederholungs-Felder.
- * @param {string} prefix - ID-Prefix (z.B. "task" oder "event")
- * @param {string|null} existingRule - bestehende RRULE oder null
- * @returns {string} HTML-String
+ * Renders the HTML for the recurrence fields.
+ * @param {string} prefix - ID prefix (e.g. "task" or "event")
+ * @param {string|null} existingRule - existing RRULE or null
+ * @returns {string} HTML string
  */
 export function renderRRuleFields(prefix, existingRule) {
   const parsed = parseRRule(existingRule);
@@ -131,9 +131,9 @@ function unitLabel(freq, interval) {
 }
 
 /**
- * Bindet Events an die RRULE-Felder (Freq-Change, Day-Toggle, etc.)
- * @param {HTMLElement} root - Container-Element
- * @param {string} prefix - ID-Prefix
+ * Binds events to the RRULE fields (freq change, day toggle, etc.)
+ * @param {HTMLElement} root - Container element
+ * @param {string} prefix - ID prefix
  */
 export function bindRRuleEvents(root, prefix) {
   const freqSelect  = root.querySelector(`#${prefix}-rrule-freq`);
@@ -153,7 +153,7 @@ export function bindRRuleEvents(root, prefix) {
 
   intervalEl?.addEventListener('input', updateUnit);
 
-  // Day-Toggle
+  // Day toggle
   root.querySelectorAll(`#${prefix}-rrule-weekdays .rrule-day`).forEach(btn => {
     btn.addEventListener('click', () => {
       btn.classList.toggle('rrule-day--active');

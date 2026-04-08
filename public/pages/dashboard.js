@@ -59,6 +59,21 @@ function diffCalendarDays(dateStr) {
   return Math.round((targetMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
 }
 
+/** Returns true if the date string falls within next calendar week (Mon–Sun). */
+function isNextCalendarWeek(dateStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dow = today.getDay(); // 0=Sun … 6=Sat
+  const daysToNextMon = dow === 0 ? 1 : 8 - dow;
+  const nextMon = new Date(today);
+  nextMon.setDate(today.getDate() + daysToNextMon);
+  const nextSun = new Date(nextMon);
+  nextSun.setDate(nextMon.getDate() + 6);
+  const target = dateStr.length === 10 ? new Date(dateStr + 'T00:00:00') : new Date(dateStr);
+  target.setHours(0, 0, 0, 0);
+  return target >= nextMon && target <= nextSun;
+}
+
 function formatDueDate(dateStr) {
   if (!dateStr) return null;
   const diff = diffCalendarDays(dateStr);
@@ -66,22 +81,23 @@ function formatDueDate(dateStr) {
     dateStr.length === 10 ? new Date(dateStr + 'T00:00:00') : new Date(dateStr)
   );
 
-  if (diff < 0)   return { text: t('dashboard.overdue'),    overdue: true  };
-  if (diff === 0) return { text: t('dashboard.dueSoon'),    overdue: false };
+  if (diff < 0)   return { text: t('dashboard.overdue'),     overdue: true  };
+  if (diff === 0) return { text: t('dashboard.dueSoon'),     overdue: false };
   if (diff === 1) return { text: t('dashboard.dueTomorrow'), overdue: false };
-  if (diff <= 7)  return { text: `${dateLabel} · ${t('dashboard.inDays', { count: diff })}`,  overdue: false };
-  if (diff <= 14) return { text: `${dateLabel} · ${t('dashboard.nextWeek')}`,                 overdue: false };
-  return                 { text: dateLabel,                                                    overdue: false };
+  if (diff <= 7)  return { text: `${dateLabel} · ${t('dashboard.inDays', { count: diff })}`, overdue: false };
+  if (isNextCalendarWeek(dateStr)) return { text: `${dateLabel} · ${t('dashboard.nextWeek')}`, overdue: false };
+  return { text: dateLabel, overdue: false };
 }
 
 /** Returns a short relative label for calendar events (null = show nothing extra) */
 function eventRelativeLabel(dateStr) {
   if (!dateStr) return null;
-  const diff = diffCalendarDays(dateStr.length === 10 ? dateStr : dateStr.slice(0, 10));
+  const short = dateStr.length === 10 ? dateStr : dateStr.slice(0, 10);
+  const diff = diffCalendarDays(short);
   if (diff <= 0)  return null; // today already shown via badge
   if (diff === 1) return t('common.tomorrow').toLowerCase();
   if (diff <= 7)  return t('dashboard.inDays', { count: diff });
-  if (diff <= 14) return t('dashboard.nextWeek');
+  if (isNextCalendarWeek(short)) return t('dashboard.nextWeek');
   return null;
 }
 
@@ -155,18 +171,27 @@ function skeletonWidget(lines = 3) {
 // --------------------------------------------------------
 
 function renderGreeting(user, stats = {}) {
-  const { urgentCount = 0 } = stats;
+  const { urgentTasks = [] } = stats;
   const quickLink = user?.quick_link || '';
 
   const now = new Date();
   const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()];
 
-  const urgentChip = urgentCount > 0
-    ? `<span class="greeting-chip greeting-chip--warn">
+  let urgentChip = '';
+  if (urgentTasks.length > 0) {
+    const top = urgentTasks[0];
+    const rest = urgentTasks.length - 1;
+    const moreTag = rest > 0
+      ? `<span class="greeting-chip__more">+${rest}</span>`
+      : '';
+    urgentChip = `
+      <span class="greeting-chip greeting-chip--warn" data-route="/tasks" data-task-id="${top.id}" role="button" tabindex="0">
         <i data-lucide="alert-circle" style="width:12px;height:12px;flex-shrink:0;" aria-hidden="true"></i>
-        ${urgentCount > 1 ? t('dashboard.urgentTasksChipPlural', { count: urgentCount }) : t('dashboard.urgentTasksChip', { count: urgentCount })}
+        <span class="greeting-chip__title">${esc(top.title)}</span>
+        ${moreTag}
       </span>`
-    : '';
+    ;
+  }
 
   const linkIcon = quickLink
     ? `<i data-lucide="external-link" style="width:14px;height:14px;opacity:0.5;flex-shrink:0;" aria-hidden="true"></i>`
@@ -638,9 +663,8 @@ export async function render(container, { user }) {
     window.planner?.showToast(t('dashboard.loadError'), 'warning');
   }
 
-  const stats = {
-    urgentCount: (data.urgentTasks ?? []).filter((t) => t.priority === 'urgent' || t.priority === 'high').length,
-  };
+  const urgentTasks = (data.urgentTasks ?? []).filter((t) => t.priority === 'urgent' || t.priority === 'high');
+  const stats = { urgentTasks };
 
   container.innerHTML = `
     <div class="dashboard">
@@ -648,7 +672,10 @@ export async function render(container, { user }) {
       <div class="dashboard__grid">
         ${renderGreeting(user, stats)}
         ${renderWeatherWidget(weather)}
-        ${renderUrgentTasks(data.urgentTasks ?? [])}
+        ${renderUrgentTasks((data.urgentTasks ?? []).filter((t) => {
+          if (!t.is_recurring || !t.due_date) return true;
+          return diffCalendarDays(t.due_date) <= 2;
+        }))}
         ${renderUpcomingEvents(data.upcomingEvents ?? [])}
         ${renderShoppingWidget(data.shoppingLists ?? [], data.shoppingItems ?? [])}
         ${renderQuickNotes()}

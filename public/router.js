@@ -1,15 +1,15 @@
 /**
- * Modul: Client-Side Router
- * Zweck: SPA-Routing über History API ohne Framework, Auth-Guard, Seiten-Übergänge
- * Abhängigkeiten: api.js
+ * Module: Client-Side Router
+ * Purpose: SPA routing via History API without a framework, auth guard, page transitions
+ * Dependencies: api.js
  */
 
 import { auth } from '/api.js';
 import { initI18n, getLocale, t } from '/i18n.js';
 
 // --------------------------------------------------------
-// Routen-Definitionen
-// Jede Route hat: path, page (dynamisch geladen), requiresAuth, module (für theme-color)
+// Route definitions
+// Each route has: path, page (dynamically loaded), requiresAuth, module (for theme-color)
 // --------------------------------------------------------
 const ROUTES = [
   { path: '/login',    page: '/pages/login.js',    requiresAuth: false, module: null        },
@@ -25,16 +25,16 @@ const ROUTES = [
 ];
 
 // --------------------------------------------------------
-// Standalone-Modus: Dynamische theme-color Anpassung
-// Statusbar-Farbe spiegelt aktuelle Seite / Modal-State wider
+// Standalone mode: dynamic theme-color adjustment
+// Status bar colour reflects current page / modal state
 // --------------------------------------------------------
 const isStandalone = window.matchMedia('(display-mode: standalone)').matches
   || navigator.standalone === true;
 
 /**
- * Setzt die theme-color Meta-Tags (Light + Dark Variante).
+ * Sets the theme-color meta tags (light + dark variant).
  * @param {string} lightColor
- * @param {string} [darkColor] - Falls nicht angegeben, wird lightColor für beide gesetzt
+ * @param {string} [darkColor] - If not provided, lightColor is used for both
  */
 function setThemeColor(lightColor, darkColor) {
   if (!isStandalone) return;
@@ -47,12 +47,12 @@ function setThemeColor(lightColor, darkColor) {
   }
 }
 
-/** Liest eine CSS Custom Property vom :root */
+/** Reads a CSS custom property from :root */
 function getCSSToken(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-/** Setzt theme-color passend zum aktuellen Modul */
+/** Sets theme-color to match the current module */
 function updateThemeColorForRoute(route) {
   if (!route?.module) {
     setThemeColor('#007AFF', '#1C1C1E');
@@ -65,7 +65,7 @@ function updateThemeColorForRoute(route) {
 }
 
 // --------------------------------------------------------
-// Nutzer-Präferenzen anwenden (Theme + Accent aus Serverprofil)
+// Apply user preferences (theme + accent from server profile)
 // --------------------------------------------------------
 function applyUserPreferences(user) {
   if (!user) return;
@@ -89,7 +89,7 @@ function applyUserPreferences(user) {
 }
 
 // --------------------------------------------------------
-// Dynamisches Stylesheet-Loading pro Seitenmodul
+// Dynamic stylesheet loading per page module
 // --------------------------------------------------------
 let activePageStyle = null;
 
@@ -121,7 +121,7 @@ function loadPageStyle(moduleName) {
 }
 
 // --------------------------------------------------------
-// Modul-Cache: verhindert redundante dynamic imports bei Navigation
+// Module cache: prevents redundant dynamic imports during navigation
 // --------------------------------------------------------
 const moduleCache = new Map();
 
@@ -133,7 +133,7 @@ async function importPage(pagePath) {
 }
 
 // --------------------------------------------------------
-// Globaler App-State
+// Global app state
 // --------------------------------------------------------
 let currentUser = null;
 let currentPath = null;
@@ -154,18 +154,18 @@ function getDirection(fromPath, toPath) {
 }
 
 /**
- * Navigiert zu einem Pfad und rendert die entsprechende Seite.
+ * Navigates to a path and renders the corresponding page.
  * @param {string} path
- * @param {Object|boolean} userOrPushState - Direkt ein User-Objekt nach Login,
- *   oder boolean (pushState) für interne Navigation
- * @param {boolean} pushState - false beim initialen Load und popstate
+ * @param {Object|boolean} userOrPushState - Directly a user object after login,
+ *   or boolean (pushState) for internal navigation
+ * @param {boolean} pushState - false on initial load and popstate
  */
 async function navigate(path, userOrPushState = true, pushState = true) {
   if (isNavigating) return;
   isNavigating = true;
 
   try {
-    // Überlastung: navigate(path, user) nach Login vs navigate(path, false) beim Init
+    // Overloading: navigate(path, user) after login vs navigate(path, false) on init
     if (typeof userOrPushState === 'object' && userOrPushState !== null) {
       currentUser = userOrPushState;
       applyUserPreferences(currentUser);
@@ -173,7 +173,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
       pushState = userOrPushState;
     }
 
-    // Alten Pfad merken, bevor currentPath aktualisiert wird - für Richtungsberechnung
+    // Remember old path before currentPath is updated - for direction calculation
     const previousPath = currentPath;
     currentPath = path;
 
@@ -186,7 +186,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
         currentUser = result.user;
         applyUserPreferences(currentUser);
       } catch {
-        currentPath = null; // Reset damit navigate('/login') nicht geblockt wird
+        currentPath = null; // Reset so that navigate('/login') is not blocked
         isNavigating = false;
         navigate('/login');
         return;
@@ -216,15 +216,15 @@ async function navigate(path, userOrPushState = true, pushState = true) {
 }
 
 /**
- * Lädt und rendert eine Seite dynamisch.
+ * Dynamically loads and renders a page.
  * @param {{ path: string, page: string }} route
- * @param {string|null} previousPath - Pfad vor der Navigation (für Richtungsberechnung)
+ * @param {string|null} previousPath - Path before navigation (for direction calculation)
  */
 async function renderPage(route, previousPath = null) {
   const app = document.getElementById('app');
   const loading = document.getElementById('app-loading');
 
-  // Loading verstecken
+  // Hide loading indicator
   if (loading) loading.hidden = true;
 
   try {
@@ -235,31 +235,31 @@ async function renderPage(route, previousPath = null) {
     ]);
 
     if (typeof module.render !== 'function') {
-      throw new Error(`Seite ${route.page} exportiert keine render()-Funktion.`);
+      throw new Error(`Page ${route.page} does not export a render() function.`);
     }
 
-    // App-Shell einmalig aufbauen BEVOR render() aufgerufen wird -
-    // main-content muss im DOM existieren damit document.getElementById()
-    // in Seiten-Modulen funktioniert.
+    // Build the app shell once BEFORE render() is called -
+    // main-content must exist in the DOM so that document.getElementById()
+    // works in page modules.
     if (!document.querySelector('.nav-bottom') && currentUser) {
       renderAppShell(app);
     }
 
     const content = document.getElementById('main-content') || app;
 
-    // Richtung bestimmen (previousPath ist der alte Pfad vor der Navigation)
+    // Determine direction (previousPath is the old path before navigation)
     const direction = getDirection(previousPath, route.path);
     const outClass  = direction === 'right' ? 'page-transition--out-left' : 'page-transition--out-right';
     const inClass   = direction === 'right' ? 'page-transition--in-right' : 'page-transition--in-left';
 
-    // Alte Seite kurz ausfaden, falls vorhanden
+    // Briefly fade out old page, if present
     const oldPage = content.querySelector('.page-transition');
     if (oldPage) {
       oldPage.classList.add(outClass);
       await new Promise(r => setTimeout(r, 120));
     }
 
-    // Alter Inhalt ist jetzt weg - altes Stylesheet kann entfernt werden
+    // Old content is now gone - old stylesheet can be removed
     const pageWrapper = document.createElement('div');
     pageWrapper.className = 'page-transition';
     pageWrapper.style.opacity = '0';
@@ -268,18 +268,24 @@ async function renderPage(route, previousPath = null) {
 
     await module.render(pageWrapper, { user: currentUser });
 
-    // Erst nach render() + CSS sichtbar machen und Animation starten
+    // Make visible and start animation only after render() + CSS
     pageWrapper.style.opacity = '';
     pageWrapper.classList.add(inClass);
+    // Remove animation class after it finishes so that the lingering
+    // transform: translateX(0) from `forwards` fill-mode does not create a
+    // new containing block, which would break position:fixed children (FABs).
+    pageWrapper.addEventListener('animationend', () => {
+      pageWrapper.classList.remove(inClass);
+    }, { once: true });
 
   } catch (err) {
-    console.error('[Router] Seiten-Render-Fehler:', err);
+    console.error('[Router] Page render error:', err);
     renderError(app, err);
   }
 }
 
 /**
- * App-Shell mit Navigation einmalig aufbauen (nach erstem Login).
+ * Build the app shell with navigation once (after first login).
  */
 function renderAppShell(container) {
   container.innerHTML = `
@@ -312,7 +318,7 @@ function renderAppShell(container) {
     <div class="toast-container" id="toast-container" aria-live="assertive"></div>
   `;
 
-  // Klick-Handler für alle Nav-Links
+  // Click handler for all nav links
   container.querySelectorAll('[data-route]').forEach((el) => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
@@ -320,19 +326,19 @@ function renderAppShell(container) {
     });
   });
 
-  // Bottom-Nav: Scroll-Snap + Dot-Indikator
+  // Bottom nav: scroll-snap + dot indicator
   initBottomNavSwipe(container);
 }
 
 /**
- * Initialisiert Swipe-Gesten und Dot-Indikator für die mobile Bottom-Navigation.
+ * Initialises swipe gestures and dot indicator for the mobile bottom navigation.
  */
 function initBottomNavSwipe(container) {
   const scroll = container.querySelector('.nav-bottom__scroll');
   const dots   = container.querySelectorAll('.nav-bottom__dot');
   if (!scroll || !dots.length) return;
 
-  // Scroll-Event: Dot-Indikator aktualisieren
+  // Scroll event: update dot indicator
   scroll.addEventListener('scroll', () => {
     const page = Math.round(scroll.scrollLeft / scroll.offsetWidth);
     dots.forEach((d, i) => d.classList.toggle('nav-bottom__dot--active', i === page));
@@ -340,7 +346,7 @@ function initBottomNavSwipe(container) {
 }
 
 /**
- * Scrollt die Bottom-Nav zur richtigen Seite, wenn ein Item auf Seite 2 aktiv ist.
+ * Scrolls the bottom nav to the correct page when an item on page 2 is active.
  */
 function scrollNavToActive() {
   const scroll = document.querySelector('.nav-bottom__scroll');
@@ -374,7 +380,7 @@ function navItemHtml({ path, label, icon }) {
 }
 
 /**
- * Aktiven Nav-Link hervorheben.
+ * Highlight the active nav link.
  */
 function updateNav(path) {
   document.querySelectorAll('[data-route]').forEach((el) => {
@@ -384,15 +390,15 @@ function updateNav(path) {
     }
   });
 
-  // Lucide Icons neu rendern (nach DOM-Update)
+  // Re-render Lucide icons (after DOM update)
   if (window.lucide) {
     window.lucide.createIcons();
   }
 
-  // Bottom-Nav zur aktiven Seite scrollen
+  // Scroll bottom nav to the active page
   scrollNavToActive();
 
-  // Modul-Akzentfarbe wird in navigate() gesetzt, wo route bereits aufgelöst ist.
+  // Module accent colour is set in navigate() where route is already resolved.
 }
 
 function renderError(container, err) {
@@ -407,11 +413,11 @@ function renderError(container, err) {
 }
 
 // --------------------------------------------------------
-// Toast-Benachrichtigungen (global)
+// Toast notifications (global)
 // --------------------------------------------------------
 
 /**
- * Zeigt eine Toast-Benachrichtigung an.
+ * Shows a toast notification.
  * @param {string} message
  * @param {'default'|'success'|'danger'|'warning'} type
  * @param {number} duration - ms
@@ -430,7 +436,7 @@ function showToast(message, type = 'default', duration = 3000) {
   toast.className = `toast ${type !== 'default' ? `toast--${type}` : ''}`;
   toast.setAttribute('role', 'alert');
 
-  // Icon: statische SVGs aus TOAST_ICONS (kein User-Input, kein XSS-Risiko)
+  // Icon: static SVGs from TOAST_ICONS (no user input, no XSS risk)
   const icon = TOAST_ICONS[type] || '';
   const span = document.createElement('span');
   span.textContent = message;
@@ -445,46 +451,46 @@ function showToast(message, type = 'default', duration = 3000) {
 }
 
 // --------------------------------------------------------
-// Event-Listener
+// Event listeners
 // --------------------------------------------------------
 
 // --------------------------------------------------------
-// Globale Fehler-Handler (Error Boundary)
+// Global error handlers (Error Boundary)
 // --------------------------------------------------------
 
 window.addEventListener('error', (e) => {
-  // Ressource-Ladefehler (z.B. fehlgeschlagenes Bild): ignorieren
+  // Resource load errors (e.g. failed image): ignore
   if (e.target && e.target !== window) return;
-  console.error('[Planner] Unbehandelter Fehler:', e.error ?? e.message);
+  console.error('[Planner] Unhandled error:', e.error ?? e.message);
   showToast(t('common.unexpectedError'), 'danger');
 });
 
 window.addEventListener('unhandledrejection', (e) => {
-  // Auth-Fehler werden bereits von auth:expired behandelt
+  // Auth errors are already handled by auth:expired
   if (e.reason?.status === 401) return;
-  console.error('[Planner] Unbehandeltes Promise-Rejection:', e.reason);
+  console.error('[Planner] Unhandled Promise rejection:', e.reason);
   const msg = e.reason?.message || t('common.errorGeneric');
   showToast(msg, 'danger');
-  e.preventDefault(); // Konsolenfehler unterdrücken (bereits geloggt)
+  e.preventDefault(); // Suppress console error (already logged)
 });
 
-// SW-Update: neue Version im Hintergrund installiert → Toast anzeigen
+// SW update: new version installed in background → show toast
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', (e) => {
     if (e.data?.type === 'SW_UPDATED') {
-      // Modul-Cache leeren damit nächste Navigation frische Module lädt
+      // Clear module cache so next navigation loads fresh modules
       moduleCache.clear();
       showToast(t('common.updateAvailable'), 'default', 8000);
     }
   });
 }
 
-// Browser zurück/vor
+// Browser back/forward
 window.addEventListener('popstate', (e) => {
   navigate(e.state?.path || location.pathname, false);
 });
 
-// Session abgelaufen
+// Session expired
 window.addEventListener('auth:expired', () => {
   currentUser = null;
   navigate('/login');
@@ -492,9 +498,9 @@ window.addEventListener('auth:expired', () => {
 
 
 // --------------------------------------------------------
-// Virtuelle Tastatur: FAB ausblenden wenn Keyboard offen
-// Erkennung via visualViewport - Höhe < 75% des Fensters = Keyboard aktiv.
-// Nur auf Mobilgeräten relevant (< 1024px), Desktop hat keine virtuelle Tastatur.
+// Virtual keyboard: hide FAB when keyboard is open
+// Detection via visualViewport - height < 75% of window = keyboard active.
+// Only relevant on mobile devices (< 1024px), desktop has no virtual keyboard.
 // --------------------------------------------------------
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', () => {
@@ -504,14 +510,14 @@ if (window.visualViewport) {
 }
 
 // --------------------------------------------------------
-// Initialisierung
+// Initialisation
 // --------------------------------------------------------
 (async () => {
   await initI18n();
   navigate(location.pathname, false);
 })();
 
-// Globale Exporte
+// Global exports
 window.planner = {
   navigate,
   showToast,

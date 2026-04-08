@@ -1,23 +1,23 @@
 /**
- * Modul: Service Worker
- * Zweck: Offline-Fähigkeit, differenzierte Caching-Strategien, Update-Notification
- * Abhängigkeiten: keine
+ * Module: Service Worker
+ * Purpose: Offline capability, differentiated caching strategies, update notification
+ * Dependencies: none
  *
- * Caching-Strategien:
- *   APP_SHELL (HTML + kritische JS/CSS): Stale-While-Revalidate
- *     → Sofortiger Render aus Cache, Update im Hintergrund
- *   PAGE_MODULES (Seiten-JS): Stale-While-Revalidate
- *     → Navigation bleibt schnell, neue Module werden im Hintergrund geladen
- *   ASSETS (Bilder, Icons): Cache-First, 30-Tage-TTL
- *   API: Immer Netzwerk (kein Caching von Nutzerdaten)
+ * Caching strategies:
+ *   APP_SHELL (HTML + critical JS/CSS): Stale-While-Revalidate
+ *     → Instant render from cache, update in background
+ *   PAGE_MODULES (page JS): Stale-While-Revalidate
+ *     → Navigation stays fast, new modules are loaded in background
+ *   ASSETS (images, icons): Cache-First, 30-day TTL
+ *   API: Always network (no caching of user data)
  */
 
-const SHELL_CACHE   = 'planner-shell-v75';
-const PAGES_CACHE   = 'planner-pages-v75';
-const ASSETS_CACHE  = 'planner-assets-v75';
+const SHELL_CACHE   = 'planner-shell-v77';
+const PAGES_CACHE   = 'planner-pages-v77';
+const ASSETS_CACHE  = 'planner-assets-v77';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
-// App-Shell: sofort benötigt für ersten Render
+// App shell: needed immediately for first render
 const APP_SHELL = [
   '/',
   '/index.html',
@@ -54,7 +54,7 @@ const APP_SHELL = [
   '/icons/icon-maskable-512.png',
 ];
 
-// Seiten-Module: lazy geladen, aber vorab gecacht für Offline
+// Page modules: lazily loaded, but pre-cached for offline use
 const PAGE_MODULES = [
   '/pages/dashboard.js',
   '/pages/tasks.js',
@@ -69,7 +69,7 @@ const PAGE_MODULES = [
 ];
 
 // --------------------------------------------------------
-// Install: App-Shell + Seiten-Module vorab cachen
+// Install: pre-cache app shell + page modules
 // --------------------------------------------------------
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -78,12 +78,12 @@ self.addEventListener('install', (event) => {
       caches.open(PAGES_CACHE).then((c)  => c.addAll(PAGE_MODULES)),
     ])
   );
-  // Sofort aktivieren ohne auf bestehende Clients zu warten
+  // Activate immediately without waiting for existing clients
   self.skipWaiting();
 });
 
 // --------------------------------------------------------
-// Activate: Alte Cache-Versionen löschen + Clients informieren
+// Activate: delete old cache versions + notify clients
 // --------------------------------------------------------
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -95,7 +95,7 @@ self.addEventListener('activate', (event) => {
       )
     ).then(() => {
       self.clients.claim();
-      // Alle offenen Tabs über das Update informieren
+      // Notify all open tabs about the update
       self.clients.matchAll({ type: 'window' }).then((clients) => {
         clients.forEach((client) => client.postMessage({ type: 'SW_UPDATED' }));
       });
@@ -104,45 +104,45 @@ self.addEventListener('activate', (event) => {
 });
 
 // --------------------------------------------------------
-// Fetch: Strategie je nach Request-Typ
+// Fetch: strategy based on request type
 // --------------------------------------------------------
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // API: immer Netzwerk - niemals Nutzerdaten cachen
+  // API: always network - never cache user data
   if (url.pathname.startsWith('/api/')) return;
 
-  // Nur GET cachen
+  // Only cache GET requests
   if (request.method !== 'GET') return;
 
-  // Navigation Requests: Network-first, Fallback auf gecachte Shell
+  // Navigation requests: Network-first, fallback to cached shell
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request, SHELL_CACHE));
     return;
   }
 
-  // Bilder + Fonts: Cache-First, langer TTL - nur Same-Origin
-  // Cross-Origin-Assets (z.B. Wetter-Icons von openweathermap.org) nicht
-  // abfangen: opaque Responses führen im PWA-Modus zu Darstellungsfehlern.
+  // Images + fonts: Cache-First, long TTL - same-origin only
+  // Do not intercept cross-origin assets (e.g. weather icons from openweathermap.org):
+  // opaque responses cause rendering errors in PWA mode.
   if (isAsset(url.pathname) && url.origin === self.location.origin) {
     event.respondWith(cacheFirst(request, ASSETS_CACHE));
     return;
   }
 
-  // Seiten-Module (/pages/*.js): Stale-While-Revalidate
+  // Page modules (/pages/*.js): Stale-While-Revalidate
   if (url.pathname.startsWith('/pages/')) {
     event.respondWith(staleWhileRevalidate(request, PAGES_CACHE));
     return;
   }
 
-  // App-Shell (JS, CSS): Stale-While-Revalidate
+  // App shell (JS, CSS): Stale-While-Revalidate
   event.respondWith(staleWhileRevalidate(request, SHELL_CACHE));
 });
 
 // --------------------------------------------------------
-// Strategie: Network-First (für Navigation Requests)
-// Versucht Netzwerk, fällt auf gecachte Shell zurück (Offline).
+// Strategy: Network-First (for navigation requests)
+// Tries network, falls back to cached shell (offline).
 // --------------------------------------------------------
 async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
@@ -154,15 +154,15 @@ async function networkFirst(request, cacheName) {
     }
     return response;
   } catch {
-    // Offline: gecachte Shell liefern
+    // Offline: serve cached shell
     const cached = await cache.match(request);
     if (cached) return cached;
 
-    // Fallback auf index.html (SPA-Routing)
+    // Fallback to index.html (SPA routing)
     const shell = await cache.match('/index.html');
     if (shell) return shell;
 
-    // Letzter Ausweg: Offline-Seite
+    // Last resort: offline page
     const offline = await caches.match('/offline.html');
     if (offline) return offline;
 
@@ -174,16 +174,16 @@ async function networkFirst(request, cacheName) {
 }
 
 // --------------------------------------------------------
-// Strategie: Stale-While-Revalidate
-// Liefert sofort aus Cache, aktualisiert im Hintergrund.
-// Fallback auf Netzwerk wenn nicht gecacht; Fallback auf
-// index.html für Navigations-Requests (Offline-SPA).
+// Strategy: Stale-While-Revalidate
+// Serves immediately from cache, updates in background.
+// Falls back to network when not cached; falls back to
+// index.html for navigation requests (offline SPA).
 // --------------------------------------------------------
 async function staleWhileRevalidate(request, cacheName) {
   const cache    = await caches.open(cacheName);
   const cached   = await cache.match(request);
 
-  // Netzwerk-Request im Hintergrund starten
+  // Start network request in the background
   const networkPromise = fetch(request).then((response) => {
     if (response.ok && response.type === 'basic') {
       cache.put(request, response.clone());
@@ -192,16 +192,16 @@ async function staleWhileRevalidate(request, cacheName) {
   }).catch(() => null);
 
   if (cached) {
-    // Hintergrund-Update läuft, Cache-Version sofort zurückgeben
+    // Background update running, return cached version immediately
     networkPromise; // fire-and-forget
     return cached;
   }
 
-  // Nicht im Cache → auf Netzwerk warten
+  // Not in cache → wait for network
   const networkResponse = await networkPromise;
   if (networkResponse) return networkResponse;
 
-  // Offline-Fallback für Navigation
+  // Offline fallback for navigation
   if (request.mode === 'navigate') {
     const shell = await caches.match('/index.html');
     if (shell) return shell;
@@ -209,12 +209,12 @@ async function staleWhileRevalidate(request, cacheName) {
     if (offline) return offline;
   }
 
-  // Letzter Ausweg: leere 503-Antwort statt Promise-Rejection
+  // Last resort: empty 503 response instead of Promise rejection
   return new Response('Service unavailable', { status: 503 });
 }
 
 // --------------------------------------------------------
-// Strategie: Cache-First mit TTL (für Bilder/Fonts)
+// Strategy: Cache-First with TTL (for images/fonts)
 // --------------------------------------------------------
 async function cacheFirst(request, cacheName) {
   const cache  = await caches.open(cacheName);
@@ -231,7 +231,7 @@ async function cacheFirst(request, cacheName) {
 }
 
 // --------------------------------------------------------
-// Hilfsfunktionen
+// Helper functions
 // --------------------------------------------------------
 function isAsset(pathname) {
   return /\.(png|jpg|jpeg|ico|svg|webp|woff2?|gif)$/i.test(pathname);

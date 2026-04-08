@@ -1,12 +1,12 @@
 /**
- * Modul: API-Client
- * Zweck: Fetch-Wrapper mit Session-Auth, einheitlicher Fehlerbehandlung und JSON-Parsing
- * Abhängigkeiten: keine
+ * Module: API-Client
+ * Purpose: Fetch wrapper with session auth, uniform error handling and JSON parsing
+ * Dependencies: none
  */
 
 const API_BASE = '/api/v1';
 
-/** Liest den CSRF-Token aus dem Cookie (gesetzt vom Server nach Login). */
+/** Reads the CSRF token from the cookie (set by the server after login). */
 function getCsrfToken() {
   return document.cookie.split(';')
     .map((c) => c.trim())
@@ -15,12 +15,12 @@ function getCsrfToken() {
 }
 
 /**
- * Zentraler Fetch-Wrapper.
- * Setzt Content-Type, handhabt 401-Redirects und parsed JSON-Fehler.
+ * Central fetch wrapper.
+ * Sets Content-Type, handles 401 redirects and parses JSON errors.
  *
- * @param {string} path - API-Pfad ohne /api/v1 (z.B. '/tasks')
- * @param {RequestInit} options - Fetch-Optionen
- * @returns {Promise<any>} Geparstes JSON oder wirft einen Fehler
+ * @param {string} path - API path without /api/v1 (e.g. '/tasks')
+ * @param {RequestInit} options - Fetch options
+ * @returns {Promise<any>} Parsed JSON or throws an error
  */
 async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path}`;
@@ -40,7 +40,7 @@ async function apiFetch(path, options = {}) {
   });
 
   if (response.status === 401) {
-    // Session abgelaufen → zur Login-Seite
+    // Session expired → redirect to login page
     window.dispatchEvent(new CustomEvent('auth:expired'));
     throw new Error('Sitzung abgelaufen.');
   }
@@ -56,7 +56,7 @@ async function apiFetch(path, options = {}) {
 }
 
 /**
- * Strukturierter API-Fehler mit HTTP-Status-Code.
+ * Structured API error with HTTP status code.
  */
 class ApiError extends Error {
   constructor(message, status, data = null) {
@@ -68,7 +68,7 @@ class ApiError extends Error {
 }
 
 // --------------------------------------------------------
-// Convenience-Methoden
+// Convenience methods
 // --------------------------------------------------------
 
 const api = {
@@ -93,7 +93,7 @@ const api = {
 };
 
 // --------------------------------------------------------
-// Auth-spezifische Methoden
+// Auth-specific methods
 // --------------------------------------------------------
 
 const auth = {
