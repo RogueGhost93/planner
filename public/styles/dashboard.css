@@ -615,36 +615,45 @@
  * Notizen-Grid-Widget (Board Widget)
  * -------------------------------------------------------- */
 
+/* Collapsed: show a preview (approx 2 rows of notes) */
 .notes-grid-widget {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  /* No max-height — expands dynamically with content */
+  max-height: 260px;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
 }
 
-.notes-grid-widget--collapsed {
-  display: none;
+/* Expanded: show everything */
+.notes-grid-widget--expanded {
+  max-height: none;
+  overflow: visible;
 }
 
 .board-widget__toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-full);
   border: 1.5px solid var(--color-border);
   background: none;
   color: var(--color-text-secondary);
   cursor: pointer;
-  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform 0.3s ease;
   flex-shrink: 0;
 }
 
 .board-widget__toggle:hover {
   background-color: var(--color-surface-2);
   border-color: var(--color-text-secondary);
+}
+
+.board-widget__toggle[aria-expanded="true"] {
+  transform: rotate(180deg);
 }
 
 @media (min-width: 640px) {
