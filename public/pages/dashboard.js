@@ -112,9 +112,6 @@ function initials(name = '') {
 
 function widgetHeader(icon, title, count, linkHref, linkLabel, addRoute, addFlag) {
   linkLabel = linkLabel ?? t('dashboard.allLink');
-  const badge = count != null
-    ? `<span class="widget__badge">${count}</span>`
-    : '';
   const addBtn = addRoute
     ? `<button class="widget__add-btn" data-route="${addRoute}"${addFlag ? ` data-create-flag="${addFlag}"` : ''}
                aria-label="${t('common.add')}">
@@ -126,7 +123,6 @@ function widgetHeader(icon, title, count, linkHref, linkLabel, addRoute, addFlag
       <span class="widget__title">
         <i data-lucide="${icon}" class="widget__title-icon" aria-hidden="true"></i>
         ${title}
-        ${badge}
       </span>
       <div class="widget__header-actions">
         ${addBtn}
@@ -206,8 +202,10 @@ function renderUrgentTasks(tasks) {
     const due = formatDueDate(t.due_date);
     return `
       <div class="task-item" data-route="/tasks" data-task-id="${t.id}" role="button" tabindex="0">
-        <div class="task-item__priority task-item__priority--${t.priority}" aria-hidden="true"></div>
-        <span class="sr-only">${PRIORITY_LABELS()[t.priority] ?? t.priority}</span>
+        <button class="task-widget-check" data-action="check-task" data-id="${t.id}"
+                aria-label="Mark as done" title="Mark as done">
+          <i data-lucide="circle" style="width:16px;height:16px" aria-hidden="true"></i>
+        </button>
         <div class="task-item__content">
           <div class="task-item__title">${esc(t.title)}</div>
           ${due ? `<div class="task-item__meta ${due.overdue ? 'task-item__meta--overdue' : ''}">${due.text}</div>` : ''}
@@ -219,9 +217,9 @@ function renderUrgentTasks(tasks) {
     `;
   }).join('');
 
-  return `<div class="widget">
+  return `<div class="widget" id="tasks-widget">
     ${widgetHeader('check-square', t('nav.tasks'), tasks.length, '/tasks', undefined, '/tasks', 'tasks-create-new')}
-    <div class="widget__body">${items}</div>
+    <div class="widget__body" id="tasks-widget-body">${items}</div>
   </div>`;
 }
 
@@ -572,6 +570,29 @@ function wireLinks(container) {
   });
 }
 
+function wireTasksWidget(container) {
+  const body = container.querySelector('#tasks-widget-body');
+  if (!body) return;
+
+  body.addEventListener('click', async (e) => {
+    const checkBtn = e.target.closest('[data-action="check-task"]');
+    if (!checkBtn) return;
+    e.stopPropagation();
+
+    const id = Number(checkBtn.dataset.id);
+    const itemEl = checkBtn.closest('.task-item');
+
+    itemEl.classList.add('task-widget-item--checking');
+    setTimeout(() => itemEl.remove(), 300);
+
+    try {
+      await api.patch(`/tasks/${id}`, { status: 'done' });
+    } catch {
+      window.planner?.showToast('Could not update task', 'danger');
+    }
+  });
+}
+
 function wireGreetingLink(container) {
   const el = container.querySelector('.widget-greeting[data-quick-link]');
   if (!el) return;
@@ -646,6 +667,7 @@ export async function render(container, { user }) {
   wireLinks(container);
   wireGreetingLink(container);
   initFab(container, _fabController.signal);
+  wireTasksWidget(container);
   wireShoppingWidget(container, data);
   wireQuickNotes(container);
   if (window.lucide) window.lucide.createIcons();
