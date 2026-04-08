@@ -1,19 +1,19 @@
 /**
- * Modul: Service Worker Registrierung
- * Zweck: Ausgelagert aus index.html um CSP-Inline-Script-Verletzung zu vermeiden.
- *        Handhabt nahtlose Updates via controllerchange.
- * Abhängigkeiten: keine
+ * Module: Service Worker Registration
+ * Purpose: Extracted from index.html to avoid CSP inline-script violations.
+ *          Handles seamless updates via controllerchange.
+ * Dependencies: none
  */
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch((err) => {
-      console.warn('[SW] Registrierung fehlgeschlagen:', err);
+      console.warn('[SW] Registration failed:', err);
     });
   });
 
-  // Nahtloses Update: Neuer SW hat skipWaiting() + clients.claim() aufgerufen
-  // → Controller wechselt → Seite neu laden für konsistenten Stand
+  // Seamless update: new SW has called skipWaiting() + clients.claim()
+  // → controller changes → reload page for a consistent state
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (refreshing) return;
