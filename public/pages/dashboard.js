@@ -280,7 +280,7 @@ function renderTodayMeals(meals) {
   </div>`;
 }
 
-const BOARD_PREVIEW_COUNT = 4;
+const BOARD_PREVIEW = 4;
 
 function renderPinnedNotes(notes) {
   if (!notes.length) {
@@ -293,27 +293,18 @@ function renderPinnedNotes(notes) {
     </div>`;
   }
 
-  const isExpanded = localStorage.getItem('board-widget-expanded') === 'true';
-  const canExpand  = notes.length > BOARD_PREVIEW_COUNT;
+  const saved     = localStorage.getItem('board-widget-expanded') === 'true';
+  const canToggle = notes.length > BOARD_PREVIEW;
+  const expanded  = !canToggle || saved;
 
-  const items = notes.map((n) => `
-    <div class="note-item" data-route="/notes" role="button" tabindex="0"
-         style="--note-color:${esc(n.color)};">
+  const noteCard = (n, i) => {
+    const hide = !expanded && i >= BOARD_PREVIEW ? ' hidden' : '';
+    return `<div class="note-item board-note" data-route="/notes" role="button" tabindex="0"
+                 style="--note-color:${esc(n.color)};"${hide}>
       ${n.title ? `<div class="note-item__title">${esc(n.title)}</div>` : ''}
       <div class="note-item__content">${renderMarkdownLight(n.content)}</div>
-    </div>
-  `).join('');
-
-  // Always start with chevron-down; CSS rotation handles the visual flip
-  const toggleBtn = canExpand
-    ? `<button class="board-widget__toggle" data-action="toggle-board"
-               aria-expanded="${isExpanded}" title="${isExpanded ? 'Collapse' : 'Expand'}">
-         <i data-lucide="chevron-down"
-            style="width:16px;height:16px;pointer-events:none" aria-hidden="true"></i>
-       </button>`
-    : '';
-
-  const expandedClass = (isExpanded || !canExpand) ? 'notes-grid-widget--expanded' : '';
+    </div>`;
+  };
 
   return `<div class="widget widget--wide" id="board-widget">
     <div class="widget__header">
@@ -323,7 +314,11 @@ function renderPinnedNotes(notes) {
         <span class="widget__badge">${notes.length}</span>
       </span>
       <div class="widget__header-actions">
-        ${toggleBtn}
+        ${canToggle ? `<button type="button" class="board-toggle-btn" id="board-toggle-btn"
+                    aria-expanded="${expanded}"
+                    title="${expanded ? 'Collapse' : 'Expand'}">
+          ${expanded ? '▲' : '▼'}
+        </button>` : ''}
         <button class="widget__add-btn" data-route="/notes" data-create-flag="notes-create-new"
                 aria-label="${t('common.add')}">
           <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
@@ -331,29 +326,37 @@ function renderPinnedNotes(notes) {
         <button class="widget__link" data-route="/notes">${t('dashboard.allLink')}</button>
       </div>
     </div>
-    <div class="notes-grid-widget ${expandedClass}" id="board-widget-body">${items}</div>
+    <div class="notes-grid-widget" id="board-widget-body">
+      ${notes.map((n, i) => noteCard(n, i)).join('')}
+    </div>
   </div>`;
 }
 
-function wireBoardWidget(container) {
-  // Event delegation — more robust than direct binding
-  container.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action="toggle-board"]');
-    if (!btn) return;
+function wireBoardWidget() {
+  const btn = document.getElementById('board-toggle-btn');
+  if (!btn) return;
+
+  btn.onclick = function (e) {
     e.stopPropagation();
     e.preventDefault();
 
-    const body = container.querySelector('#board-widget-body');
+    const body = document.getElementById('board-widget-body');
     if (!body) return;
 
-    const wasExpanded = body.classList.contains('notes-grid-widget--expanded');
-    const next = !wasExpanded;
+    const expanded = btn.getAttribute('aria-expanded') === 'true';
+    const next = !expanded;
 
-    body.classList.toggle('notes-grid-widget--expanded', next);
+    // Show/hide extra notes
+    const notes = body.querySelectorAll('.board-note');
+    notes.forEach((el, i) => {
+      if (i >= BOARD_PREVIEW) el.hidden = !next;
+    });
+
     btn.setAttribute('aria-expanded', String(next));
     btn.title = next ? 'Collapse' : 'Expand';
+    btn.textContent = next ? '▲' : '▼';
     localStorage.setItem('board-widget-expanded', String(next));
-  });
+  };
 }
 
 const SHOPPING_COLLAPSE_AT = 6;
@@ -698,8 +701,7 @@ export async function render(container, { user }) {
   wireShoppingWidget(container, data);
   wireQuickNotes(container);
   if (window.lucide) window.lucide.createIcons();
-  // Wire AFTER lucide so icons are rendered and DOM is stable
-  wireBoardWidget(container);
+  wireBoardWidget();
 
   // Wetter-Refresh: Button + 30-Minuten-Interval
   const refreshBtn = container.querySelector('#weather-refresh-btn');
