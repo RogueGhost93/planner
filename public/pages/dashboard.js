@@ -571,25 +571,19 @@ function wireLinks(container) {
 }
 
 function wireTasksWidget(container) {
-  const body = container.querySelector('#tasks-widget-body');
-  if (!body) return;
-
-  body.addEventListener('click', async (e) => {
-    const checkBtn = e.target.closest('[data-action="check-task"]');
-    if (!checkBtn) return;
-    e.stopPropagation();
-
-    const id = Number(checkBtn.dataset.id);
-    const itemEl = checkBtn.closest('.task-item');
-
-    itemEl.classList.add('task-widget-item--checking');
-    setTimeout(() => itemEl.remove(), 300);
-
-    try {
-      await api.patch(`/tasks/${id}`, { status: 'done' });
-    } catch {
-      window.planner?.showToast('Could not update task', 'danger');
-    }
+  container.querySelectorAll('[data-action="check-task"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const id = Number(btn.dataset.id);
+      const itemEl = btn.closest('.task-item');
+      itemEl.classList.add('task-widget-item--checking');
+      setTimeout(() => itemEl.remove(), 300);
+      try {
+        await api.patch(`/tasks/${id}/status`, { status: 'done' });
+      } catch {
+        window.planner?.showToast('Could not update task', 'danger');
+      }
+    });
   });
 }
 
