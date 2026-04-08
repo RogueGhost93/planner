@@ -282,6 +282,25 @@ function renderTodayMeals(meals) {
 
 const BOARD_PREVIEW = 4;
 
+// Global toggle function — called via inline onclick, immune to wiring failures
+window.__boardToggle = function () {
+  const body = document.getElementById('board-widget-body');
+  const btn  = document.getElementById('board-toggle-btn');
+  if (!body || !btn) return;
+
+  const expanded = btn.getAttribute('aria-expanded') === 'true';
+  const next = !expanded;
+
+  body.querySelectorAll('.board-note').forEach(function (el, i) {
+    if (i >= BOARD_PREVIEW) el.hidden = !next;
+  });
+
+  btn.setAttribute('aria-expanded', String(next));
+  btn.title = next ? 'Collapse' : 'Expand';
+  btn.textContent = next ? '\u25B2' : '\u25BC';
+  localStorage.setItem('board-widget-expanded', String(next));
+};
+
 function renderPinnedNotes(notes) {
   if (!notes.length) {
     return `<div class="widget">
@@ -315,9 +334,10 @@ function renderPinnedNotes(notes) {
       </span>
       <div class="widget__header-actions">
         ${canToggle ? `<button type="button" class="board-toggle-btn" id="board-toggle-btn"
+                    onclick="window.__boardToggle()"
                     aria-expanded="${expanded}"
                     title="${expanded ? 'Collapse' : 'Expand'}">
-          ${expanded ? '▲' : '▼'}
+          ${expanded ? '\u25B2' : '\u25BC'}
         </button>` : ''}
         <button class="widget__add-btn" data-route="/notes" data-create-flag="notes-create-new"
                 aria-label="${t('common.add')}">
@@ -330,33 +350,6 @@ function renderPinnedNotes(notes) {
       ${notes.map((n, i) => noteCard(n, i)).join('')}
     </div>
   </div>`;
-}
-
-function wireBoardWidget() {
-  const btn = document.getElementById('board-toggle-btn');
-  if (!btn) return;
-
-  btn.onclick = function (e) {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const body = document.getElementById('board-widget-body');
-    if (!body) return;
-
-    const expanded = btn.getAttribute('aria-expanded') === 'true';
-    const next = !expanded;
-
-    // Show/hide extra notes
-    const notes = body.querySelectorAll('.board-note');
-    notes.forEach((el, i) => {
-      if (i >= BOARD_PREVIEW) el.hidden = !next;
-    });
-
-    btn.setAttribute('aria-expanded', String(next));
-    btn.title = next ? 'Collapse' : 'Expand';
-    btn.textContent = next ? '▲' : '▼';
-    localStorage.setItem('board-widget-expanded', String(next));
-  };
 }
 
 const SHOPPING_COLLAPSE_AT = 6;
@@ -701,7 +694,6 @@ export async function render(container, { user }) {
   wireShoppingWidget(container, data);
   wireQuickNotes(container);
   if (window.lucide) window.lucide.createIcons();
-  wireBoardWidget();
 
   // Wetter-Refresh: Button + 30-Minuten-Interval
   const refreshBtn = container.querySelector('#weather-refresh-btn');
