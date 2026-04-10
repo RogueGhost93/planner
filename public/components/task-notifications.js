@@ -187,14 +187,17 @@ async function checkNotifications(prefs) {
     data = await api.get('/tasks/due-notifications');
   } catch { return; }
 
-  const today = todayStr();
-
-  // Popup: show once per day
+  // Popup: show when there are tasks not yet seen
   if (prefs.notify_popup) {
-    const lastPopup = localStorage.getItem(LS_LAST_POPUP);
-    if (lastPopup !== today) {
+    const allIds = [...data.today, ...data.tomorrow].map(t => t.id).sort((a, b) => a - b);
+    const seenRaw = localStorage.getItem(LS_LAST_POPUP);
+    let seenIds = [];
+    try { seenIds = seenRaw ? JSON.parse(seenRaw) : []; } catch { seenIds = []; }
+    const hasNew = allIds.some(id => !seenIds.includes(id));
+
+    if (hasNew && allIds.length > 0) {
       showPopup(data.today, data.tomorrow);
-      localStorage.setItem(LS_LAST_POPUP, today);
+      localStorage.setItem(LS_LAST_POPUP, JSON.stringify(allIds));
 
       // Play sound with popup if enabled
       if (prefs.notify_sound && data.today.length > 0) {
