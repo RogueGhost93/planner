@@ -95,9 +95,10 @@ router.get('/', (req, res) => {
     sql += `
       ORDER BY
         CASE t.status WHEN 'done' THEN 1 ELSE 0 END,
+        CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
+        t.due_date ASC,
         CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1
                         WHEN 'medium' THEN 2 ELSE 3 END,
-        t.due_date ASC NULLS LAST,
         t.created_at DESC
     `;
 
