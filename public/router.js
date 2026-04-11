@@ -303,7 +303,7 @@ function renderAppShell(container) {
   container.innerHTML = `
     <a href="#main-content" class="sr-only">${t('common.skipToContent')}</a>
     <nav class="nav-sidebar" aria-label="${t('nav.main')}">
-      <div class="nav-sidebar__logo"><img src="/icons/icon-192.png" alt="" class="nav-sidebar__logo-img" aria-hidden="true"><span>Planner</span></div>
+      <div class="nav-sidebar__logo"><img src="/icons/logo-p.svg" alt="" class="nav-sidebar__logo-img" aria-hidden="true"><span>Planner</span></div>
       <div class="nav-sidebar__items" role="list">
         ${navItems().map(navItemHtml).join('')}
       </div>
