@@ -7,6 +7,7 @@
 import { api, auth } from '/api.js';
 import { t, formatDate, formatTime } from '/i18n.js';
 import { esc } from '/utils/html.js';
+import { showConfirm } from '/components/modal.js';
 
 /**
  * @param {HTMLElement} container
@@ -419,7 +420,7 @@ function bindEvents(container, user) {
   const googleDisconnectBtn = container.querySelector('#google-disconnect-btn');
   if (googleDisconnectBtn) {
     googleDisconnectBtn.addEventListener('click', async () => {
-      if (!confirm(t('settings.googleDisconnectConfirm'))) return;
+      if (!await showConfirm(t('settings.googleDisconnectConfirm'), { danger: true })) return;
       try {
         await api.delete('/calendar/google/disconnect');
         window.planner?.showToast(t('settings.disconnectedToast', { provider: 'Google Calendar' }), 'default');
@@ -452,7 +453,7 @@ function bindEvents(container, user) {
   const appleDisconnectBtn = container.querySelector('#apple-disconnect-btn');
   if (appleDisconnectBtn) {
     appleDisconnectBtn.addEventListener('click', async () => {
-      if (!confirm(t('settings.appleDisconnectConfirm'))) return;
+      if (!await showConfirm(t('settings.appleDisconnectConfirm'), { danger: true })) return;
       try {
         await api.delete('/calendar/apple/disconnect');
         window.planner?.showToast(t('settings.disconnectedToast', { provider: 'Apple Calendar' }), 'default');
@@ -567,7 +568,7 @@ function bindDeleteButtons(container, user) {
     btn.addEventListener('click', async () => {
       const id   = parseInt(btn.dataset.deleteUser, 10);
       const name = btn.dataset.name;
-      if (!confirm(t('settings.deleteMemberConfirm', { name }))) return;
+      if (!await showConfirm(t('settings.deleteMemberConfirm', { name }), { danger: true })) return;
       try {
         await auth.deleteUser(id);
         btn.closest('.settings-member').remove();

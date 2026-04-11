@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js';
-import { openModal as openSharedModal, closeModal, wireBlurValidation, btnSuccess, btnError } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, wireBlurValidation, btnSuccess, btnError, showConfirm, showPrompt } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t, formatDate } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -518,7 +518,7 @@ async function handleFormSubmit(e, container) {
 }
 
 async function handleDeleteTask(id, container) {
-  if (!confirm(t('tasks.deleteConfirm'))) return;
+  if (!await showConfirm(t('tasks.deleteConfirm'), { danger: true })) return;
   try {
     await api.delete(`/tasks/${id}`);
     closeModal();
@@ -530,7 +530,7 @@ async function handleDeleteTask(id, container) {
 }
 
 async function handleAddSubtask(parentId, container) {
-  const title = prompt(t('tasks.subtaskPrompt'));
+  const title = await showPrompt(t('tasks.subtaskPrompt'));
   if (!title?.trim()) return;
   try {
     await api.post('/tasks', { title: title.trim(), parent_task_id: parentId });
@@ -1021,7 +1021,7 @@ function wireSelectMode(container) {
   container.querySelector('#btn-bulk-delete')?.addEventListener('click', async () => {
     const count = state.selectedIds.size;
     if (!count) return;
-    if (!confirm(t('tasks.bulkDeleteConfirm', { count }))) return;
+    if (!await showConfirm(t('tasks.bulkDeleteConfirm', { count }), { danger: true })) return;
     const ids = [...state.selectedIds];
     try {
       await Promise.all(ids.map((id) => api.delete(`/tasks/${id}`)));

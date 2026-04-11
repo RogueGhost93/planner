@@ -8,6 +8,7 @@ import { api } from '/api.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
+import { showConfirm, showPrompt } from '/components/modal.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -675,7 +676,7 @@ function wireTabBar(container) {
     }
 
     if (target.dataset.action === 'new-list') {
-      const name = prompt(t('shopping.newListPrompt'));
+      const name = await showPrompt(t('shopping.newListPrompt'));
       if (!name?.trim()) return;
       try {
         const data = await api.post('/shopping', { name: name.trim() });
@@ -756,7 +757,7 @@ function wireListContentEvents(container) {
 
     // ---- Liste umbenennen ----
     if (action === 'rename-list') {
-      const newName = prompt(t('shopping.renameListPrompt'), state.activeList?.name);
+      const newName = await showPrompt(t('shopping.renameListPrompt'), state.activeList?.name);
       if (!newName?.trim() || newName.trim() === state.activeList?.name) return;
       try {
         const data = await api.put(`/shopping/${state.activeListId}`, { name: newName.trim() });
@@ -772,7 +773,7 @@ function wireListContentEvents(container) {
 
     // ---- Liste löschen ----
     if (action === 'delete-list') {
-      if (!confirm(t('shopping.deleteListConfirm', { name: state.activeList?.name }))) return;
+      if (!await showConfirm(t('shopping.deleteListConfirm', { name: state.activeList?.name }), { danger: true })) return;
       try {
         await api.delete(`/shopping/${state.activeListId}`);
         state.lists = state.lists.filter((l) => l.id !== state.activeListId);

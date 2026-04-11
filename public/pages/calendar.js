@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js';
-import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, showConfirm } from '/components/modal.js';
 import { stagger } from '/utils/ux.js';
 import { t, formatTime } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -323,7 +323,7 @@ function renderToolbar() {
 
   bar.querySelector('#cal-clear-imported').addEventListener('click', async () => {
     moreDropdown.hidden = true;
-    if (!confirm('Delete all imported events? Manually created events will be kept.')) return;
+    if (!await showConfirm('Delete all imported events? Manually created events will be kept.', { danger: true })) return;
     try {
       const res = await api.delete('/calendar/clear?scope=imported');
       window.planner?.showToast(`${res.data.deleted} imported event(s) deleted`, 'success');
@@ -337,7 +337,7 @@ function renderToolbar() {
 
   bar.querySelector('#cal-clear-all').addEventListener('click', async () => {
     moreDropdown.hidden = true;
-    if (!confirm('Delete ALL events? This cannot be undone.')) return;
+    if (!await showConfirm('Delete ALL events? This cannot be undone.', { danger: true })) return;
     try {
       const res = await api.delete('/calendar/clear?scope=all');
       window.planner?.showToast(`${res.data.deleted} event(s) deleted`, 'success');
@@ -851,7 +851,7 @@ function showEventPopup(ev, anchor) {
   });
 
   popup.querySelector('#popup-delete').addEventListener('click', async () => {
-    if (!confirm(t('calendar.deleteConfirm', { title: ev.title }))) return;
+    if (!await showConfirm(t('calendar.deleteConfirm', { title: ev.title }), { danger: true })) return;
     removePopup();
     if (history.state?.eventPopup) history.back();
     await deleteEvent(ev.id);
@@ -905,7 +905,7 @@ function openEventModal({ mode, event = null, date = null }) {
       panel.querySelector('#modal-cancel').addEventListener('click', closeModal);
 
       panel.querySelector('#modal-delete')?.addEventListener('click', async () => {
-        if (!confirm(t('calendar.deleteConfirm', { title: event.title }))) return;
+        if (!await showConfirm(t('calendar.deleteConfirm', { title: event.title }), { danger: true })) return;
         closeModal();
         await deleteEvent(event.id);
       });
