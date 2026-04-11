@@ -52,10 +52,13 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       frameSrc: ["'none'"],
+      frameAncestors: ["'self'", "https://homarr.letsflyhi.com", "https://homarr.luka.letsflyhi.com"],
       // upgrade-insecure-requests nur mit HTTPS aktivieren
       upgradeInsecureRequests: isSecure ? [] : null,
     },
   },
+  // X-Frame-Options deaktivieren — frame-ancestors in CSP übernimmt die Kontrolle
+  frameguard: false,
   // HSTS nur mit HTTPS aktivieren
   hsts: isSecure ? {
     maxAge: 31536000,
