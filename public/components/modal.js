@@ -274,6 +274,145 @@ export function closeModal() {
 }
 
 // --------------------------------------------------------
+// showConfirm / showPrompt — iframe-safe replacements for
+// native confirm() and prompt()
+// --------------------------------------------------------
+
+/**
+ * Async replacement for window.confirm().
+ * Resolves true (OK) or false (Cancel/Escape/Overlay-Click).
+ *
+ * @param {string} message - The confirmation message
+ * @param {Object} [opts]
+ * @param {string} [opts.title]       - Dialog title (default: common.confirm or "Confirm")
+ * @param {string} [opts.okLabel]     - OK button label (default: "OK")
+ * @param {string} [opts.cancelLabel] - Cancel button label (default: common.cancel)
+ * @param {boolean} [opts.danger]     - Use danger button style for OK
+ * @returns {Promise<boolean>}
+ */
+export function showConfirm(message, opts = {}) {
+  return new Promise((resolve) => {
+    const title       = opts.title       ?? t('common.confirm') ?? 'Confirm';
+    const okLabel     = opts.okLabel     ?? 'OK';
+    const cancelLabel = opts.cancelLabel ?? t('common.cancel')  ?? 'Cancel';
+    const btnClass    = opts.danger ? 'btn btn--danger' : 'btn btn--primary';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'dialog-confirm-overlay';
+    overlay.innerHTML = `
+      <div class="modal-panel modal-panel--sm" role="alertdialog" aria-modal="true"
+           aria-labelledby="dialog-confirm-title" aria-describedby="dialog-confirm-msg">
+        <div class="modal-panel__header">
+          <h2 class="modal-panel__title" id="dialog-confirm-title">${title}</h2>
+        </div>
+        <div class="modal-panel__body">
+          <p id="dialog-confirm-msg" style="margin:0;font-size:var(--text-sm);color:var(--color-text-secondary)">${message}</p>
+        </div>
+        <div class="modal-panel__footer">
+          <button class="btn btn--ghost" data-role="cancel">${cancelLabel}</button>
+          <button class="${btnClass}" data-role="ok">${okLabel}</button>
+        </div>
+      </div>`;
+
+    let resolved = false;
+    const close = (value) => {
+      if (resolved) return;
+      resolved = true;
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(false);
+    };
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(false);
+    });
+    overlay.querySelector('[data-role="cancel"]').addEventListener('click', () => close(false));
+    overlay.querySelector('[data-role="ok"]').addEventListener('click', () => close(true));
+    document.addEventListener('keydown', onKey);
+
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-role="ok"]').focus();
+  });
+}
+
+/**
+ * Async replacement for window.prompt().
+ * Resolves to the entered string, or null on Cancel/Escape.
+ *
+ * @param {string} message  - The prompt message / label
+ * @param {string} [defaultValue=''] - Pre-filled input value
+ * @param {Object} [opts]
+ * @param {string} [opts.title]       - Dialog title (defaults to message)
+ * @param {string} [opts.description] - Optional description shown above the input
+ * @param {string} [opts.okLabel]     - OK button label
+ * @param {string} [opts.cancelLabel] - Cancel button label
+ * @returns {Promise<string|null>}
+ */
+export function showPrompt(message, defaultValue = '', opts = {}) {
+  return new Promise((resolve) => {
+    const title       = opts.title       ?? message;
+    const desc        = opts.description ?? '';
+    const okLabel     = opts.okLabel     ?? 'OK';
+    const cancelLabel = opts.cancelLabel ?? t('common.cancel') ?? 'Cancel';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'dialog-prompt-overlay';
+    overlay.innerHTML = `
+      <div class="modal-panel modal-panel--sm" role="dialog" aria-modal="true"
+           aria-labelledby="dialog-prompt-title">
+        <div class="modal-panel__header">
+          <h2 class="modal-panel__title" id="dialog-prompt-title">${title}</h2>
+        </div>
+        <div class="modal-panel__body">
+          ${desc ? `<p style="margin:0;font-size:var(--text-sm);color:var(--color-text-secondary)">${desc}</p>` : ''}
+          <input class="input" type="text" id="dialog-prompt-input"
+                 value="${defaultValue.replace(/"/g, '&quot;')}"
+                 style="width:100%">
+        </div>
+        <div class="modal-panel__footer">
+          <button class="btn btn--ghost" data-role="cancel">${cancelLabel}</button>
+          <button class="btn btn--primary" data-role="ok">${okLabel}</button>
+        </div>
+      </div>`;
+
+    let resolved = false;
+    const input = overlay.querySelector('#dialog-prompt-input');
+
+    const close = (value) => {
+      if (resolved) return;
+      resolved = true;
+      overlay.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') close(null);
+    };
+
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(null);
+    });
+    overlay.querySelector('[data-role="cancel"]').addEventListener('click', () => close(null));
+    overlay.querySelector('[data-role="ok"]').addEventListener('click', () => close(input.value));
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') close(input.value);
+    });
+    document.addEventListener('keydown', onKey);
+
+    document.body.appendChild(overlay);
+    input.focus();
+    input.select();
+  });
+}
+
+// --------------------------------------------------------
 // Inline Blur-Validierung
 // --------------------------------------------------------
 

@@ -5,7 +5,7 @@
  */
 
 import { api } from '/api.js';
-import { openModal as openSharedModal, closeModal as closeSharedModal } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal as closeSharedModal, showConfirm, showPrompt } from '/components/modal.js';
 import { stagger } from '/utils/ux.js';
 import { t, formatDate } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -687,7 +687,7 @@ async function saveModal(overlay) {
 // --------------------------------------------------------
 
 async function deleteMeal(mealId) {
-  if (!confirm(t('meals.deleteMeal') + '?')) return;
+  if (!await showConfirm(t('meals.deleteMeal') + '?', { danger: true })) return;
   try {
     await api.delete(`/meals/${mealId}`);
     state.meals = state.meals.filter((m) => m.id !== mealId);
@@ -711,8 +711,11 @@ async function transferMeal(mealId) {
   let listId = state.lists[0].id;
 
   if (state.lists.length > 1) {
-    const names  = state.lists.map((l, i) => `${i + 1}. ${l.name}`).join('\n');
-    const choice = prompt(`Auf welche Einkaufsliste?\n${names}\nNummer eingeben:`);
+    const names  = state.lists.map((l, i) => `${i + 1}. ${l.name}`).join('<br>');
+    const choice = await showPrompt(t('meals.chooseListTitle') || 'Choose list', '', {
+      title: t('meals.chooseListTitle') || 'Choose list',
+      description: `${names}`,
+    });
     const n = parseInt(choice, 10);
     if (!n || n < 1 || n > state.lists.length) return;
     listId = state.lists[n - 1].id;

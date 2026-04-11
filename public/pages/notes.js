@@ -5,7 +5,7 @@
  */
 
 import { api } from '/api.js';
-import { openModal as openSharedModal, closeModal, btnError } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, btnError, showConfirm } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -482,7 +482,7 @@ async function togglePin(id) {
 }
 
 async function deleteNote(id) {
-  if (!confirm(t('notes.deleteConfirm'))) return;
+  if (!await showConfirm(t('notes.deleteConfirm'), { danger: true })) return;
   try {
     await api.delete(`/notes/${id}`);
     state.notes = state.notes.filter((n) => n.id !== id);

@@ -26,7 +26,9 @@
     "nameRequired": "Name is required",
     "contentRequired": "Content is required",
     "all": "All",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "confirm": "Confirm",
+    "ok": "OK"
   },
 
   "nav": {
@@ -240,7 +242,9 @@
     "ingredientCount": "{{count}} ingredient",
     "ingredientCountPlural": "{{count}} ingredients",
     "titleRequired": "Title is required",
-    "loadingIndicator": "Loading…"
+    "loadingIndicator": "Loading…",
+    "chooseListTitle": "Choose shopping list",
+    "chooseListEnterNumber": "Enter number:"
   },
 
   "calendar": {

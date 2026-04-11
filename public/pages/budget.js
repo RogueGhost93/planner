@@ -6,7 +6,7 @@
  */
 
 import { api } from '/api.js';
-import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, showConfirm } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t, formatDate, getLocale } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -436,7 +436,7 @@ function openBudgetModal({ mode, entry = null }) {
       panel.querySelector('#bm-cancel').addEventListener('click', closeModal);
 
       panel.querySelector('#bm-delete')?.addEventListener('click', async () => {
-        if (!confirm(t('budget.deletePersonConfirm', { title: entry.title }))) return;
+        if (!await showConfirm(t('budget.deletePersonConfirm', { title: entry.title }), { danger: true })) return;
         closeModal();
         await deleteEntry(entry.id);
       });
@@ -489,7 +489,7 @@ function openBudgetModal({ mode, entry = null }) {
 // --------------------------------------------------------
 
 async function deleteEntry(id) {
-  if (!confirm(t('budget.deleteConfirm'))) return;
+  if (!await showConfirm(t('budget.deleteConfirm'), { danger: true })) return;
   try {
     await api.delete(`/budget/${id}`);
     state.entries = state.entries.filter((e) => e.id !== id);

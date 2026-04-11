@@ -5,7 +5,7 @@
  */
 
 import { api } from '/api.js';
-import { openModal as openSharedModal, closeModal } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal, showConfirm } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
@@ -122,7 +122,7 @@ export async function render(container, { user }) {
 
     if (e.target.closest('[data-action="delete"]')) {
       const id = parseInt(e.target.closest('[data-action="delete"]').dataset.id, 10);
-      if (!confirm(t('contacts.deleteConfirm'))) return;
+      if (!await showConfirm(t('contacts.deleteConfirm'), { danger: true })) return;
       await deleteContact(id);
       return;
     }
@@ -309,7 +309,7 @@ function renderSelectBar() {
 
   bar.querySelector('#csb-delete').addEventListener('click', async () => {
     if (!state.selected.size) return;
-    if (!confirm(`Delete ${state.selected.size} contact(s)?`)) return;
+    if (!await showConfirm(`Delete ${state.selected.size} contact(s)?`, { danger: true })) return;
     const ids = [...state.selected];
     for (const id of ids) {
       await deleteContact(id);
@@ -491,7 +491,7 @@ function openContactModal({ mode, contact = null }) {
       panel.querySelector('#cm-cancel').addEventListener('click', closeModal);
 
       panel.querySelector('#cm-delete')?.addEventListener('click', async () => {
-        if (!confirm(t('contacts.deletePersonConfirm', { name: contact.name }))) return;
+        if (!await showConfirm(t('contacts.deletePersonConfirm', { name: contact.name }), { danger: true })) return;
         closeModal();
         await deleteContact(contact.id);
       });
