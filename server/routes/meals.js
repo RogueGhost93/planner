@@ -382,7 +382,7 @@ router.post('/:id/to-shopping-list', (req, res) => {
     if (!listId)
       return res.status(400).json({ error: 'listId ist erforderlich', code: 400 });
 
-    const list = db.get().prepare('SELECT id FROM shopping_lists WHERE id = ?').get(listId);
+    const list = db.get().prepare('SELECT id FROM lists WHERE id = ?').get(listId);
     if (!list) return res.status(404).json({ error: 'Einkaufsliste nicht gefunden', code: 404 });
 
     const ingredients = db.get().prepare(`
@@ -395,7 +395,7 @@ router.post('/:id/to-shopping-list', (req, res) => {
 
     const transferred = db.transaction(() => {
       const insertItem = db.get().prepare(`
-        INSERT INTO shopping_items (list_id, name, quantity, category, added_from_meal)
+        INSERT INTO list_items (list_id, name, quantity, category, added_from_meal)
         VALUES (?, ?, ?, ?, ?)
       `);
       const markDone = db.get().prepare(`
@@ -433,7 +433,7 @@ router.post('/week-to-shopping-list', (req, res) => {
     if (!week || !DATE_RE.test(week))
       return res.status(400).json({ error: 'Valid date (YYYY-MM-DD) required', code: 400 });
 
-    const list = db.get().prepare('SELECT id FROM shopping_lists WHERE id = ?').get(listId);
+    const list = db.get().prepare('SELECT id FROM lists WHERE id = ?').get(listId);
     if (!list) return res.status(404).json({ error: 'Einkaufsliste nicht gefunden', code: 404 });
 
     const from = weekStart(week);
@@ -451,7 +451,7 @@ router.post('/week-to-shopping-list', (req, res) => {
 
     const transferred = db.transaction(() => {
       const insertItem = db.get().prepare(`
-        INSERT INTO shopping_items (list_id, name, quantity, category, added_from_meal)
+        INSERT INTO list_items (list_id, name, quantity, category, added_from_meal)
         VALUES (?, ?, ?, ?, ?)
       `);
       const markDone = db.get().prepare(`

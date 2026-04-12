@@ -16,7 +16,7 @@ const ROUTES = [
   { path: '/login',    page: '/pages/login.js',    requiresAuth: false, module: null        },
   { path: '/',         page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
   { path: '/tasks',    page: '/pages/tasks.js',     requiresAuth: true, module: 'tasks'     },
-  { path: '/shopping', page: '/pages/shopping.js',  requiresAuth: true, module: 'shopping'  },
+  { path: '/lists',    page: '/pages/lists.js',     requiresAuth: true, module: 'lists'     },
   { path: '/meals',    page: '/pages/meals.js',     requiresAuth: true, module: 'meals'     },
   { path: '/calendar', page: '/pages/calendar.js',  requiresAuth: true, module: 'calendar'  },
   { path: '/notes',    page: '/pages/notes.js',     requiresAuth: true, module: 'notes'     },
@@ -144,7 +144,7 @@ let isNavigating = false;
 // Router
 // --------------------------------------------------------
 
-const ROUTE_ORDER = ['/', '/tasks', '/calendar', '/meals', '/shopping',
+const ROUTE_ORDER = ['/', '/tasks', '/lists', '/calendar', '/meals',
                      '/notes', '/contacts', '/settings'];
 
 function getDirection(fromPath, toPath) {
@@ -373,9 +373,9 @@ function navItems() {
   return [
     { path: '/',         label: t('nav.dashboard'), icon: 'layout-dashboard' },
     { path: '/tasks',    label: t('nav.tasks'),     icon: 'check-square'     },
+    { path: '/lists',    label: t('nav.lists'),     icon: 'list-checks'      },
     { path: '/calendar', label: t('nav.calendar'),  icon: 'calendar'         },
     { path: '/notes',    label: t('nav.notes'),     icon: 'sticky-note'      },
-    { path: '/shopping', label: t('nav.shopping'),  icon: 'shopping-cart'    },
     { path: '/meals',    label: t('nav.meals'),     icon: 'utensils'         },
     { path: '/contacts', label: t('nav.contacts'),  icon: 'book-user'        },
     { path: '/settings', label: t('nav.settings'),  icon: 'settings'         },

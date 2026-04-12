@@ -421,6 +421,57 @@ const MIGRATIONS = [
         BEGIN UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
     `,
   },
+  {
+    version: 11,
+    description: 'Rename shopping_lists/items to lists/list_items with type column',
+    up: `
+      PRAGMA foreign_keys=OFF;
+
+      CREATE TABLE lists (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        type       TEXT    NOT NULL DEFAULT 'shopping'
+                           CHECK(type IN ('shopping', 'packing')),
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+      INSERT INTO lists (id, name, type, sort_order, created_by, created_at, updated_at)
+        SELECT id, name, 'shopping', sort_order, created_by, created_at, updated_at FROM shopping_lists;
+
+      CREATE TABLE list_items (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        list_id         INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+        name            TEXT    NOT NULL,
+        quantity        TEXT,
+        category        TEXT    NOT NULL DEFAULT 'Sonstiges',
+        is_checked      INTEGER NOT NULL DEFAULT 0,
+        added_from_meal INTEGER REFERENCES meals(id) ON DELETE SET NULL,
+        created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+      INSERT INTO list_items SELECT * FROM shopping_items;
+
+      DROP TRIGGER IF EXISTS trg_shopping_lists_updated_at;
+      DROP TRIGGER IF EXISTS trg_shopping_items_updated_at;
+      DROP TABLE shopping_items;
+      DROP TABLE shopping_lists;
+
+      CREATE INDEX IF NOT EXISTS idx_list_items_list ON list_items(list_id);
+      CREATE INDEX IF NOT EXISTS idx_lists_type ON lists(type);
+
+      CREATE TRIGGER IF NOT EXISTS trg_lists_updated_at
+        AFTER UPDATE ON lists FOR EACH ROW
+        BEGIN UPDATE lists SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+
+      CREATE TRIGGER IF NOT EXISTS trg_list_items_updated_at
+        AFTER UPDATE ON list_items FOR EACH ROW
+        BEGIN UPDATE list_items SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+
+      PRAGMA foreign_keys=ON;
+    `,
+  },
 ];
 
 /**
