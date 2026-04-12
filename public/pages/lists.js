@@ -19,13 +19,11 @@ const SWIPE_THRESHOLD = 80;   // px - Mindestweg für Aktion
 const SWIPE_MAX_VERT  = 12;   // px - vertikaler Toleranzbereich
 const SWIPE_LOCK_VERT = 30;   // px - ab diesem Weg gilt es als Scroll
 
-const LIST_TYPES = ['shopping', 'packing'];
-
-const CATEGORIES_BY_TYPE = {
-  shopping: ['Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
-             'Frozen', 'Drinks', 'Household', 'Toiletries', 'Other'],
-  packing:  ['Clothes', 'Toiletries', 'Electronics', 'Documents', 'Other'],
-};
+const CATEGORY_ORDER = [
+  'Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
+  'Frozen', 'Drinks', 'Household', 'Toiletries',
+  'Clothes', 'Electronics', 'Documents', 'Other',
+];
 
 const CATEGORY_LABELS = () => ({
   'Fruit & Veg':  t('shopping.catFruitVeg'),
@@ -57,10 +55,6 @@ const CATEGORY_ICONS = {
   'Documents':    'file-text',
 };
 
-function categoriesForType(type) {
-  return CATEGORIES_BY_TYPE[type] || CATEGORIES_BY_TYPE.shopping;
-}
-
 // --------------------------------------------------------
 // State
 // --------------------------------------------------------
@@ -68,14 +62,9 @@ function categoriesForType(type) {
 const state = {
   lists:         [],
   activeListId:  null,
-  activeType:    'shopping',
   items:         [],
   activeList:    null,
 };
-
-function listsForActiveType() {
-  return state.lists.filter((l) => (l.type || 'shopping') === state.activeType);
-}
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -87,8 +76,7 @@ function groupItemsByCategory(items) {
     const cat = item.category || 'Other';
     (grouped[cat] = grouped[cat] || []).push(item);
   }
-  const type = state.activeList?.type || state.activeType;
-  return categoriesForType(type)
+  return CATEGORY_ORDER
     .filter((c) => grouped[c])
     .map((c) => [c, grouped[c]]);
 }
@@ -97,23 +85,11 @@ function groupItemsByCategory(items) {
 // Render-Bausteine
 // --------------------------------------------------------
 
-function renderTypeBar(container) {
-  const bar = container.querySelector('#list-type-bar');
-  if (!bar) return;
-  bar.innerHTML = LIST_TYPES.map((type) => `
-    <button class="list-type-tab ${type === state.activeType ? 'list-type-tab--active' : ''}"
-            data-action="switch-type" data-type="${type}">
-      ${t(`shopping.type${type.charAt(0).toUpperCase()}${type.slice(1)}`)}
-    </button>
-  `).join('');
-}
-
 function renderTabs(container) {
   const bar = container.querySelector('#list-tabs-bar');
   if (!bar) return;
 
-  const filtered = listsForActiveType();
-  const tabsHtml = filtered.map((list) => {
+  const tabsHtml = state.lists.map((list) => {
     const unchecked = list.item_total - list.item_checked;
     return `
       <button class="list-tab ${list.id === state.activeListId ? 'list-tab--active' : ''}"
@@ -166,12 +142,6 @@ function renderListContent(container) {
             <i data-lucide="trash-2" style="width:15px;height:15px" aria-hidden="true"></i>
             ${t('shopping.clearChecked', { count: checkedCount })}
           </button>` : ''}
-        <button class="btn btn--ghost btn--icon" data-action="clone-list"
-                data-id="${state.activeList.id}" aria-label="${t('shopping.cloneList')}"
-                title="${t('shopping.cloneList')}"
-                style="color:var(--color-text-secondary)">
-          <i data-lucide="copy" style="width:18px;height:18px" aria-hidden="true"></i>
-        </button>
         <button class="btn btn--ghost btn--icon" data-action="delete-list"
                 data-id="${state.activeList.id}" aria-label="${t('shopping.deleteListLabel')}"
                 style="color:var(--color-text-secondary)">
@@ -714,23 +684,6 @@ function wireTabBar(container) {
     if (target.dataset.action === 'new-list') {
       await openNewListDialog(container);
     }
-
-    if (target.dataset.action === 'switch-type') {
-      const newType = target.dataset.type;
-      if (!LIST_TYPES.includes(newType) || newType === state.activeType) return;
-      state.activeType = newType;
-      const filtered = listsForActiveType();
-      state.activeListId = filtered[0]?.id ?? null;
-      renderTypeBar(container);
-      renderTabs(container);
-      if (state.activeListId) {
-        await switchList(state.activeListId, container);
-      } else {
-        state.items = [];
-        state.activeList = null;
-        renderListContent(container);
-      }
-    }
   });
 }
 
@@ -816,12 +769,6 @@ function wireListContentEvents(container) {
       }
     }
 
-    // ---- Liste klonen ----
-    if (action === 'clone-list') {
-      await openCloneListDialog(container);
-      return;
-    }
-
     // ---- Liste löschen ----
     if (action === 'delete-list') {
       if (!await showConfirm(t('shopping.deleteListConfirm', { name: state.activeList?.name }), { danger: true })) return;
@@ -854,67 +801,7 @@ function wireListContentEvents(container) {
 // Dialogs: Clone / New List
 // --------------------------------------------------------
 
-function typeRadios(selected) {
-  return LIST_TYPES.map((type) => `
-    <label class="list-dialog__radio">
-      <input type="radio" name="list-type" value="${type}" ${type === selected ? 'checked' : ''}>
-      <span>${t(`shopping.type${type.charAt(0).toUpperCase()}${type.slice(1)}`)}</span>
-    </label>
-  `).join('');
-}
-
-async function openCloneListDialog(container) {
-  if (!state.activeList) return;
-  const source = state.activeList;
-  const defaultName = `${source.name} (copy)`;
-
-  openModal({
-    title: t('shopping.cloneListTitle'),
-    size: 'sm',
-    content: `
-      <form id="clone-list-form" class="list-dialog">
-        <label class="list-dialog__field">
-          <span class="list-dialog__label">${t('shopping.cloneListNameLabel')}</span>
-          <input type="text" name="name" class="list-dialog__input" value="${esc(defaultName)}" required autofocus>
-        </label>
-        <div class="list-dialog__field">
-          <span class="list-dialog__label">${t('shopping.cloneListTypeLabel')}</span>
-          <div class="list-dialog__radios">${typeRadios(source.type || 'shopping')}</div>
-        </div>
-        <div class="list-dialog__actions">
-          <button type="button" class="btn btn--ghost" data-action="close-modal">${t('shopping.cancel')}</button>
-          <button type="submit" class="btn btn--primary">${t('shopping.cloneList')}</button>
-        </div>
-      </form>
-    `,
-    onSave: (panel) => {
-      const form = panel.querySelector('#clone-list-form');
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fd = new FormData(form);
-        const name = String(fd.get('name') || '').trim();
-        const type = String(fd.get('list-type') || 'shopping');
-        if (!name) return;
-        try {
-          const res = await api.post(`/lists/${source.id}/clone`, { name, type });
-          closeModal();
-          // Reload to get counts
-          await loadLists();
-          state.activeType = type;
-          state.activeListId = res.data.id;
-          renderTypeBar(container);
-          await switchList(res.data.id, container);
-        } catch (err) {
-          window.planner.showToast(err.message, 'danger');
-        }
-      });
-    },
-  });
-}
-
 async function openNewListDialog(container) {
-  const initialType = state.activeType || 'shopping';
-
   openModal({
     title: t('shopping.newListTitle'),
     size: 'sm',
@@ -925,16 +812,12 @@ async function openNewListDialog(container) {
           <input type="text" name="name" class="list-dialog__input" required autofocus>
         </label>
         <div class="list-dialog__field">
-          <span class="list-dialog__label">${t('shopping.cloneListTypeLabel')}</span>
-          <div class="list-dialog__radios">${typeRadios(initialType)}</div>
-        </div>
-        <div class="list-dialog__field">
           <span class="list-dialog__label">${t('shopping.newListItemsLabel')}</span>
           <div id="new-list-items" class="list-dialog__items"></div>
           <button type="button" class="btn btn--ghost" data-action="add-item-row" style="align-self:flex-start">${t('shopping.addAnotherItem')}</button>
         </div>
         <div class="list-dialog__actions">
-          <button type="button" class="btn btn--ghost" data-action="close-modal">${t('shopping.cancel')}</button>
+          <button type="button" class="btn btn--ghost" data-action="dialog-cancel">${t('shopping.cancel')}</button>
           <button type="submit" class="btn btn--primary">${t('shopping.create')}</button>
         </div>
       </form>
@@ -958,6 +841,7 @@ async function openNewListDialog(container) {
       };
 
       panel.querySelector('[data-action="add-item-row"]').addEventListener('click', addRow);
+      panel.querySelector('[data-action="dialog-cancel"]').addEventListener('click', () => closeModal());
       itemsEl.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action="remove-item-row"]');
         if (btn) btn.closest('.list-dialog__item-row').remove();
@@ -967,7 +851,6 @@ async function openNewListDialog(container) {
         e.preventDefault();
         const fd = new FormData(form);
         const name = String(fd.get('name') || '').trim();
-        const type = String(fd.get('list-type') || 'shopping');
         if (!name) return;
 
         const rows = [...itemsEl.querySelectorAll('.list-dialog__item-row')];
@@ -977,11 +860,9 @@ async function openNewListDialog(container) {
         })).filter((it) => it.name);
 
         try {
-          const res = await api.post('/lists', { name, type, items });
+          const res = await api.post('/lists', { name, items });
           closeModal();
           await loadLists();
-          state.activeType = type;
-          renderTypeBar(container);
           await switchList(res.data.id, container);
         } catch (err) {
           window.planner.showToast(err.message, 'danger');
@@ -1023,11 +904,9 @@ export async function render(container, { user }) {
         state._focusInput = true;
       }
       if (!chosen) {
-        // Default to first list of activeType (shopping), else first overall
-        chosen = listsForActiveType()[0] ?? state.lists[0];
+        chosen = state.lists[0];
         state._focusInput = false;
       }
-      state.activeType = chosen.type || 'shopping';
       state.activeListId = chosen.id;
       await loadItems(state.activeListId);
     }
@@ -1039,7 +918,6 @@ export async function render(container, { user }) {
   container.innerHTML = `
     <div class="shopping-page">
       <h1 class="sr-only">${t('shopping.title')}</h1>
-      <div class="list-type-bar" id="list-type-bar"></div>
       <div class="list-tabs-bar" id="list-tabs-bar"></div>
       <div id="list-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
       <button class="page-fab" id="fab-new-item" aria-label="${t('shopping.addItemLabel')}">
@@ -1048,7 +926,6 @@ export async function render(container, { user }) {
     </div>
   `;
 
-  renderTypeBar(container);
   renderTabs(container);
   wireTabBar(container);
   wireTabDragReorder(container);
@@ -1074,14 +951,7 @@ export async function render(container, { user }) {
   }
 
   container.querySelector('#fab-new-item')?.addEventListener('click', () => {
-    const input = container.querySelector('#item-name-input');
-    if (input) {
-      input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      input.focus();
-    } else {
-      // Keine Liste aktiv → neue Liste erstellen
-      container.querySelector('[data-action="new-list"]')?.click();
-    }
+    openNewListDialog(container);
   });
 }
 
