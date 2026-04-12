@@ -380,29 +380,9 @@ function renderShoppingWidget(lists, items) {
       </div>`;
   };
 
-  const byType = { shopping: [], packing: [] };
-  for (const list of lists) {
-    const type = list.type || 'shopping';
-    (byType[type] = byType[type] || []).push(list);
-  }
-
-  const sectionLabels = {
-    shopping: t('shopping.sectionShopping'),
-    packing:  t('shopping.sectionPacking'),
-  };
-
-  const sections = Object.entries(byType)
-    .filter(([, arr]) => arr.length)
-    .map(([type, arr]) => {
-      const showHeader = Object.values(byType).filter((a) => a.length).length > 1;
-      return `
-        ${showHeader ? `<div class="shopping-widget__section-header">${sectionLabels[type] || type}</div>` : ''}
-        ${arr.map(renderList).join('')}`;
-    }).join('');
-
   return `<div class="widget" id="shopping-widget">
     ${widgetHeader('list-checks', t('nav.lists'), totalUnchecked, '/lists', undefined, '/lists', 'lists-create-new')}
-    <div class="widget__body" id="shopping-widget-body">${sections}</div>
+    <div class="widget__body" id="shopping-widget-body">${lists.map(renderList).join('')}</div>
   </div>`;
 }
 

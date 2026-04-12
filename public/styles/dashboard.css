@@ -1209,3 +1209,29 @@
   color: var(--color-text-tertiary);
   padding: var(--space-2) var(--space-3) var(--space-1);
 }
+
+.shopping-widget__type-tabs {
+  display: flex;
+  gap: var(--space-1);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.shopping-widget__type-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+}
+
+.shopping-widget__type-tab--active {
+  color: var(--module-lists);
+  border-bottom-color: var(--module-lists);
+}
