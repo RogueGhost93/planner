@@ -88,8 +88,8 @@ const MIGRATIONS = [
         title           TEXT    NOT NULL,
         description     TEXT,
         category        TEXT    NOT NULL DEFAULT 'Sonstiges',
-        priority        TEXT    NOT NULL DEFAULT 'medium'
-                                CHECK(priority IN ('low', 'medium', 'high', 'urgent')),
+        priority        TEXT    NOT NULL DEFAULT 'none'
+                                CHECK(priority IN ('none', 'urgent')),
         status          TEXT    NOT NULL DEFAULT 'open'
                                 CHECK(status IN ('open', 'in_progress', 'done')),
         due_date        TEXT,
@@ -369,6 +369,56 @@ const MIGRATIONS = [
       ALTER TABLE users ADD COLUMN notify_sound   INTEGER NOT NULL DEFAULT 1;
       ALTER TABLE users ADD COLUMN notify_time    TEXT    NOT NULL DEFAULT '09:00';
       ALTER TABLE users ADD COLUMN notify_interval INTEGER NOT NULL DEFAULT 4;
+    `,
+  },
+  {
+    version: 10,
+    description: 'Collapse task priorities to none/urgent only',
+    up: `
+      CREATE TABLE tasks_new (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        title           TEXT    NOT NULL,
+        description     TEXT,
+        category        TEXT    NOT NULL DEFAULT 'Sonstiges',
+        priority        TEXT    NOT NULL DEFAULT 'none'
+                                CHECK(priority IN ('none', 'urgent')),
+        status          TEXT    NOT NULL DEFAULT 'open'
+                                CHECK(status IN ('open', 'in_progress', 'done')),
+        due_date        TEXT,
+        due_time        TEXT,
+        assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        created_by      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        is_recurring    INTEGER NOT NULL DEFAULT 0,
+        recurrence_rule TEXT,
+        parent_task_id  INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+        created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+
+      INSERT INTO tasks_new (
+        id, title, description, category, priority, status, due_date, due_time,
+        assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
+        created_at, updated_at
+      )
+      SELECT
+        id, title, description, category,
+        CASE WHEN priority = 'urgent' THEN 'urgent' ELSE 'none' END,
+        status, due_date, due_time,
+        assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
+        created_at, updated_at
+      FROM tasks;
+
+      DROP TABLE tasks;
+      ALTER TABLE tasks_new RENAME TO tasks;
+
+      CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON tasks(assigned_to);
+      CREATE INDEX IF NOT EXISTS idx_tasks_due_date    ON tasks(due_date);
+      CREATE INDEX IF NOT EXISTS idx_tasks_status      ON tasks(status);
+      CREATE INDEX IF NOT EXISTS idx_tasks_parent      ON tasks(parent_task_id);
+
+      CREATE TRIGGER IF NOT EXISTS trg_tasks_updated_at
+        AFTER UPDATE ON tasks FOR EACH ROW
+        BEGIN UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
     `,
   },
 ];

@@ -295,10 +295,8 @@ function renderModalContent({ task = null, users = [] } = {}) {
   ).join('');
 
   const current = task?.priority ?? 'none';
-  const visible = new Set(['none', 'urgent']);
-  if (current) visible.add(current);
   const priorityOptions = PRIORITIES()
-    .filter((p) => visible.has(p.value))
+    .filter((p) => p.value === 'none' || p.value === 'urgent')
     .map((p) =>
       `<option value="${p.value}" ${current === p.value ? 'selected' : ''}>${p.label}</option>`
     ).join('');
