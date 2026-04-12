@@ -671,17 +671,16 @@
 /* --------------------------------------------------------
  * Tasks-Widget
  * -------------------------------------------------------- */
-#tasks-widget .widget__body {
-  max-height: 320px;
-  overflow-y: auto;
-}
-
-/* --------------------------------------------------------
- * Shopping-Widget
- * -------------------------------------------------------- */
+#tasks-widget .widget__body,
 #shopping-widget .widget__body {
   max-height: 320px;
   overflow-y: auto;
+  scrollbar-width: none;
+}
+#tasks-widget .widget__body::-webkit-scrollbar,
+#shopping-widget .widget__body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .shopping-widget__list {
