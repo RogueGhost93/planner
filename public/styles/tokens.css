@@ -92,7 +92,7 @@
   --module-tasks:      #15803D;  /* Grün - Erledigung, Fortschritt */
   --module-calendar:   #8250DF;  /* Violett - Termine, Zeit */
   --module-meals:      #B45309;  /* Orange - Essen, Wärme */
-  --module-shopping:   #D4511E;  /* Rot-Orange - Einkaufen, Aktion */
+  --module-lists:   #D4511E;  /* Rot-Orange - Einkaufen, Aktion */
   --module-notes:      #BF8700;  /* Gold - Notizen, Pinnwand */
   --module-contacts:   #0969DA;  /* Kräftiges Blau - Kontakte */
   --module-budget:     #1A7F5A;  /* Teal - Finanzen, Stabilität */
@@ -311,7 +311,7 @@
     --module-tasks:     #4ADE80;
     --module-calendar:  #A78BFA;
     --module-meals:     #F59E0B;
-    --module-shopping:  #FB923C;
+    --module-lists:  #FB923C;
     --module-notes:     #FCD34D;
     --module-contacts:  #60A5FA;
     --module-budget:    #34D399;
@@ -393,7 +393,7 @@
   --module-tasks:     #4ADE80;
   --module-calendar:  #A78BFA;
   --module-meals:     #F59E0B;
-  --module-shopping:  #FB923C;
+  --module-lists:  #FB923C;
   --module-notes:     #FCD34D;
   --module-contacts:  #60A5FA;
   --module-budget:    #34D399;

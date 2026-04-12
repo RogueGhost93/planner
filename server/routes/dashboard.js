@@ -117,30 +117,31 @@ router.get('/', (req, res) => {
     result.users = [];
   }
 
-  // Unchecked shopping items per list (max 5 items per list, all lists)
+  // Unchecked list items per list (all types, only lists with unchecked items)
   try {
-    result.shoppingLists = d.prepare(`
+    result.lists = d.prepare(`
       SELECT
-        sl.id,
-        sl.name,
-        COUNT(si.id) AS unchecked_count
-      FROM shopping_lists sl
-      JOIN shopping_items si ON si.list_id = sl.id AND si.is_checked = 0
-      GROUP BY sl.id
-      ORDER BY sl.sort_order ASC
+        l.id,
+        l.name,
+        l.type,
+        COUNT(li.id) AS unchecked_count
+      FROM lists l
+      JOIN list_items li ON li.list_id = l.id AND li.is_checked = 0
+      GROUP BY l.id
+      ORDER BY l.sort_order ASC
     `).all();
 
-    result.shoppingItems = d.prepare(`
-      SELECT si.id, si.list_id, si.name, si.quantity
-      FROM shopping_items si
-      JOIN shopping_lists sl ON sl.id = si.list_id
-      WHERE si.is_checked = 0
-      ORDER BY sl.sort_order ASC, si.id ASC
+    result.listItems = d.prepare(`
+      SELECT li.id, li.list_id, li.name, li.quantity
+      FROM list_items li
+      JOIN lists l ON l.id = li.list_id
+      WHERE li.is_checked = 0
+      ORDER BY l.sort_order ASC, li.id ASC
     `).all();
   } catch (err) {
-    log.error('shoppingItems-Fehler:', err.message);
-    result.shoppingLists = [];
-    result.shoppingItems = [];
+    log.error('lists-Fehler:', err.message);
+    result.lists = [];
+    result.listItems = [];
   }
 
   res.json(result);

@@ -36,7 +36,7 @@
     "tasks": "Tasks",
     "calendar": "Calendar",
     "meals": "Meals",
-    "shopping": "Shopping",
+    "lists": "Lists",
     "notes": "Board",
     "contacts": "Contacts",
     "budget": "Budget",
@@ -161,7 +161,22 @@
   },
 
   "shopping": {
-    "title": "Shopping",
+    "title": "Lists",
+    "typeShopping": "Shopping",
+    "typePacking": "Packing",
+    "cloneList": "Clone list",
+    "cloneListTitle": "Clone list",
+    "cloneListNameLabel": "Name",
+    "cloneListTypeLabel": "Type",
+    "newListTitle": "New list",
+    "newListItemsLabel": "Items (optional)",
+    "addAnotherItem": "+ Add item",
+    "removeItem": "Remove",
+    "create": "Create",
+    "cancel": "Cancel",
+    "sectionShopping": "Shopping",
+    "sectionPacking": "Packing",
+    "addToList": "Add to list",
     "noLists": "No lists",
     "noListsDescription": "Create a list with the + button.",
     "emptyList": "The list is empty",
@@ -197,7 +212,12 @@
     "catDrinks": "Drinks",
     "catHousehold": "Household",
     "catDrugstore": "Drugstore",
-    "catMisc": "Miscellaneous"
+    "catMisc": "Miscellaneous",
+    "catClothes": "Clothes",
+    "catToiletries": "Toiletries",
+    "catElectronics": "Electronics",
+    "catDocuments": "Documents",
+    "catOther": "Other"
   },
 
   "meals": {

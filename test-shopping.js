@@ -36,13 +36,13 @@ let listId, list2Id, itemId1, itemId2, itemId3;
 // Listen-CRUD
 // --------------------------------------------------------
 test('Liste erstellen', () => {
-  const r = db.prepare(`INSERT INTO shopping_lists (name, created_by) VALUES ('REWE', ?)`).run(uid);
+  const r = db.prepare(`INSERT INTO lists (name, created_by) VALUES ('REWE', ?)`).run(uid);
   listId = r.lastInsertRowid;
   assert(listId > 0);
 });
 
 test('Zweite Liste erstellen', () => {
-  const r = db.prepare(`INSERT INTO shopping_lists (name, created_by) VALUES ('dm', ?)`).run(uid);
+  const r = db.prepare(`INSERT INTO lists (name, created_by) VALUES ('dm', ?)`).run(uid);
   list2Id = r.lastInsertRowid;
   assert(list2Id > 0);
 });
@@ -52,8 +52,8 @@ test('Alle Listen mit Zähler abrufbar', () => {
     SELECT sl.*,
       COUNT(si.id) AS item_total,
       SUM(CASE WHEN si.is_checked = 1 THEN 1 ELSE 0 END) AS item_checked
-    FROM shopping_lists sl
-    LEFT JOIN shopping_items si ON si.list_id = sl.id
+    FROM lists sl
+    LEFT JOIN list_items si ON si.list_id = sl.id
     GROUP BY sl.id ORDER BY sl.created_at ASC
   `).all();
   assert(lists.length === 2, `Erwartet 2, erhalten ${lists.length}`);
@@ -62,8 +62,8 @@ test('Alle Listen mit Zähler abrufbar', () => {
 });
 
 test('Liste umbenennen', () => {
-  db.prepare(`UPDATE shopping_lists SET name = 'REWE Wocheneinkauf' WHERE id = ?`).run(listId);
-  const l = db.prepare('SELECT name FROM shopping_lists WHERE id = ?').get(listId);
+  db.prepare(`UPDATE lists SET name = 'REWE Wocheneinkauf' WHERE id = ?`).run(listId);
+  const l = db.prepare('SELECT name FROM lists WHERE id = ?').get(listId);
   assert(l.name === 'REWE Wocheneinkauf', 'Name aktualisiert');
 });
 
@@ -71,21 +71,21 @@ test('Liste umbenennen', () => {
 // Artikel-CRUD
 // --------------------------------------------------------
 test('Artikel hinzufügen - Obst & Gemüse', () => {
-  const r = db.prepare(`INSERT INTO shopping_items (list_id, name, quantity, category)
+  const r = db.prepare(`INSERT INTO list_items (list_id, name, quantity, category)
     VALUES (?, 'Äpfel', '1 kg', 'Obst & Gemüse')`).run(listId);
   itemId1 = r.lastInsertRowid;
   assert(itemId1 > 0);
 });
 
 test('Artikel hinzufügen - Milchprodukte', () => {
-  const r = db.prepare(`INSERT INTO shopping_items (list_id, name, quantity, category)
+  const r = db.prepare(`INSERT INTO list_items (list_id, name, quantity, category)
     VALUES (?, 'Milch', '1 Liter', 'Milchprodukte')`).run(listId);
   itemId2 = r.lastInsertRowid;
   assert(itemId2 > 0);
 });
 
 test('Artikel hinzufügen - Backwaren', () => {
-  const r = db.prepare(`INSERT INTO shopping_items (list_id, name, category)
+  const r = db.prepare(`INSERT INTO list_items (list_id, name, category)
     VALUES (?, 'Brot', 'Backwaren')`).run(listId);
   itemId3 = r.lastInsertRowid;
   assert(itemId3 > 0);
@@ -102,7 +102,7 @@ test('Sortierung nach Supermarkt-Gang-Logik', () => {
   const caseExpr = categories.map((c, i) => `WHEN '${c}' THEN ${i}`).join(' ');
 
   const items = db.prepare(`
-    SELECT * FROM shopping_items
+    SELECT * FROM list_items
     WHERE list_id = ?
     ORDER BY CASE category ${caseExpr} ELSE 9 END, is_checked ASC, created_at ASC
   `).all(listId);
@@ -115,7 +115,7 @@ test('Sortierung nach Supermarkt-Gang-Logik', () => {
 
 test('Abgehakte Artikel ans Ende innerhalb der Kategorie', () => {
   // Zweiten Artikel in Obst einfügen
-  db.prepare(`INSERT INTO shopping_items (list_id, name, category, is_checked)
+  db.prepare(`INSERT INTO list_items (list_id, name, category, is_checked)
     VALUES (?, 'Bananen', 'Obst & Gemüse', 1)`).run(listId);
 
   const categories = [
@@ -125,7 +125,7 @@ test('Abgehakte Artikel ans Ende innerhalb der Kategorie', () => {
   const caseExpr = categories.map((c, i) => `WHEN '${c}' THEN ${i}`).join(' ');
 
   const items = db.prepare(`
-    SELECT * FROM shopping_items WHERE list_id = ?
+    SELECT * FROM list_items WHERE list_id = ?
     ORDER BY CASE category ${caseExpr} ELSE 9 END, is_checked ASC, created_at ASC
   `).all(listId);
 
@@ -139,14 +139,14 @@ test('Abgehakte Artikel ans Ende innerhalb der Kategorie', () => {
 // Artikel abhaken
 // --------------------------------------------------------
 test('Artikel abhaken (toggle)', () => {
-  db.prepare(`UPDATE shopping_items SET is_checked = 1 WHERE id = ?`).run(itemId1);
-  const item = db.prepare('SELECT is_checked FROM shopping_items WHERE id = ?').get(itemId1);
+  db.prepare(`UPDATE list_items SET is_checked = 1 WHERE id = ?`).run(itemId1);
+  const item = db.prepare('SELECT is_checked FROM list_items WHERE id = ?').get(itemId1);
   assert(item.is_checked === 1, 'Artikel abgehakt');
 });
 
 test('Artikel wieder aktivieren', () => {
-  db.prepare(`UPDATE shopping_items SET is_checked = 0 WHERE id = ?`).run(itemId1);
-  const item = db.prepare('SELECT is_checked FROM shopping_items WHERE id = ?').get(itemId1);
+  db.prepare(`UPDATE list_items SET is_checked = 0 WHERE id = ?`).run(itemId1);
+  const item = db.prepare('SELECT is_checked FROM list_items WHERE id = ?').get(itemId1);
   assert(item.is_checked === 0, 'Artikel wieder aktiv');
 });
 
@@ -154,13 +154,13 @@ test('Artikel wieder aktivieren', () => {
 // Abgehakte löschen
 // --------------------------------------------------------
 test('"Abgehakte löschen" entfernt nur is_checked=1', () => {
-  db.prepare(`UPDATE shopping_items SET is_checked = 1 WHERE id IN (?, ?)`).run(itemId1, itemId2);
+  db.prepare(`UPDATE list_items SET is_checked = 1 WHERE id IN (?, ?)`).run(itemId1, itemId2);
 
   // Äpfel (itemId1) + Milch (itemId2) + Bananen (bereits checked aus vorherigem Test) = 3
-  const result = db.prepare(`DELETE FROM shopping_items WHERE list_id = ? AND is_checked = 1`).run(listId);
+  const result = db.prepare(`DELETE FROM list_items WHERE list_id = ? AND is_checked = 1`).run(listId);
   assert(result.changes === 3, `Gelöscht: ${result.changes}, erwartet: 3`);
 
-  const remaining = db.prepare(`SELECT * FROM shopping_items WHERE list_id = ?`).all(listId);
+  const remaining = db.prepare(`SELECT * FROM list_items WHERE list_id = ?`).all(listId);
   assert(remaining.every((i) => i.is_checked === 0), 'Nur nicht-abgehakte verbleiben');
   assert(remaining.length === 1, `Verbleibend: ${remaining.length} (nur Brot)`);
 });
@@ -169,11 +169,11 @@ test('"Abgehakte löschen" entfernt nur is_checked=1', () => {
 // Autocomplete
 // --------------------------------------------------------
 test('Autocomplete-Suggestions nach Prefix', () => {
-  db.prepare(`INSERT INTO shopping_items (list_id, name, category) VALUES (?, 'Joghurt', 'Milchprodukte')`).run(listId);
-  db.prepare(`INSERT INTO shopping_items (list_id, name, category) VALUES (?, 'Käse', 'Milchprodukte')`).run(listId);
+  db.prepare(`INSERT INTO list_items (list_id, name, category) VALUES (?, 'Joghurt', 'Milchprodukte')`).run(listId);
+  db.prepare(`INSERT INTO list_items (list_id, name, category) VALUES (?, 'Käse', 'Milchprodukte')`).run(listId);
 
   const results = db.prepare(`
-    SELECT DISTINCT name FROM shopping_items
+    SELECT DISTINCT name FROM list_items
     WHERE name LIKE ? COLLATE NOCASE
     ORDER BY name ASC LIMIT 8
   `).all('J%');
@@ -184,7 +184,7 @@ test('Autocomplete-Suggestions nach Prefix', () => {
 
 test('Autocomplete - kein Match gibt leeres Array', () => {
   const results = db.prepare(`
-    SELECT DISTINCT name FROM shopping_items WHERE name LIKE ? COLLATE NOCASE
+    SELECT DISTINCT name FROM list_items WHERE name LIKE ? COLLATE NOCASE
   `).all('XXXXXXXX%');
   assert(results.length === 0, 'Kein Match erwartet');
 });
@@ -197,8 +197,8 @@ test('Listen-Zähler korrekt nach Änderungen', () => {
     SELECT sl.*,
       COUNT(si.id) AS item_total,
       SUM(CASE WHEN si.is_checked = 1 THEN 1 ELSE 0 END) AS item_checked
-    FROM shopping_lists sl
-    LEFT JOIN shopping_items si ON si.list_id = sl.id
+    FROM lists sl
+    LEFT JOIN list_items si ON si.list_id = sl.id
     WHERE sl.id = ?
     GROUP BY sl.id
   `).get(listId);
@@ -210,13 +210,13 @@ test('Listen-Zähler korrekt nach Änderungen', () => {
 // Cascade-Löschung
 // --------------------------------------------------------
 test('Liste löschen entfernt alle Artikel (CASCADE)', () => {
-  db.prepare('DELETE FROM shopping_lists WHERE id = ?').run(list2Id);
-  const items = db.prepare('SELECT * FROM shopping_items WHERE list_id = ?').all(list2Id);
+  db.prepare('DELETE FROM lists WHERE id = ?').run(list2Id);
+  const items = db.prepare('SELECT * FROM list_items WHERE list_id = ?').all(list2Id);
   assert(items.length === 0, 'Keine Artikel nach Listen-Löschung');
 });
 
 test('Nicht existierende Liste gibt keine Zeile', () => {
-  const list = db.prepare('SELECT * FROM shopping_lists WHERE id = ?').get(99999);
+  const list = db.prepare('SELECT * FROM lists WHERE id = ?').get(99999);
   assert(!list, 'Sollte undefined sein');
 });
 

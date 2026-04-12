@@ -71,7 +71,7 @@ test('Migration v1 ausführen (alle Tabellen und Triggers)', () => {
 // Test 3: Alle erwarteten Tabellen vorhanden
 // --------------------------------------------------------
 const EXPECTED_TABLES = [
-  'users', 'tasks', 'shopping_lists', 'shopping_items',
+  'users', 'tasks', 'lists', 'list_items',
   'meals', 'meal_ingredients', 'calendar_events',
   'notes', 'contacts', 'budget_entries',
 ];
@@ -129,15 +129,15 @@ test('Mahlzeit und Einkaufsartikel mit FK-Referenz', () => {
   `).run();
 
   const list = db.prepare(`
-    INSERT INTO shopping_lists (name, created_by) VALUES ('REWE', 1)
+    INSERT INTO lists (name, created_by) VALUES ('REWE', 1)
   `).run();
 
   // Artikel mit Referenz auf Mahlzeit
   db.prepare(`
-    INSERT INTO shopping_items (list_id, name, added_from_meal) VALUES (?, 'Mehl', ?)
+    INSERT INTO list_items (list_id, name, added_from_meal) VALUES (?, 'Mehl', ?)
   `).run(list.lastInsertRowid, meal.lastInsertRowid);
 
-  const item = db.prepare('SELECT * FROM shopping_items WHERE name = ?').get('Mehl');
+  const item = db.prepare('SELECT * FROM list_items WHERE name = ?').get('Mehl');
   assert(item.added_from_meal === meal.lastInsertRowid, 'FK zu meals stimmt nicht');
 });
 

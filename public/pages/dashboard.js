@@ -335,15 +335,15 @@ function renderShoppingWidget(lists, items) {
 
   if (!lists.length) {
     return `<div class="widget">
-      ${widgetHeader('shopping-cart', t('nav.shopping'), 0, '/shopping', undefined, '/shopping', 'shopping-create-new')}
+      ${widgetHeader('list-checks', t('nav.lists'), 0, '/lists', undefined, '/lists', 'lists-create-new')}
       <div class="widget__empty">
-        <i data-lucide="shopping-cart" class="empty-state__icon" aria-hidden="true"></i>
+        <i data-lucide="list-checks" class="empty-state__icon" aria-hidden="true"></i>
         <div>${t('dashboard.noShoppingItems')}</div>
       </div>
     </div>`;
   }
 
-  const rows = lists.map((list) => {
+  const renderList = (list) => {
     const listItems = items.filter((i) => i.list_id === list.id);
     const visible   = listItems.slice(0, SHOPPING_COLLAPSE_AT);
     const hidden    = listItems.slice(SHOPPING_COLLAPSE_AT);
@@ -359,10 +359,10 @@ function renderShoppingWidget(lists, items) {
       </div>`;
 
     return `
-      <div class="shopping-widget__list" data-list-id="${list.id}">
+      <div class="shopping-widget__list" data-list-id="${list.id}" data-type="${esc(list.type || 'shopping')}">
         <div class="shopping-widget__list-header">
           <i data-lucide="grip-vertical" class="shopping-widget__drag-handle" aria-hidden="true" style="width:14px;height:14px;flex-shrink:0;cursor:grab;color:var(--color-text-tertiary);touch-action:none"></i>
-          <div class="shopping-widget__list-name" data-route="/shopping" data-list-id="${list.id}" role="button" tabindex="0">
+          <div class="shopping-widget__list-name" data-route="/lists" data-list-id="${list.id}" role="button" tabindex="0">
             ${esc(list.name)}
             <span data-badge="${list.id}" hidden>${list.unchecked_count}</span>
           </div>
@@ -378,11 +378,31 @@ function renderShoppingWidget(lists, items) {
             </button>` : ''}
         </div>
       </div>`;
-  }).join('');
+  };
+
+  const byType = { shopping: [], packing: [] };
+  for (const list of lists) {
+    const type = list.type || 'shopping';
+    (byType[type] = byType[type] || []).push(list);
+  }
+
+  const sectionLabels = {
+    shopping: t('shopping.sectionShopping'),
+    packing:  t('shopping.sectionPacking'),
+  };
+
+  const sections = Object.entries(byType)
+    .filter(([, arr]) => arr.length)
+    .map(([type, arr]) => {
+      const showHeader = Object.values(byType).filter((a) => a.length).length > 1;
+      return `
+        ${showHeader ? `<div class="shopping-widget__section-header">${sectionLabels[type] || type}</div>` : ''}
+        ${arr.map(renderList).join('')}`;
+    }).join('');
 
   return `<div class="widget" id="shopping-widget">
-    ${widgetHeader('shopping-cart', t('nav.shopping'), totalUnchecked, '/shopping', undefined, '/shopping', 'shopping-create-new')}
-    <div class="widget__body" id="shopping-widget-body">${rows}</div>
+    ${widgetHeader('list-checks', t('nav.lists'), totalUnchecked, '/lists', undefined, '/lists', 'lists-create-new')}
+    <div class="widget__body" id="shopping-widget-body">${sections}</div>
   </div>`;
 }
 
@@ -508,7 +528,7 @@ function renderQuoteWidget(quote) {
 const FAB_ACTIONS = () => [
   { route: '/tasks',    label: t('dashboard.fabTask'),     icon: 'check-square'   },
   { route: '/calendar', label: t('dashboard.fabCalendar'), icon: 'calendar-plus'  },
-  { route: '/shopping', label: t('dashboard.fabShopping'), icon: 'shopping-cart'  },
+  { route: '/lists', label: t('dashboard.fabShopping'), icon: 'shopping-cart'  },
   { route: '/notes',    label: t('dashboard.fabNote'),     icon: 'sticky-note'    },
 ];
 
@@ -560,7 +580,7 @@ function initFab(container, signal) {
     '/tasks':    'tasks-create-new',
     '/calendar': 'calendar-create-new',
     '/notes':    'notes-create-new',
-    '/shopping': 'shopping-create-new',
+    '/lists': 'lists-create-new',
   };
 
   fabActions.querySelectorAll('[data-route]').forEach((el) => {
@@ -610,7 +630,7 @@ function wireLinks(container) {
       }
       // Shopping list name → open that specific list on arrival
       if (el.dataset.listId) {
-        localStorage.setItem('shopping-open-list', el.dataset.listId);
+        localStorage.setItem('lists-open-list', el.dataset.listId);
       }
       window.planner.navigate(el.dataset.route);
     };
@@ -680,7 +700,7 @@ export async function render(container, { user }) {
     ${renderFab()}
   `;
 
-  let data    = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], shoppingLists: [], shoppingItems: [] };
+  let data    = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], lists: [], listItems: [] };
   let weather = null;
   let quote   = null;
   try {
@@ -725,7 +745,7 @@ export async function render(container, { user }) {
         ${renderWeatherWidget(weather)}
         ${renderUrgentTasks(widgetTasks)}
         ${renderUpcomingEvents(data.upcomingEvents ?? [])}
-        ${renderShoppingWidget(data.shoppingLists ?? [], data.shoppingItems ?? [])}
+        ${renderShoppingWidget(data.lists ?? [], data.listItems ?? [])}
         ${renderQuickNotes()}
         ${renderBoardNotes(data.pinnedNotes ?? [])}
       </div>
@@ -832,7 +852,7 @@ function wireShoppingWidgetReorder(container, lists) {
     if (JSON.stringify(newOrder) === JSON.stringify(oldOrder)) return;
     lists.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
     try {
-      await api.patch('/shopping/reorder', { ids: newOrder });
+      await api.patch('/lists/reorder', { ids: newOrder });
     } catch (err) {
       window.planner?.showToast(err.message, 'danger');
       lists.sort((a, b) => oldOrder.indexOf(a.id) - oldOrder.indexOf(b.id));
@@ -888,7 +908,7 @@ function wireShoppingWidget(container, data) {
   const body = container.querySelector('#shopping-widget-body');
   if (!body) return;
 
-  wireShoppingWidgetReorder(container, data.shoppingLists ?? []);
+  wireShoppingWidgetReorder(container, data.lists ?? []);
 
   body.addEventListener('click', async (e) => {
     // Show more toggle
@@ -937,7 +957,7 @@ function wireShoppingWidget(container, data) {
       }
 
       try {
-        await api.patch(`/shopping/items/${id}`, { is_checked: 1 });
+        await api.patch(`/lists/items/${id}`, { is_checked: 1 });
       } catch {
         window.planner?.showToast('Could not update item', 'danger');
       }

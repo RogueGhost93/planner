@@ -31,7 +31,7 @@ const u1 = db.prepare(`INSERT INTO users (username, display_name, password_hash,
 const uid = u1.lastInsertRowid;
 
 // Einkaufsliste für Integration-Tests
-const sl = db.prepare(`INSERT INTO shopping_lists (name, created_by) VALUES ('REWE', ?)`).run(uid);
+const sl = db.prepare(`INSERT INTO lists (name, created_by) VALUES ('REWE', ?)`).run(uid);
 const listId = sl.lastInsertRowid;
 
 console.log('\n[Meals-Test] Wochenplan, Zutaten, Einkaufslisten-Integration\n');
@@ -224,7 +224,7 @@ test('Zutaten → Einkaufsliste übertragen (INSERT + Flag setzen)', () => {
   assert(ingredients.length === 2, `Erwartet 2, erhalten ${ingredients.length}`);
 
   const insertItem = db.prepare(`
-    INSERT INTO shopping_items (list_id, name, quantity, category, added_from_meal)
+    INSERT INTO list_items (list_id, name, quantity, category, added_from_meal)
     VALUES (?, ?, ?, 'Sonstiges', ?)
   `);
   const markDone = db.prepare(`UPDATE meal_ingredients SET on_shopping_list = 1 WHERE id = ?`);
@@ -236,7 +236,7 @@ test('Zutaten → Einkaufsliste übertragen (INSERT + Flag setzen)', () => {
 
   // Prüfen: Artikel in Einkaufsliste
   const items = db.prepare(`
-    SELECT * FROM shopping_items WHERE added_from_meal = ?
+    SELECT * FROM list_items WHERE added_from_meal = ?
   `).all(mid);
   assert(items.length === 2, `Erwartet 2 Einkaufsartikel, erhalten ${items.length}`);
   assert(items[0].name === 'Karotten', `Erster Artikel: ${items[0].name}`);
@@ -260,7 +260,7 @@ test('Zweiter Transfer überträgt nichts (alle bereits markiert)', () => {
 test('added_from_meal FK auf meals(id) gesetzt', () => {
   const items = db.prepare(`
     SELECT si.*, m.title AS meal_title
-    FROM shopping_items si
+    FROM list_items si
     JOIN meals m ON m.id = si.added_from_meal
     WHERE si.added_from_meal IS NOT NULL
     LIMIT 5

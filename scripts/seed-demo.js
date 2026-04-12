@@ -59,8 +59,8 @@ function lastMonthDate(day) {
 // ── Wipe existing demo data ──────────────────────────────────────────────────
 
 console.log('Clearing existing data…');
-db.prepare('DELETE FROM shopping_items').run();
-db.prepare('DELETE FROM shopping_lists').run();
+db.prepare('DELETE FROM list_items').run();
+db.prepare('DELETE FROM lists').run();
 db.prepare('DELETE FROM budget_entries').run();
 db.prepare('DELETE FROM contacts').run();
 db.prepare('DELETE FROM notes').run();
@@ -69,7 +69,7 @@ db.prepare('DELETE FROM meals').run();
 db.prepare('DELETE FROM calendar_events').run();
 db.prepare('DELETE FROM tasks').run();
 db.prepare('DELETE FROM users').run();
-db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('users','tasks','calendar_events','meals','contacts','notes','budget_entries','shopping_lists','shopping_items')").run();
+db.prepare("DELETE FROM sqlite_sequence WHERE name IN ('users','tasks','calendar_events','meals','contacts','notes','budget_entries','lists','list_items')").run();
 
 // ── Users ────────────────────────────────────────────────────────────────────
 
@@ -298,11 +298,11 @@ const insertNote = db.prepare(`
 
 console.log('Inserting shopping list…');
 const listId = db.prepare(`
-  INSERT INTO shopping_lists (name, created_by) VALUES (?, ?)
+  INSERT INTO lists (name, created_by) VALUES (?, ?)
 `).run('Weekly Shop', alexId).lastInsertRowid;
 
 const insertItem = db.prepare(`
-  INSERT INTO shopping_items (list_id, name, quantity, category, is_checked)
+  INSERT INTO list_items (list_id, name, quantity, category, is_checked)
   VALUES (?, ?, ?, ?, ?)
 `);
 

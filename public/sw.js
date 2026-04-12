@@ -12,9 +12,9 @@
  *   API: Always network (no caching of user data)
  */
 
-const SHELL_CACHE   = 'planner-shell-v80';
-const PAGES_CACHE   = 'planner-pages-v80';
-const ASSETS_CACHE  = 'planner-assets-v80';
+const SHELL_CACHE   = 'planner-shell-v81';
+const PAGES_CACHE   = 'planner-pages-v81';
+const ASSETS_CACHE  = 'planner-assets-v81';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App shell: needed immediately for first render
@@ -35,7 +35,7 @@ const APP_SHELL = [
   '/styles/login.css',
   '/styles/dashboard.css',
   '/styles/tasks.css',
-  '/styles/shopping.css',
+  '/styles/lists.css',
   '/styles/meals.css',
   '/styles/calendar.css',
   '/styles/notes.css',
@@ -60,7 +60,7 @@ const APP_SHELL = [
 const PAGE_MODULES = [
   '/pages/dashboard.js',
   '/pages/tasks.js',
-  '/pages/shopping.js',
+  '/pages/lists.js',
   '/pages/meals.js',
   '/pages/calendar.js',
   '/pages/notes.js',

@@ -39,9 +39,12 @@ const MIGRATIONS_SQL = {
       created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
       updated_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );
-    CREATE TABLE IF NOT EXISTS shopping_lists (
+    CREATE TABLE IF NOT EXISTS lists (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       name       TEXT    NOT NULL,
+      type       TEXT    NOT NULL DEFAULT 'shopping'
+                         CHECK(type IN ('shopping', 'packing')),
+      sort_order INTEGER NOT NULL DEFAULT 0,
       created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
       updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -57,9 +60,9 @@ const MIGRATIONS_SQL = {
       created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
       updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
     );
-    CREATE TABLE IF NOT EXISTS shopping_items (
+    CREATE TABLE IF NOT EXISTS list_items (
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
-      list_id         INTEGER NOT NULL REFERENCES shopping_lists(id) ON DELETE CASCADE,
+      list_id         INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
       name            TEXT    NOT NULL,
       quantity        TEXT,
       category        TEXT    NOT NULL DEFAULT 'Sonstiges',
@@ -134,12 +137,12 @@ const MIGRATIONS_SQL = {
     CREATE TRIGGER IF NOT EXISTS trg_tasks_updated_at
       AFTER UPDATE ON tasks FOR EACH ROW
       BEGIN UPDATE tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
-    CREATE TRIGGER IF NOT EXISTS trg_shopping_lists_updated_at
-      AFTER UPDATE ON shopping_lists FOR EACH ROW
-      BEGIN UPDATE shopping_lists SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
-    CREATE TRIGGER IF NOT EXISTS trg_shopping_items_updated_at
-      AFTER UPDATE ON shopping_items FOR EACH ROW
-      BEGIN UPDATE shopping_items SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+    CREATE TRIGGER IF NOT EXISTS trg_lists_updated_at
+      AFTER UPDATE ON lists FOR EACH ROW
+      BEGIN UPDATE lists SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+    CREATE TRIGGER IF NOT EXISTS trg_list_items_updated_at
+      AFTER UPDATE ON list_items FOR EACH ROW
+      BEGIN UPDATE list_items SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
     CREATE TRIGGER IF NOT EXISTS trg_meals_updated_at
       AFTER UPDATE ON meals FOR EACH ROW
       BEGIN UPDATE meals SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
@@ -162,7 +165,8 @@ const MIGRATIONS_SQL = {
     CREATE INDEX IF NOT EXISTS idx_tasks_due_date       ON tasks(due_date);
     CREATE INDEX IF NOT EXISTS idx_tasks_status         ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_tasks_parent         ON tasks(parent_task_id);
-    CREATE INDEX IF NOT EXISTS idx_shopping_items_list  ON shopping_items(list_id);
+    CREATE INDEX IF NOT EXISTS idx_list_items_list      ON list_items(list_id);
+    CREATE INDEX IF NOT EXISTS idx_lists_type           ON lists(type);
     CREATE INDEX IF NOT EXISTS idx_meals_date           ON meals(date);
     CREATE INDEX IF NOT EXISTS idx_calendar_start       ON calendar_events(start_datetime);
     CREATE INDEX IF NOT EXISTS idx_calendar_assigned    ON calendar_events(assigned_to);

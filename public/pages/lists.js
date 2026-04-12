@@ -8,7 +8,7 @@ import { api } from '/api.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
-import { showConfirm, showPrompt } from '/components/modal.js';
+import { showConfirm, showPrompt, openModal, closeModal } from '/components/modal.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -19,10 +19,13 @@ const SWIPE_THRESHOLD = 80;   // px - Mindestweg für Aktion
 const SWIPE_MAX_VERT  = 12;   // px - vertikaler Toleranzbereich
 const SWIPE_LOCK_VERT = 30;   // px - ab diesem Weg gilt es als Scroll
 
-const ITEM_CATEGORIES = [
-  'Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
-  'Frozen', 'Drinks', 'Household', 'Toiletries', 'Other',
-];
+const LIST_TYPES = ['shopping', 'packing'];
+
+const CATEGORIES_BY_TYPE = {
+  shopping: ['Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
+             'Frozen', 'Drinks', 'Household', 'Toiletries', 'Other'],
+  packing:  ['Clothes', 'Toiletries', 'Electronics', 'Documents', 'Other'],
+};
 
 const CATEGORY_LABELS = () => ({
   'Fruit & Veg':  t('shopping.catFruitVeg'),
@@ -33,7 +36,10 @@ const CATEGORY_LABELS = () => ({
   'Drinks':       t('shopping.catDrinks'),
   'Household':    t('shopping.catHousehold'),
   'Toiletries':   t('shopping.catDrugstore'),
-  'Other':        t('shopping.catMisc'),
+  'Other':        t('shopping.catOther'),
+  'Clothes':      t('shopping.catClothes'),
+  'Electronics':  t('shopping.catElectronics'),
+  'Documents':    t('shopping.catDocuments'),
 });
 
 const CATEGORY_ICONS = {
@@ -46,7 +52,14 @@ const CATEGORY_ICONS = {
   'Household':    'spray-can',
   'Toiletries':   'pill',
   'Other':        'shopping-basket',
+  'Clothes':      'shirt',
+  'Electronics':  'plug',
+  'Documents':    'file-text',
 };
+
+function categoriesForType(type) {
+  return CATEGORIES_BY_TYPE[type] || CATEGORIES_BY_TYPE.shopping;
+}
 
 // --------------------------------------------------------
 // State
@@ -55,9 +68,14 @@ const CATEGORY_ICONS = {
 const state = {
   lists:         [],
   activeListId:  null,
+  activeType:    'shopping',
   items:         [],
   activeList:    null,
 };
+
+function listsForActiveType() {
+  return state.lists.filter((l) => (l.type || 'shopping') === state.activeType);
+}
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -69,8 +87,8 @@ function groupItemsByCategory(items) {
     const cat = item.category || 'Other';
     (grouped[cat] = grouped[cat] || []).push(item);
   }
-  // In Supermarkt-Gang-Reihenfolge zurückgeben
-  return ITEM_CATEGORIES
+  const type = state.activeList?.type || state.activeType;
+  return categoriesForType(type)
     .filter((c) => grouped[c])
     .map((c) => [c, grouped[c]]);
 }
@@ -79,11 +97,23 @@ function groupItemsByCategory(items) {
 // Render-Bausteine
 // --------------------------------------------------------
 
+function renderTypeBar(container) {
+  const bar = container.querySelector('#list-type-bar');
+  if (!bar) return;
+  bar.innerHTML = LIST_TYPES.map((type) => `
+    <button class="list-type-tab ${type === state.activeType ? 'list-type-tab--active' : ''}"
+            data-action="switch-type" data-type="${type}">
+      ${t(`shopping.type${type.charAt(0).toUpperCase()}${type.slice(1)}`)}
+    </button>
+  `).join('');
+}
+
 function renderTabs(container) {
   const bar = container.querySelector('#list-tabs-bar');
   if (!bar) return;
 
-  const tabsHtml = state.lists.map((list) => {
+  const filtered = listsForActiveType();
+  const tabsHtml = filtered.map((list) => {
     const unchecked = list.item_total - list.item_checked;
     return `
       <button class="list-tab ${list.id === state.activeListId ? 'list-tab--active' : ''}"
@@ -136,6 +166,12 @@ function renderListContent(container) {
             <i data-lucide="trash-2" style="width:15px;height:15px" aria-hidden="true"></i>
             ${t('shopping.clearChecked', { count: checkedCount })}
           </button>` : ''}
+        <button class="btn btn--ghost btn--icon" data-action="clone-list"
+                data-id="${state.activeList.id}" aria-label="${t('shopping.cloneList')}"
+                title="${t('shopping.cloneList')}"
+                style="color:var(--color-text-secondary)">
+          <i data-lucide="copy" style="width:18px;height:18px" aria-hidden="true"></i>
+        </button>
         <button class="btn btn--ghost btn--icon" data-action="delete-list"
                 data-id="${state.activeList.id}" aria-label="${t('shopping.deleteListLabel')}"
                 style="color:var(--color-text-secondary)">
@@ -248,7 +284,7 @@ function wireAutocomplete(container) {
 
     autocompleteTimeout = setTimeout(async () => {
       try {
-        const data = await api.get(`/shopping/suggestions?q=${encodeURIComponent(q)}`);
+        const data = await api.get(`/lists/suggestions?q=${encodeURIComponent(q)}`);
         const suggestions = data.data ?? [];
         if (!suggestions.length) { dropdown.hidden = true; return; }
 
@@ -318,7 +354,7 @@ function wireQuickAdd(container) {
     if (!name) { nameInput.focus(); return; }
 
     try {
-      const data = await api.post(`/shopping/${state.activeListId}/items`, { name, quantity, category });
+      const data = await api.post(`/lists/${state.activeListId}/items`, { name, quantity, category });
       state.items.push(data.data);
       // Einfügen in DOM ohne komplettes Re-Render
       updateItemsList(container);
@@ -435,7 +471,7 @@ function wireSwipeGestures(container) {
             renderTabs(container);
           }
           try {
-            await api.patch(`/shopping/items/${itemId}`, { is_checked: newVal });
+            await api.patch(`/lists/items/${itemId}`, { is_checked: newVal });
             vibrate(10);
           } catch (err) {
             if (item) item.is_checked = checked;
@@ -452,7 +488,7 @@ function wireSwipeGestures(container) {
         setTimeout(async () => {
           const item = state.items.find((i) => i.id === itemId);
           try {
-            await api.delete(`/shopping/items/${itemId}`);
+            await api.delete(`/lists/items/${itemId}`);
             state.items = state.items.filter((i) => i.id !== itemId);
             updateItemsList(container);
             updateListCounter(state.activeListId, -1, item?.is_checked ? -1 : 0);
@@ -522,7 +558,7 @@ function updateListCounter(listId, totalDelta, checkedDelta) {
 
 async function loadLists() {
   try {
-    const data   = await api.get('/shopping');
+    const data   = await api.get('/lists');
     state.lists  = data.data ?? [];
   } catch (err) {
     console.error('[Shopping] loadLists Fehler:', err);
@@ -532,7 +568,7 @@ async function loadLists() {
 }
 
 async function loadItems(listId) {
-  const data       = await api.get(`/shopping/${listId}/items`);
+  const data       = await api.get(`/lists/${listId}/items`);
   state.items      = data.data ?? [];
   state.activeList = data.list ?? null;
 }
@@ -642,7 +678,7 @@ function wireTabDragReorder(container) {
     state.lists.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
 
     try {
-      await api.patch('/shopping/reorder', { ids: newOrder });
+      await api.patch('/lists/reorder', { ids: newOrder });
       vibrate(15);
     } catch (err) {
       window.planner?.showToast(err.message, 'danger');
@@ -676,14 +712,23 @@ function wireTabBar(container) {
     }
 
     if (target.dataset.action === 'new-list') {
-      const name = await showPrompt(t('shopping.newListPrompt'));
-      if (!name?.trim()) return;
-      try {
-        const data = await api.post('/shopping', { name: name.trim() });
-        state.lists.push({ ...data.data, item_total: 0, item_checked: 0 });
-        await switchList(data.data.id, container);
-      } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+      await openNewListDialog(container);
+    }
+
+    if (target.dataset.action === 'switch-type') {
+      const newType = target.dataset.type;
+      if (!LIST_TYPES.includes(newType) || newType === state.activeType) return;
+      state.activeType = newType;
+      const filtered = listsForActiveType();
+      state.activeListId = filtered[0]?.id ?? null;
+      renderTypeBar(container);
+      renderTabs(container);
+      if (state.activeListId) {
+        await switchList(state.activeListId, container);
+      } else {
+        state.items = [];
+        state.activeList = null;
+        renderListContent(container);
       }
     }
   });
@@ -714,7 +759,7 @@ function wireListContentEvents(container) {
       }
 
       try {
-        await api.patch(`/shopping/items/${id}`, { is_checked: newVal });
+        await api.patch(`/lists/items/${id}`, { is_checked: newVal });
         vibrate(10);
       } catch (err) {
         // Zurückrollen
@@ -729,7 +774,7 @@ function wireListContentEvents(container) {
       const id   = Number(target.dataset.id);
       const item = state.items.find((i) => i.id === id);
       try {
-        await api.delete(`/shopping/items/${id}`);
+        await api.delete(`/lists/items/${id}`);
         state.items = state.items.filter((i) => i.id !== id);
         updateItemsList(container);
         updateListCounter(state.activeListId, -1, item?.is_checked ? -1 : 0);
@@ -744,7 +789,7 @@ function wireListContentEvents(container) {
       const count = state.items.filter((i) => i.is_checked).length;
       if (!count) return;
       try {
-        await api.delete(`/shopping/${state.activeListId}/items/checked`);
+        await api.delete(`/lists/${state.activeListId}/items/checked`);
         state.items = state.items.filter((i) => !i.is_checked);
         updateItemsList(container);
         updateListCounter(state.activeListId, -count, -count);
@@ -760,7 +805,7 @@ function wireListContentEvents(container) {
       const newName = await showPrompt(t('shopping.renameListPrompt'), state.activeList?.name);
       if (!newName?.trim() || newName.trim() === state.activeList?.name) return;
       try {
-        const data = await api.put(`/shopping/${state.activeListId}`, { name: newName.trim() });
+        const data = await api.put(`/lists/${state.activeListId}`, { name: newName.trim() });
         const idx  = state.lists.findIndex((l) => l.id === state.activeListId);
         if (idx >= 0) state.lists[idx].name = data.data.name;
         state.activeList = data.data;
@@ -771,11 +816,17 @@ function wireListContentEvents(container) {
       }
     }
 
+    // ---- Liste klonen ----
+    if (action === 'clone-list') {
+      await openCloneListDialog(container);
+      return;
+    }
+
     // ---- Liste löschen ----
     if (action === 'delete-list') {
       if (!await showConfirm(t('shopping.deleteListConfirm', { name: state.activeList?.name }), { danger: true })) return;
       try {
-        await api.delete(`/shopping/${state.activeListId}`);
+        await api.delete(`/lists/${state.activeListId}`);
         state.lists = state.lists.filter((l) => l.id !== state.activeListId);
         state.activeListId = state.lists[0]?.id ?? null;
         if (state.activeListId) {
@@ -796,6 +847,147 @@ function wireListContentEvents(container) {
   // Rename per Enter
   content.querySelector('[data-action="rename-list"]')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') e.currentTarget.click();
+  });
+}
+
+// --------------------------------------------------------
+// Dialogs: Clone / New List
+// --------------------------------------------------------
+
+function typeRadios(selected) {
+  return LIST_TYPES.map((type) => `
+    <label class="list-dialog__radio">
+      <input type="radio" name="list-type" value="${type}" ${type === selected ? 'checked' : ''}>
+      <span>${t(`shopping.type${type.charAt(0).toUpperCase()}${type.slice(1)}`)}</span>
+    </label>
+  `).join('');
+}
+
+async function openCloneListDialog(container) {
+  if (!state.activeList) return;
+  const source = state.activeList;
+  const defaultName = `${source.name} (copy)`;
+
+  openModal({
+    title: t('shopping.cloneListTitle'),
+    size: 'sm',
+    content: `
+      <form id="clone-list-form" class="list-dialog">
+        <label class="list-dialog__field">
+          <span class="list-dialog__label">${t('shopping.cloneListNameLabel')}</span>
+          <input type="text" name="name" class="list-dialog__input" value="${esc(defaultName)}" required autofocus>
+        </label>
+        <div class="list-dialog__field">
+          <span class="list-dialog__label">${t('shopping.cloneListTypeLabel')}</span>
+          <div class="list-dialog__radios">${typeRadios(source.type || 'shopping')}</div>
+        </div>
+        <div class="list-dialog__actions">
+          <button type="button" class="btn btn--ghost" data-action="close-modal">${t('shopping.cancel')}</button>
+          <button type="submit" class="btn btn--primary">${t('shopping.cloneList')}</button>
+        </div>
+      </form>
+    `,
+    onSave: (panel) => {
+      const form = panel.querySelector('#clone-list-form');
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const name = String(fd.get('name') || '').trim();
+        const type = String(fd.get('list-type') || 'shopping');
+        if (!name) return;
+        try {
+          const res = await api.post(`/lists/${source.id}/clone`, { name, type });
+          closeModal();
+          // Reload to get counts
+          await loadLists();
+          state.activeType = type;
+          state.activeListId = res.data.id;
+          renderTypeBar(container);
+          await switchList(res.data.id, container);
+        } catch (err) {
+          window.planner.showToast(err.message, 'danger');
+        }
+      });
+    },
+  });
+}
+
+async function openNewListDialog(container) {
+  const initialType = state.activeType || 'shopping';
+
+  openModal({
+    title: t('shopping.newListTitle'),
+    size: 'sm',
+    content: `
+      <form id="new-list-form" class="list-dialog">
+        <label class="list-dialog__field">
+          <span class="list-dialog__label">${t('shopping.cloneListNameLabel')}</span>
+          <input type="text" name="name" class="list-dialog__input" required autofocus>
+        </label>
+        <div class="list-dialog__field">
+          <span class="list-dialog__label">${t('shopping.cloneListTypeLabel')}</span>
+          <div class="list-dialog__radios">${typeRadios(initialType)}</div>
+        </div>
+        <div class="list-dialog__field">
+          <span class="list-dialog__label">${t('shopping.newListItemsLabel')}</span>
+          <div id="new-list-items" class="list-dialog__items"></div>
+          <button type="button" class="btn btn--ghost" data-action="add-item-row" style="align-self:flex-start">${t('shopping.addAnotherItem')}</button>
+        </div>
+        <div class="list-dialog__actions">
+          <button type="button" class="btn btn--ghost" data-action="close-modal">${t('shopping.cancel')}</button>
+          <button type="submit" class="btn btn--primary">${t('shopping.create')}</button>
+        </div>
+      </form>
+    `,
+    onSave: (panel) => {
+      const form = panel.querySelector('#new-list-form');
+      const itemsEl = panel.querySelector('#new-list-items');
+
+      const addRow = () => {
+        const row = document.createElement('div');
+        row.className = 'list-dialog__item-row';
+        row.innerHTML = `
+          <input type="text" name="item-name" class="list-dialog__input" placeholder="${t('shopping.itemNamePlaceholder')}">
+          <input type="text" name="item-qty" class="list-dialog__input list-dialog__input--qty" placeholder="${t('shopping.itemQtyPlaceholder')}">
+          <button type="button" class="btn btn--ghost btn--icon" data-action="remove-item-row" aria-label="${t('shopping.removeItem')}">
+            <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
+          </button>
+        `;
+        itemsEl.appendChild(row);
+        if (window.lucide) window.lucide.createIcons();
+      };
+
+      panel.querySelector('[data-action="add-item-row"]').addEventListener('click', addRow);
+      itemsEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action="remove-item-row"]');
+        if (btn) btn.closest('.list-dialog__item-row').remove();
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const name = String(fd.get('name') || '').trim();
+        const type = String(fd.get('list-type') || 'shopping');
+        if (!name) return;
+
+        const rows = [...itemsEl.querySelectorAll('.list-dialog__item-row')];
+        const items = rows.map((r) => ({
+          name: r.querySelector('[name="item-name"]').value.trim(),
+          quantity: r.querySelector('[name="item-qty"]').value.trim() || null,
+        })).filter((it) => it.name);
+
+        try {
+          const res = await api.post('/lists', { name, type, items });
+          closeModal();
+          await loadLists();
+          state.activeType = type;
+          renderTypeBar(container);
+          await switchList(res.data.id, container);
+        } catch (err) {
+          window.planner.showToast(err.message, 'danger');
+        }
+      });
+    },
   });
 }
 
@@ -823,16 +1015,20 @@ export async function render(container, { user }) {
   try {
     await loadLists();
     if (state.lists.length) {
-      const pendingListId = localStorage.getItem('shopping-open-list');
+      const pendingListId = localStorage.getItem('lists-open-list');
+      let chosen = null;
       if (pendingListId) {
-        localStorage.removeItem('shopping-open-list');
-        const found = state.lists.find((l) => l.id === parseInt(pendingListId, 10));
-        state.activeListId = found ? found.id : state.lists[0].id;
+        localStorage.removeItem('lists-open-list');
+        chosen = state.lists.find((l) => l.id === parseInt(pendingListId, 10)) ?? null;
         state._focusInput = true;
-      } else {
-        state.activeListId = state.lists[0].id;
+      }
+      if (!chosen) {
+        // Default to first list of activeType (shopping), else first overall
+        chosen = listsForActiveType()[0] ?? state.lists[0];
         state._focusInput = false;
       }
+      state.activeType = chosen.type || 'shopping';
+      state.activeListId = chosen.id;
       await loadItems(state.activeListId);
     }
   } catch (err) {
@@ -843,6 +1039,7 @@ export async function render(container, { user }) {
   container.innerHTML = `
     <div class="shopping-page">
       <h1 class="sr-only">${t('shopping.title')}</h1>
+      <div class="list-type-bar" id="list-type-bar"></div>
       <div class="list-tabs-bar" id="list-tabs-bar"></div>
       <div id="list-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
       <button class="page-fab" id="fab-new-item" aria-label="${t('shopping.addItemLabel')}">
@@ -851,6 +1048,7 @@ export async function render(container, { user }) {
     </div>
   `;
 
+  renderTypeBar(container);
   renderTabs(container);
   wireTabBar(container);
   wireTabDragReorder(container);
@@ -868,8 +1066,8 @@ export async function render(container, { user }) {
   }
 
   // Dashboard FAB → focus quick-add input immediately
-  if (localStorage.getItem('shopping-create-new')) {
-    localStorage.removeItem('shopping-create-new');
+  if (localStorage.getItem('lists-create-new')) {
+    localStorage.removeItem('lists-create-new');
     const input = container.querySelector('#item-name-input');
     if (input) { input.scrollIntoView({ behavior: 'smooth', block: 'center' }); input.focus(); }
     else container.querySelector('[data-action="new-list"]')?.click();

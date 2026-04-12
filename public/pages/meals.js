@@ -90,7 +90,7 @@ async function loadWeek(week) {
 
 async function loadLists() {
   try {
-    const res   = await api.get('/shopping');
+    const res   = await api.get('/lists?type=shopping');
     state.lists = res.data;
   } catch {
     state.lists = [];
