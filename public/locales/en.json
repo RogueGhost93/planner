@@ -215,21 +215,7 @@
     "markUndoneLabel": "Uncheck {{name}}",
     "deleteItemLabel": "Delete {{name}}",
     "listsLoadError": "Lists could not be loaded.",
-    "itemsLoadError": "Items could not be loaded.",
-    "catFruitVeg": "Fruit & Vegetables",
-    "catBakery": "Bakery",
-    "catDairy": "Dairy",
-    "catMeatFish": "Meat & Fish",
-    "catFrozen": "Frozen",
-    "catDrinks": "Drinks",
-    "catHousehold": "Household",
-    "catDrugstore": "Drugstore",
-    "catMisc": "Miscellaneous",
-    "catClothes": "Clothes",
-    "catToiletries": "Toiletries",
-    "catElectronics": "Electronics",
-    "catDocuments": "Documents",
-    "catOther": "Other"
+    "itemsLoadError": "Items could not be loaded."
   },
 
   "meals": {

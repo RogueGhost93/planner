@@ -8,16 +8,10 @@
 import { createLogger } from '../logger.js';
 import express from 'express';
 import * as db from '../db.js';
-import { str, oneOf, collectErrors, MAX_TITLE, MAX_SHORT } from '../middleware/validate.js';
+import { str, collectErrors, MAX_TITLE, MAX_SHORT } from '../middleware/validate.js';
 
 const log = createLogger('Lists');
 const router = express.Router();
-
-const CATEGORIES = [
-  'Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
-  'Frozen', 'Drinks', 'Household', 'Toiletries',
-  'Clothes', 'Electronics', 'Documents', 'Other',
-];
 
 // --------------------------------------------------------
 // Helpers
@@ -150,16 +144,11 @@ router.get('/heads/:id/full', (req, res) => {
       ORDER BY l.sort_order ASC
     `).all(req.params.id);
 
-    const categoryOrder = CATEGORIES.map((c, i) => `WHEN '${c.replace(/'/g, "''")}' THEN ${i}`).join(' ');
-
     const items = sublists.length
       ? db.get().prepare(`
           SELECT * FROM list_items
           WHERE list_id IN (${sublists.map(() => '?').join(',')})
-          ORDER BY
-            CASE category ${categoryOrder} ELSE ${CATEGORIES.length} END,
-            is_checked ASC,
-            created_at ASC
+          ORDER BY is_checked ASC, created_at ASC
         `).all(...sublists.map((s) => s.id))
       : [];
 
@@ -213,17 +202,14 @@ router.patch('/items/:itemId', (req, res) => {
       is_checked = item.is_checked,
       name       = item.name,
       quantity   = item.quantity,
-      category   = item.category,
     } = req.body;
 
     if (!name?.trim()) return res.status(400).json({ error: 'name darf nicht leer sein.', code: 400 });
-    if (category && !CATEGORIES.includes(category))
-      return res.status(400).json({ error: 'Invalid category.', code: 400 });
 
     db.get().prepare(`
-      UPDATE list_items SET is_checked = ?, name = ?, quantity = ?, category = ?
+      UPDATE list_items SET is_checked = ?, name = ?, quantity = ?
       WHERE id = ?
-    `).run(is_checked ? 1 : 0, name.trim(), quantity ?? null, category, req.params.itemId);
+    `).run(is_checked ? 1 : 0, name.trim(), quantity ?? null, req.params.itemId);
 
     res.json({ data: db.get().prepare('SELECT * FROM list_items WHERE id = ?').get(req.params.itemId) });
   } catch (err) {
@@ -310,14 +296,13 @@ router.post('/:listId/items', (req, res) => {
 
     const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
     const vQty  = str(req.body.quantity, 'Menge', { max: MAX_SHORT, required: false });
-    const vCat  = oneOf(req.body.category || 'Other', CATEGORIES, 'Kategorie');
-    const errors = collectErrors([vName, vQty, vCat]);
+    const errors = collectErrors([vName, vQty]);
     if (errors.length) return res.status(400).json({ error: errors.join(' '), code: 400 });
 
     const result = db.get().prepare(`
-      INSERT INTO list_items (list_id, name, quantity, category)
-      VALUES (?, ?, ?, ?)
-    `).run(req.params.listId, vName.value, vQty.value, vCat.value || 'Other');
+      INSERT INTO list_items (list_id, name, quantity)
+      VALUES (?, ?, ?)
+    `).run(req.params.listId, vName.value, vQty.value);
 
     res.status(201).json({
       data: db.get().prepare('SELECT * FROM list_items WHERE id = ?').get(result.lastInsertRowid),
