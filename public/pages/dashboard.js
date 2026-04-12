@@ -708,7 +708,9 @@ export async function render(container, { user }) {
     if (t.is_recurring) {
       const rrule = (t.recurrence_rule || '').toUpperCase();
       if (rrule.includes('FREQ=YEARLY'))  return diff <= 30;
-      if (rrule.includes('FREQ=MONTHLY')) return diff <= 14;
+      if (rrule.includes('FREQ=MONTHLY')) return diff <= 7;
+      if (rrule.includes('FREQ=WEEKLY'))  return diff <= 1;
+      if (rrule.includes('FREQ=DAILY'))   return diff <= 1;
       return diff <= 14;
     }
     return diff <= 14;
