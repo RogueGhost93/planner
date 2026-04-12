@@ -117,16 +117,25 @@ router.get('/', (req, res) => {
     result.users = [];
   }
 
-  // Unchecked list items per list (all types, only lists with unchecked items)
+  // 3-tier lists: head_lists → sublists (lists) → list_items
   try {
-    result.lists = d.prepare(`
+    result.heads = d.prepare(`
       SELECT
-        l.id,
-        l.name,
-        l.type,
-        COUNT(li.id) AS unchecked_count
+        h.id, h.name, h.sort_order,
+        COALESCE(SUM(CASE WHEN li.is_checked = 0 THEN 1 ELSE 0 END), 0) AS unchecked_count
+      FROM head_lists h
+      LEFT JOIN lists l      ON l.head_list_id = h.id
+      LEFT JOIN list_items li ON li.list_id = l.id
+      GROUP BY h.id
+      ORDER BY h.sort_order ASC
+    `).all();
+
+    result.sublists = d.prepare(`
+      SELECT
+        l.id, l.name, l.head_list_id, l.sort_order,
+        COALESCE(SUM(CASE WHEN li.is_checked = 0 THEN 1 ELSE 0 END), 0) AS unchecked_count
       FROM lists l
-      JOIN list_items li ON li.list_id = l.id AND li.is_checked = 0
+      LEFT JOIN list_items li ON li.list_id = l.id
       GROUP BY l.id
       ORDER BY l.sort_order ASC
     `).all();
@@ -134,13 +143,13 @@ router.get('/', (req, res) => {
     result.listItems = d.prepare(`
       SELECT li.id, li.list_id, li.name, li.quantity
       FROM list_items li
-      JOIN lists l ON l.id = li.list_id
       WHERE li.is_checked = 0
-      ORDER BY l.sort_order ASC, li.id ASC
+      ORDER BY li.id ASC
     `).all();
   } catch (err) {
     log.error('lists-Fehler:', err.message);
-    result.lists = [];
+    result.heads = [];
+    result.sublists = [];
     result.listItems = [];
   }
 

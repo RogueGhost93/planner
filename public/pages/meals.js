@@ -90,7 +90,7 @@ async function loadWeek(week) {
 
 async function loadLists() {
   try {
-    const res   = await api.get('/lists?type=shopping');
+    const res   = await api.get('/lists/sublists');
     state.lists = res.data;
   } catch {
     state.lists = [];
@@ -536,7 +536,7 @@ function buildModalContent({ mode, date, mealType, meal }) {
   ).join('');
 
   const listOpts = state.lists.length
-    ? state.lists.map((l) => `<option value="${l.id}">${esc(l.name)}</option>`).join('')
+    ? state.lists.map((l) => `<option value="${l.id}">${esc(l.head_name ? `${l.head_name} › ${l.name}` : l.name)}</option>`).join('')
     : `<option value="" disabled>${t('meals.noShoppingLists')}</option>`;
 
   const ingRows = isEdit && meal.ingredients?.length
