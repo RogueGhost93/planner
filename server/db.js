@@ -472,6 +472,39 @@ const MIGRATIONS = [
       PRAGMA foreign_keys=ON;
     `,
   },
+  {
+    version: 12,
+    description: 'Add head_lists (tier 1) — existing lists become sublists of a seeded head',
+    up: `
+      PRAGMA foreign_keys=OFF;
+
+      CREATE TABLE head_lists (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+
+      CREATE TRIGGER trg_head_lists_updated_at
+        AFTER UPDATE ON head_lists FOR EACH ROW
+        BEGIN UPDATE head_lists SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+
+      INSERT INTO head_lists (name, sort_order, created_by)
+        SELECT 'Shopping', 0, COALESCE((SELECT created_by FROM lists ORDER BY id LIMIT 1),
+                                       (SELECT id FROM users ORDER BY id LIMIT 1))
+        WHERE EXISTS (SELECT 1 FROM lists)
+           OR EXISTS (SELECT 1 FROM users);
+
+      ALTER TABLE lists ADD COLUMN head_list_id INTEGER REFERENCES head_lists(id) ON DELETE CASCADE;
+      UPDATE lists SET head_list_id = (SELECT id FROM head_lists ORDER BY id LIMIT 1);
+
+      CREATE INDEX idx_lists_head ON lists(head_list_id);
+
+      PRAGMA foreign_keys=ON;
+    `,
+  },
 ];
 
 /**

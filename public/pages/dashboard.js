@@ -330,10 +330,12 @@ function renderBoardNotes(notes) {
 
 const SHOPPING_COLLAPSE_AT = 6;
 
-function renderShoppingWidget(lists, items) {
-  const totalUnchecked = lists.reduce((sum, l) => sum + l.unchecked_count, 0);
+let _widgetActiveHeadId = null;
 
-  if (!lists.length) {
+function renderShoppingWidget(heads, sublists, items) {
+  const totalUnchecked = heads.reduce((s, h) => s + (h.unchecked_count || 0), 0);
+
+  if (!heads.length) {
     return `<div class="widget">
       ${widgetHeader('list-checks', t('nav.lists'), 0, '/lists', undefined, '/lists', 'lists-create-new')}
       <div class="widget__empty">
@@ -343,13 +345,25 @@ function renderShoppingWidget(lists, items) {
     </div>`;
   }
 
-  const renderList = (list) => {
-    const listItems = items.filter((i) => i.list_id === list.id);
-    const visible   = listItems.slice(0, SHOPPING_COLLAPSE_AT);
-    const hidden    = listItems.slice(SHOPPING_COLLAPSE_AT);
+  if (!heads.find((h) => h.id === _widgetActiveHeadId)) _widgetActiveHeadId = heads[0].id;
+  const activeSubs = sublists.filter((s) => s.head_list_id === _widgetActiveHeadId);
+
+  const tabsHtml = `
+    <div class="shopping-widget__head-tabs">
+      ${heads.map((h) => `
+        <button class="shopping-widget__head-tab ${h.id === _widgetActiveHeadId ? 'shopping-widget__head-tab--active' : ''}"
+                data-action="widget-switch-head" data-id="${h.id}">
+          ${esc(h.name)}${h.unchecked_count > 0 ? ` <span class="shopping-widget__head-count">${h.unchecked_count}</span>` : ''}
+        </button>`).join('')}
+    </div>`;
+
+  const renderSub = (sub) => {
+    const subItems = items.filter((i) => i.list_id === sub.id);
+    const visible  = subItems.slice(0, SHOPPING_COLLAPSE_AT);
+    const hidden   = subItems.slice(SHOPPING_COLLAPSE_AT);
 
     const renderItem = (i) => `
-      <div class="shopping-widget__item" data-item-id="${i.id}" data-list-id="${list.id}">
+      <div class="shopping-widget__item" data-item-id="${i.id}" data-list-id="${sub.id}">
         <button class="shopping-widget__check" data-action="check-item" data-id="${i.id}"
                 aria-label="Mark ${esc(i.name)} as done">
           <i data-lucide="circle" style="width:14px;height:14px" aria-hidden="true"></i>
@@ -359,30 +373,35 @@ function renderShoppingWidget(lists, items) {
       </div>`;
 
     return `
-      <div class="shopping-widget__list" data-list-id="${list.id}" data-type="${esc(list.type || 'shopping')}">
+      <div class="shopping-widget__list" data-list-id="${sub.id}">
         <div class="shopping-widget__list-header">
           <i data-lucide="grip-vertical" class="shopping-widget__drag-handle" aria-hidden="true" style="width:14px;height:14px;flex-shrink:0;cursor:grab;color:var(--color-text-tertiary);touch-action:none"></i>
-          <div class="shopping-widget__list-name" data-route="/lists" data-list-id="${list.id}" role="button" tabindex="0">
-            ${esc(list.name)}
-            <span data-badge="${list.id}" hidden>${list.unchecked_count}</span>
+          <div class="shopping-widget__list-name" data-route="/lists" data-head-id="${sub.head_list_id}" role="button" tabindex="0">
+            ${esc(sub.name)}
+            <span data-badge="${sub.id}" hidden>${sub.unchecked_count}</span>
           </div>
         </div>
         <div class="shopping-widget__items">
           ${visible.map(renderItem).join('')}
           ${hidden.length ? `
-            <div class="shopping-widget__overflow" hidden data-overflow="${list.id}">
+            <div class="shopping-widget__overflow" hidden data-overflow="${sub.id}">
               ${hidden.map(renderItem).join('')}
             </div>
-            <button class="shopping-widget__more" data-action="show-more" data-list-id="${list.id}">
+            <button class="shopping-widget__more" data-action="show-more" data-list-id="${sub.id}">
               +${hidden.length} more
             </button>` : ''}
         </div>
       </div>`;
   };
 
+  const body = activeSubs.length
+    ? activeSubs.map(renderSub).join('')
+    : `<div class="widget__empty" style="padding:var(--space-4)">${t('dashboard.noShoppingItems')}</div>`;
+
   return `<div class="widget" id="shopping-widget">
     ${widgetHeader('list-checks', t('nav.lists'), totalUnchecked, '/lists', undefined, '/lists', 'lists-create-new')}
-    <div class="widget__body" id="shopping-widget-body">${lists.map(renderList).join('')}</div>
+    ${tabsHtml}
+    <div class="widget__body" id="shopping-widget-body">${body}</div>
   </div>`;
 }
 
@@ -725,7 +744,7 @@ export async function render(container, { user }) {
         ${renderWeatherWidget(weather)}
         ${renderUrgentTasks(widgetTasks)}
         ${renderUpcomingEvents(data.upcomingEvents ?? [])}
-        ${renderShoppingWidget(data.lists ?? [], data.listItems ?? [])}
+        ${renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? [])}
         ${renderQuickNotes()}
         ${renderBoardNotes(data.pinnedNotes ?? [])}
       </div>
@@ -832,7 +851,7 @@ function wireShoppingWidgetReorder(container, lists) {
     if (JSON.stringify(newOrder) === JSON.stringify(oldOrder)) return;
     lists.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
     try {
-      await api.patch('/lists/reorder', { ids: newOrder });
+      await api.patch('/lists/sublists/reorder', { ids: newOrder });
     } catch (err) {
       window.planner?.showToast(err.message, 'danger');
       lists.sort((a, b) => oldOrder.indexOf(a.id) - oldOrder.indexOf(b.id));
@@ -885,10 +904,32 @@ function wireShoppingWidgetReorder(container, lists) {
 }
 
 function wireShoppingWidget(container, data) {
+  const widget = container.querySelector('#shopping-widget');
   const body = container.querySelector('#shopping-widget-body');
-  if (!body) return;
+  if (!body || !widget) return;
 
-  wireShoppingWidgetReorder(container, data.lists ?? []);
+  wireShoppingWidgetReorder(container, data.sublists ?? []);
+
+  widget.querySelectorAll('[data-action="widget-switch-head"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const newId = Number(btn.dataset.id);
+      if (newId === _widgetActiveHeadId) return;
+      _widgetActiveHeadId = newId;
+      const fresh = renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? []);
+      widget.outerHTML = fresh;
+      if (window.lucide) window.lucide.createIcons();
+      wireShoppingWidget(container, data);
+    });
+  });
+
+  // Clicking a sublist name navigates to /lists and opens its head
+  widget.querySelectorAll('[data-route="/lists"][data-head-id]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('lists-open-head', el.dataset.headId);
+    });
+  });
 
   body.addEventListener('click', async (e) => {
     // Show more toggle
