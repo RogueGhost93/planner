@@ -349,12 +349,20 @@ function renderShoppingWidget(heads, sublists, items) {
   const activeSubs = sublists.filter((s) => s.head_list_id === _widgetActiveHeadId);
 
   const tabsHtml = `
-    <div class="shopping-widget__head-tabs">
-      ${heads.map((h) => `
-        <button class="shopping-widget__head-tab ${h.id === _widgetActiveHeadId ? 'shopping-widget__head-tab--active' : ''}"
-                data-action="widget-switch-head" data-id="${h.id}">
-          ${esc(h.name)}${h.unchecked_count > 0 ? ` <span class="shopping-widget__head-count">${h.unchecked_count}</span>` : ''}
-        </button>`).join('')}
+    <div class="shopping-widget__head-wrap">
+      <button class="shopping-widget__head-arrow" data-action="widget-head-scroll" data-dir="-1" aria-label="Scroll left" hidden>
+        <i data-lucide="chevron-left" style="width:14px;height:14px" aria-hidden="true"></i>
+      </button>
+      <div class="shopping-widget__head-tabs" id="shopping-widget-head-tabs">
+        ${heads.map((h) => `
+          <button class="shopping-widget__head-tab ${h.id === _widgetActiveHeadId ? 'shopping-widget__head-tab--active' : ''}"
+                  data-action="widget-switch-head" data-id="${h.id}">
+            ${esc(h.name)}${h.unchecked_count > 0 ? ` <span class="shopping-widget__head-count">${h.unchecked_count}</span>` : ''}
+          </button>`).join('')}
+      </div>
+      <button class="shopping-widget__head-arrow" data-action="widget-head-scroll" data-dir="1" aria-label="Scroll right" hidden>
+        <i data-lucide="chevron-right" style="width:14px;height:14px" aria-hidden="true"></i>
+      </button>
     </div>`;
 
   const renderSub = (sub) => {
@@ -909,6 +917,36 @@ function wireShoppingWidget(container, data) {
   if (!body || !widget) return;
 
   wireShoppingWidgetReorder(container, data.sublists ?? []);
+
+  const tabsEl = widget.querySelector('#shopping-widget-head-tabs');
+  const leftArrow  = widget.querySelector('[data-action="widget-head-scroll"][data-dir="-1"]');
+  const rightArrow = widget.querySelector('[data-action="widget-head-scroll"][data-dir="1"]');
+
+  function updateArrows() {
+    if (!tabsEl || !leftArrow || !rightArrow) return;
+    const overflow = tabsEl.scrollWidth - tabsEl.clientWidth > 2;
+    leftArrow.hidden  = !overflow || tabsEl.scrollLeft <= 2;
+    rightArrow.hidden = !overflow || tabsEl.scrollLeft + tabsEl.clientWidth >= tabsEl.scrollWidth - 2;
+  }
+
+  if (tabsEl) {
+    tabsEl.addEventListener('scroll', updateArrows, { passive: true });
+    requestAnimationFrame(() => {
+      const active = tabsEl.querySelector('.shopping-widget__head-tab--active');
+      if (active) active.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      updateArrows();
+    });
+    window.addEventListener('resize', updateArrows);
+  }
+
+  widget.querySelectorAll('[data-action="widget-head-scroll"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!tabsEl) return;
+      const dir = Number(btn.dataset.dir);
+      tabsEl.scrollBy({ left: dir * Math.max(120, tabsEl.clientWidth * 0.7), behavior: 'smooth' });
+    });
+  });
 
   widget.querySelectorAll('[data-action="widget-switch-head"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {

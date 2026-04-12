@@ -15,42 +15,6 @@ const SWIPE_THRESHOLD = 80;
 const SWIPE_MAX_VERT  = 12;
 const SWIPE_LOCK_VERT = 30;
 
-const CATEGORY_ORDER = [
-  'Fruit & Veg', 'Bakery', 'Dairy', 'Meat & Fish',
-  'Frozen', 'Drinks', 'Household', 'Toiletries',
-  'Clothes', 'Electronics', 'Documents', 'Other',
-];
-
-const CATEGORY_LABELS = () => ({
-  'Fruit & Veg':  t('shopping.catFruitVeg'),
-  'Bakery':       t('shopping.catBakery'),
-  'Dairy':        t('shopping.catDairy'),
-  'Meat & Fish':  t('shopping.catMeatFish'),
-  'Frozen':       t('shopping.catFrozen'),
-  'Drinks':       t('shopping.catDrinks'),
-  'Household':    t('shopping.catHousehold'),
-  'Toiletries':   t('shopping.catDrugstore'),
-  'Other':        t('shopping.catOther'),
-  'Clothes':      t('shopping.catClothes'),
-  'Electronics':  t('shopping.catElectronics'),
-  'Documents':    t('shopping.catDocuments'),
-});
-
-const CATEGORY_ICONS = {
-  'Fruit & Veg':  'apple',
-  'Bakery':       'wheat',
-  'Dairy':        'milk',
-  'Meat & Fish':  'beef',
-  'Frozen':       'snowflake',
-  'Drinks':       'cup-soda',
-  'Household':    'spray-can',
-  'Toiletries':   'pill',
-  'Other':        'shopping-basket',
-  'Clothes':      'shirt',
-  'Electronics':  'plug',
-  'Documents':    'file-text',
-};
-
 const state = {
   heads:        [],
   activeHeadId: null,
@@ -58,15 +22,6 @@ const state = {
   sublists:     [],
   items:        [],
 };
-
-function groupItemsByCategory(items) {
-  const grouped = {};
-  for (const item of items) {
-    const cat = item.category || 'Other';
-    (grouped[cat] = grouped[cat] || []).push(item);
-  }
-  return CATEGORY_ORDER.filter((c) => grouped[c]).map((c) => [c, grouped[c]]);
-}
 
 // --------------------------------------------------------
 // Renders
@@ -194,16 +149,8 @@ function renderItems(items) {
   if (!items.length) {
     return `<div class="sublist__empty">${t('shopping.emptyList')}</div>`;
   }
-  const catLabels = CATEGORY_LABELS();
-  const groups = groupItemsByCategory(items);
-  return groups.map(([cat, its]) => `
-    <div class="item-category">
-      <div class="item-category__header">
-        <i data-lucide="${CATEGORY_ICONS[cat] ?? 'tag'}" class="item-category__icon" aria-hidden="true"></i>
-        ${catLabels[cat] || cat}
-      </div>
-      ${its.map(renderItem).join('')}
-    </div>`).join('');
+  const sorted = [...items].sort((a, b) => (a.is_checked - b.is_checked) || (a.id - b.id));
+  return sorted.map(renderItem).join('');
 }
 
 function renderItem(item) {
@@ -577,7 +524,7 @@ function wireContentEvents(container) {
     const quantity = qtyEl.value.trim() || null;
     if (!name) { nameEl.focus(); return; }
     try {
-      const res = await api.post(`/lists/${sublistId}/items`, { name, quantity, category: 'Other' });
+      const res = await api.post(`/lists/${sublistId}/items`, { name, quantity });
       state.items.push(res.data);
       rerenderCurrentHead(container);
       const refocus = container.querySelector(`[data-quick-add-form][data-sublist-id="${sublistId}"] [data-field="name"]`);
@@ -585,6 +532,80 @@ function wireContentEvents(container) {
     } catch (err) {
       window.planner.showToast(err.message, 'danger');
     }
+  });
+}
+
+// --------------------------------------------------------
+// Head-tabs drag reorder
+// --------------------------------------------------------
+
+function wireHeadTabDragReorder(container) {
+  const bar = container.querySelector('#list-tabs-bar');
+  if (!bar) return;
+
+  let dragging  = null;
+  let dragPtrId = null;
+  let didDrag   = false;
+  let startX = 0, startY = 0;
+
+  const getTabs = () => [...bar.querySelectorAll('.list-tab')];
+
+  bar.addEventListener('pointerdown', (e) => {
+    const tab = e.target.closest('.list-tab');
+    if (!tab) return;
+    dragging  = tab;
+    dragPtrId = e.pointerId;
+    didDrag   = false;
+    startX = e.clientX; startY = e.clientY;
+  });
+
+  bar.addEventListener('pointermove', (e) => {
+    if (!dragging || e.pointerId !== dragPtrId) return;
+    const dx = e.clientX - startX;
+    const dy = Math.abs(e.clientY - startY);
+    if (!didDrag && dy > Math.abs(dx) + 5) { dragging = null; dragPtrId = null; return; }
+    if (!didDrag) {
+      if (Math.abs(dx) < 8) return;
+      didDrag = true;
+      dragging.classList.add('list-tab--dragging');
+      try { bar.setPointerCapture(e.pointerId); } catch {}
+    }
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.list-tab');
+    if (!over || over === dragging) return;
+    const tabs = getTabs();
+    const dragIdx = tabs.indexOf(dragging);
+    const overIdx = tabs.indexOf(over);
+    if (dragIdx === -1 || overIdx === -1) return;
+    if (dragIdx < overIdx) over.after(dragging); else over.before(dragging);
+  });
+
+  const onPointerUp = async (e) => {
+    if (!dragging || e.pointerId !== dragPtrId) return;
+    const wasDragged = didDrag;
+    dragging.classList.remove('list-tab--dragging');
+    const newOrder = getTabs().map((el) => Number(el.dataset.id));
+    const oldOrder = state.heads.map((h) => h.id);
+    dragging = null; dragPtrId = null; didDrag = false;
+    if (!wasDragged) return;
+    bar.addEventListener('click', (ev) => ev.stopImmediatePropagation(), { once: true, capture: true });
+    if (JSON.stringify(newOrder) === JSON.stringify(oldOrder)) return;
+    state.heads.sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+    try {
+      await api.patch('/lists/heads/reorder', { ids: newOrder });
+      vibrate(15);
+    } catch (err) {
+      window.planner?.showToast(err.message, 'danger');
+      state.heads.sort((a, b) => oldOrder.indexOf(a.id) - oldOrder.indexOf(b.id));
+      renderHeadTabs(container);
+    }
+  };
+
+  bar.addEventListener('pointerup', onPointerUp);
+  bar.addEventListener('pointercancel', (e) => {
+    if (!dragging || e.pointerId !== dragPtrId) return;
+    dragging.classList.remove('list-tab--dragging');
+    dragging = null; dragPtrId = null; didDrag = false;
+    renderHeadTabs(container);
   });
 }
 
@@ -632,6 +653,7 @@ export async function render(container, { user }) {
   renderHeadTabs(container);
   renderHeadBody(container);
   wireContentEvents(container);
+  wireHeadTabDragReorder(container);
 
   container.querySelector('#fab-new-head')?.addEventListener('click', async () => {
     const name = await showPrompt(t('shopping.newHeadPrompt'));
