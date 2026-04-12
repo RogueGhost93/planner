@@ -393,7 +393,7 @@
 .task-item__bar {
   width: 3px;
   border-radius: var(--radius-full);
-  background-color: var(--color-danger);
+  background-color: var(--color-priority-urgent);
   align-self: stretch;
   flex-shrink: 0;
 }

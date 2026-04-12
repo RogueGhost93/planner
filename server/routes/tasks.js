@@ -18,7 +18,7 @@ const router = express.Router();
 // Konstanten
 // --------------------------------------------------------
 
-const VALID_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
+const VALID_PRIORITIES = ['none', 'urgent'];
 const VALID_STATUSES   = ['open', 'in_progress', 'done'];
 const VALID_CATEGORIES = ['Household', 'School', 'Shopping', 'Repairs',
                           'Health', 'Finance', 'Leisure', 'Other'];
