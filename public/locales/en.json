@@ -296,7 +296,8 @@
     "loadMoreBtn": "Load more",
     "allLoaded": "All recipes loaded",
     "groupByCategory": "Group by category",
-    "uncategorized": "Uncategorized"
+    "uncategorized": "Uncategorized",
+    "allCategories": "All"
   },
 
   "calendar": {

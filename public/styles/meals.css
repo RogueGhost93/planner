@@ -84,33 +84,6 @@
   flex: 1;
 }
 
-.recipes-group-toggle {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  color: var(--color-text-secondary);
-  transition: color var(--transition-fast), background-color var(--transition-fast);
-}
-
-.recipes-group-toggle svg {
-  width: 18px;
-  height: 18px;
-}
-
-.recipes-group-toggle:hover {
-  color: var(--color-text-primary);
-  background-color: var(--color-surface-2);
-}
-
-.recipes-group-toggle.is-active {
-  color: var(--module-accent);
-  background-color: color-mix(in srgb, var(--module-accent) 12%, transparent);
-}
 
 .recipes-search-icon {
   position: absolute;

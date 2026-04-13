@@ -15,12 +15,12 @@ import { esc } from '/utils/html.js';
 // --------------------------------------------------------
 
 let state = {
-  configured: false,
-  mealieUrl:  null,
-  recipes:    [],
-  search:     '',
-  loading:    false,
-  grouped:    true,
+  configured:     false,
+  mealieUrl:      null,
+  recipes:        [],
+  search:         '',
+  loading:        false,
+  activeCategory: null, // null = All
 };
 
 let _container   = null;
@@ -36,9 +36,9 @@ function catSlug(key) {
   return key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '');
 }
 
-function buildGroups() {
+function buildGroups(recipes = state.recipes) {
   const groups = new Map();
-  for (const recipe of state.recipes) {
+  for (const recipe of recipes) {
     const name = recipe.recipeCategory?.[0]?.name ?? null;
     const key  = name ?? '__uncategorized__';
     if (!groups.has(key)) groups.set(key, []);
@@ -120,9 +120,10 @@ async function loadRecipeDetail(slug) {
 export async function render(container, { user }) {
   _container = container;
   _gridWired = false;
-  state.recipes = [];
-  state.search  = '';
-  state.loading = false;
+  state.recipes        = [];
+  state.search         = '';
+  state.loading        = false;
+  state.activeCategory = null;
 
   container.innerHTML = `
     <div class="meals-page">
@@ -140,14 +141,6 @@ export async function render(container, { user }) {
               autocomplete="off"
             />
           </div>
-          <button
-            id="recipes-group-toggle"
-            class="btn btn--ghost recipes-group-toggle${state.grouped ? ' is-active' : ''}"
-            title="${t('mealie.groupByCategory')}"
-            aria-pressed="${state.grouped}"
-          >
-            <i data-lucide="layout-list" aria-hidden="true"></i>
-          </button>
         </div>
         <div class="recipes-category-tabs" id="recipes-category-tabs" hidden></div>
       </div>
@@ -168,7 +161,6 @@ export async function render(container, { user }) {
 
   await loadAllRecipes();
   wireSearch();
-  wireGroupToggle();
 }
 
 function renderNotConfigured() {
@@ -192,7 +184,15 @@ function renderGrid() {
   const grid = _container.querySelector('#recipes-grid');
   if (!grid) return;
 
-  if (state.recipes.length === 0) {
+  // Filter by active category when not "All"
+  const visible = state.activeCategory === null
+    ? state.recipes
+    : state.recipes.filter((r) => {
+        const cat = r.recipeCategory?.[0]?.name ?? '__uncategorized__';
+        return cat === state.activeCategory;
+      });
+
+  if (visible.length === 0) {
     grid.innerHTML = `
       <div class="recipes-empty-state">
         <i data-lucide="search-x" class="recipes-empty-state__icon" aria-hidden="true"></i>
@@ -203,10 +203,10 @@ function renderGrid() {
     return;
   }
 
-  if (state.grouped) {
-    renderGroupedGrid(grid);
+  if (state.activeCategory === null) {
+    renderGroupedGrid(grid, visible);
   } else {
-    grid.innerHTML = state.recipes.map(recipeCardHTML).join('');
+    grid.innerHTML = visible.map(recipeCardHTML).join('');
   }
 
   if (window.lucide) lucide.createIcons();
@@ -214,13 +214,13 @@ function renderGrid() {
   if (!_gridWired) { wireCards(grid); _gridWired = true; }
 }
 
-function renderGroupedGrid(grid) {
-  const groups = buildGroups();
-  const html   = [...groups.entries()].map(([key, recipes]) => {
+function renderGroupedGrid(grid, recipes) {
+  const groups = buildGroups(recipes);
+  const html   = [...groups.entries()].map(([key, items]) => {
     const label = key === '__uncategorized__' ? t('mealie.uncategorized') : esc(key);
-    const cards = recipes.map(recipeCardHTML).join('');
+    const cards = items.map(recipeCardHTML).join('');
     return `
-      <div class="recipes-category-header" id="cat-${catSlug(key)}" role="heading" aria-level="2">${label}</div>
+      <div class="recipes-category-header" role="heading" aria-level="2">${label}</div>
       ${cards}
     `;
   }).join('');
@@ -231,20 +231,22 @@ function renderCategoryTabs() {
   const tabsEl = _container?.querySelector('#recipes-category-tabs');
   if (!tabsEl) return;
 
-  if (!state.grouped || state.recipes.length === 0) {
-    tabsEl.hidden = true;
-    return;
-  }
+  if (state.recipes.length === 0) { tabsEl.hidden = true; return; }
 
   const groups = buildGroups();
   if (groups.size === 0) { tabsEl.hidden = true; return; }
 
   tabsEl.hidden = false;
-  tabsEl.innerHTML = [...groups.keys()].map((key) => {
-    const label = key === '__uncategorized__' ? t('mealie.uncategorized') : esc(key);
-    return `<button class="recipes-cat-tab" data-slug="${catSlug(key)}">${label}</button>`;
+
+  const allTab = `<button class="recipes-cat-tab${state.activeCategory === null ? ' is-active' : ''}" data-key="__all__">${t('mealie.allCategories')}</button>`;
+
+  const catTabs = [...groups.keys()].map((key) => {
+    const label   = key === '__uncategorized__' ? t('mealie.uncategorized') : esc(key);
+    const isActive = state.activeCategory === key;
+    return `<button class="recipes-cat-tab${isActive ? ' is-active' : ''}" data-key="${esc(key)}">${label}</button>`;
   }).join('');
 
+  tabsEl.innerHTML = allTab + catTabs;
   wireTabs(tabsEl);
 }
 
@@ -353,38 +355,21 @@ function wireSearch() {
   });
 }
 
-function wireGroupToggle() {
-  const btn = _container.querySelector('#recipes-group-toggle');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    state.grouped = !state.grouped;
-    btn.classList.toggle('is-active', state.grouped);
-    btn.setAttribute('aria-pressed', String(state.grouped));
-    _gridWired = false;
-    renderGrid();
-    renderCategoryTabs();
-  });
-}
-
 function wireTabs(tabsEl) {
   tabsEl.addEventListener('click', (e) => {
     const tab = e.target.closest('.recipes-cat-tab');
     if (!tab) return;
 
-    // Highlight active tab
-    tabsEl.querySelectorAll('.recipes-cat-tab').forEach(t => t.classList.remove('is-active'));
-    tab.classList.add('is-active');
+    const key = tab.dataset.key;
+    state.activeCategory = key === '__all__' ? null : key;
 
-    // Scroll to section, accounting for sticky header height
-    const target  = _container.querySelector(`#cat-${tab.dataset.slug}`);
-    const header  = _container.querySelector('#recipes-header');
+    // Scroll to top of content
     const scroller = document.getElementById('main-content');
-    if (!target || !scroller) return;
+    if (scroller) scroller.scrollTo({ top: 0, behavior: 'smooth' });
 
-    const headerH = header?.offsetHeight ?? 0;
-    const scrollerTop = scroller.getBoundingClientRect().top;
-    const targetTop   = target.getBoundingClientRect().top;
-    scroller.scrollBy({ top: targetTop - scrollerTop - headerH - 8, behavior: 'smooth' });
+    _gridWired = false;
+    renderGrid();
+    renderCategoryTabs(); // re-render tabs to update active state
   });
 }
 
