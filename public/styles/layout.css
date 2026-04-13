@@ -258,7 +258,8 @@
   transform: translateY(8px);
   transition: opacity var(--transition-base), transform var(--transition-base);
 }
-.fab-container--open .fab-actions {
+.fab-container--open .fab-actions,
+.fab-container .fab-actions--visible {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
