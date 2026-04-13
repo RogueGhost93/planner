@@ -767,6 +767,7 @@ async function _openAddItemDialogInner(container) {
               <option value="${s.id}" ${s.id === defaultSublist ? 'selected' : ''}>
                 ${esc(s.head_name ? `${s.head_name} › ${s.name}` : s.name)}
               </option>`).join('')}
+            <option value="__new__">＋ ${esc(t('shopping.newSublistOption'))}</option>
           </select>
         </label>
         <label class="list-dialog__field">
@@ -785,7 +786,35 @@ async function _openAddItemDialogInner(container) {
     `,
     onSave: (panel) => {
       const form = panel.querySelector('#add-item-form');
+      const select = form.querySelector('select[name="sublist"]');
+      let lastValidSublistId = String(defaultSublist);
       panel.querySelector('[data-action="dialog-cancel"]').addEventListener('click', () => closeModal());
+
+      select.addEventListener('change', async () => {
+        if (select.value !== '__new__') { lastValidSublistId = select.value; return; }
+        select.value = lastValidSublistId;
+        const newName = await showPrompt(t('shopping.newHeadPrompt'));
+        if (!newName?.trim()) return;
+        const headName = newName.trim();
+        const subInput = await showPrompt(t('shopping.newSublistPrompt'));
+        if (!subInput?.trim()) return;
+        const subName = subInput.trim();
+        try {
+          const headRes = await api.post('/lists/heads', { name: headName });
+          const newHead = headRes.data;
+          state.heads.push(newHead);
+          const subRes = await api.post(`/lists/heads/${newHead.id}/sublists`, { name: subName });
+          const newSub = { ...subRes.data, head_name: newHead.name };
+          const opt = document.createElement('option');
+          opt.value = String(newSub.id);
+          opt.textContent = `${newHead.name} › ${newSub.name}`;
+          select.querySelector('option[value="__new__"]').before(opt);
+          select.value = String(newSub.id);
+          lastValidSublistId = String(newSub.id);
+        } catch (err) {
+          window.planner.showToast(err.message, 'danger');
+        }
+      });
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();

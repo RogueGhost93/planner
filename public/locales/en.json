@@ -201,6 +201,7 @@
     "addItem": "Add item",
     "noSublistsHint": "Create a list and sublist first.",
     "itemAddedToast": "Item added.",
+    "newSublistOption": "New list…",
     "newListButton": "Create new list",
     "renameListPrompt": "New list name:",
     "deleteListConfirm": "Delete list \"{{name}}\" and all items?",
