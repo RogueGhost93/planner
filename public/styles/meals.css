@@ -15,23 +15,17 @@
 .meals-page {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - var(--nav-height-mobile) - var(--safe-area-inset-bottom));
   max-width: var(--content-max-width);
   margin: 0 auto;
-  overflow: hidden;
-}
-
-@media (min-width: 1024px) {
-  .meals-page {
-    height: 100dvh;
-  }
 }
 
 /* --------------------------------------------------------
  * Toolbar (search bar)
  * -------------------------------------------------------- */
 .recipes-toolbar {
-  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -111,16 +105,10 @@
  * Recipe grid
  * -------------------------------------------------------- */
 .recipes-grid {
-  flex: 1;
-  min-height: 0;
-  overflow-y: scroll;
-  scrollbar-gutter: stable;
-  -webkit-overflow-scrolling: touch;
   padding: var(--space-4);
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: var(--space-3);
-  align-content: start;
 }
 
 @media (min-width: 480px) {
