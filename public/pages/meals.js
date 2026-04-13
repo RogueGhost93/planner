@@ -18,17 +18,40 @@ let state = {
   configured: false,
   mealieUrl:  null,
   recipes:    [],
-  page:       1,
-  total:      0,
-  perPage:    32,
   search:     '',
   loading:    false,
-  grouped:    false,
+  grouped:    true,
 };
 
 let _container   = null;
 let _searchTimer = null;
 let _gridWired   = false;
+
+// --------------------------------------------------------
+// Helpers
+// --------------------------------------------------------
+
+function catSlug(key) {
+  if (key === '__uncategorized__') return 'uncategorized';
+  return key.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/, '');
+}
+
+function buildGroups() {
+  const groups = new Map();
+  for (const recipe of state.recipes) {
+    const name = recipe.recipeCategory?.[0]?.name ?? null;
+    const key  = name ?? '__uncategorized__';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(recipe);
+  }
+  return new Map(
+    [...groups.entries()].sort(([a], [b]) => {
+      if (a === '__uncategorized__') return 1;
+      if (b === '__uncategorized__') return -1;
+      return a.localeCompare(b);
+    })
+  );
+}
 
 // --------------------------------------------------------
 // API helpers
@@ -45,27 +68,29 @@ async function checkStatus() {
   }
 }
 
-async function loadRecipes(reset = false) {
-  if (!state.configured) return;
-  if (state.loading) return;
-
-  if (reset) {
-    state.page    = 1;
-    state.recipes = [];
-  }
-
+async function loadAllRecipes() {
+  if (!state.configured || state.loading) return;
   state.loading = true;
-  updateLoadMoreBtn();
+  state.recipes = [];
+
+  // Show loading state immediately
+  const grid = _container?.querySelector('#recipes-grid');
+  if (grid) grid.innerHTML = `<div class="recipes-loading">${t('mealie.loadingIndicator')}</div>`;
 
   try {
-    const res = await api.get(
-      `/mealie/recipes?page=${state.page}&perPage=${state.perPage}` +
-      (state.search ? `&search=${encodeURIComponent(state.search)}` : '')
-    );
-    const items = res.items ?? [];
-    state.total   = res.total ?? 0;
-    state.recipes = reset ? items : [...state.recipes, ...items];
-    renderGrid();
+    let page = 1;
+    const perPage = 200;
+    while (true) {
+      const res = await api.get(
+        `/mealie/recipes?page=${page}&perPage=${perPage}` +
+        (state.search ? `&search=${encodeURIComponent(state.search)}` : '')
+      );
+      const items = res.items ?? [];
+      const total = res.total ?? 0;
+      state.recipes = [...state.recipes, ...items];
+      if (state.recipes.length >= total || items.length === 0) break;
+      page++;
+    }
   } catch (err) {
     const code = err?.data?.code ?? err?.status;
     const msg  = (code === 401 || code === 502)
@@ -74,7 +99,8 @@ async function loadRecipes(reset = false) {
     window.planner?.showToast(msg, 'danger');
   } finally {
     state.loading = false;
-    updateLoadMoreBtn();
+    renderGrid();
+    renderCategoryTabs();
   }
 }
 
@@ -95,40 +121,38 @@ export async function render(container, { user }) {
   _container = container;
   _gridWired = false;
   state.recipes = [];
-  state.page    = 1;
-  state.total   = 0;
   state.search  = '';
   state.loading = false;
 
   container.innerHTML = `
     <div class="meals-page">
       <h1 class="sr-only">${t('mealie.title')}</h1>
-      <div class="recipes-toolbar">
-        <div class="recipes-search-wrap">
-          <i data-lucide="search" class="recipes-search-icon" aria-hidden="true"></i>
-          <input
-            type="search"
-            id="recipes-search"
-            class="recipes-search"
-            placeholder="${t('mealie.searchPlaceholder')}"
-            value=""
-            autocomplete="off"
-          />
+      <div class="recipes-header" id="recipes-header">
+        <div class="recipes-toolbar">
+          <div class="recipes-search-wrap">
+            <i data-lucide="search" class="recipes-search-icon" aria-hidden="true"></i>
+            <input
+              type="search"
+              id="recipes-search"
+              class="recipes-search"
+              placeholder="${t('mealie.searchPlaceholder')}"
+              value=""
+              autocomplete="off"
+            />
+          </div>
+          <button
+            id="recipes-group-toggle"
+            class="btn btn--ghost recipes-group-toggle${state.grouped ? ' is-active' : ''}"
+            title="${t('mealie.groupByCategory')}"
+            aria-pressed="${state.grouped}"
+          >
+            <i data-lucide="layout-list" aria-hidden="true"></i>
+          </button>
         </div>
-        <button
-          id="recipes-group-toggle"
-          class="btn btn--ghost recipes-group-toggle${state.grouped ? ' is-active' : ''}"
-          title="${t('mealie.groupByCategory')}"
-          aria-pressed="${state.grouped}"
-        >
-          <i data-lucide="layout-list" aria-hidden="true"></i>
-        </button>
+        <div class="recipes-category-tabs" id="recipes-category-tabs" hidden></div>
       </div>
       <div class="recipes-grid" id="recipes-grid">
         <div class="recipes-loading">${t('mealie.loadingIndicator')}</div>
-      </div>
-      <div class="recipes-footer" id="recipes-footer" hidden>
-        <button class="btn btn--secondary" id="recipes-load-more">${t('mealie.loadMoreBtn')}</button>
       </div>
     </div>
   `;
@@ -142,9 +166,8 @@ export async function render(container, { user }) {
     return;
   }
 
-  await loadRecipes(true);
+  await loadAllRecipes();
   wireSearch();
-  wireLoadMore();
   wireGroupToggle();
 }
 
@@ -177,7 +200,6 @@ function renderGrid() {
       </div>
     `;
     if (window.lucide) lucide.createIcons();
-    updateLoadMoreBtn();
     return;
   }
 
@@ -190,36 +212,40 @@ function renderGrid() {
   if (window.lucide) lucide.createIcons();
   stagger(grid.querySelectorAll('.recipe-card'));
   if (!_gridWired) { wireCards(grid); _gridWired = true; }
-  updateLoadMoreBtn();
 }
 
 function renderGroupedGrid(grid) {
-  const groups = new Map();
-
-  for (const recipe of state.recipes) {
-    const categoryName = recipe.recipeCategory?.[0]?.name ?? null;
-    const key = categoryName ?? '__uncategorized__';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(recipe);
-  }
-
-  // Sort category keys alphabetically, uncategorized last
-  const sortedKeys = [...groups.keys()].sort((a, b) => {
-    if (a === '__uncategorized__') return 1;
-    if (b === '__uncategorized__') return -1;
-    return a.localeCompare(b);
-  });
-
-  const html = sortedKeys.map((key) => {
+  const groups = buildGroups();
+  const html   = [...groups.entries()].map(([key, recipes]) => {
     const label = key === '__uncategorized__' ? t('mealie.uncategorized') : esc(key);
-    const cards = groups.get(key).map(recipeCardHTML).join('');
+    const cards = recipes.map(recipeCardHTML).join('');
     return `
-      <div class="recipes-category-header" role="heading" aria-level="2">${label}</div>
+      <div class="recipes-category-header" id="cat-${catSlug(key)}" role="heading" aria-level="2">${label}</div>
       ${cards}
     `;
   }).join('');
-
   grid.innerHTML = html;
+}
+
+function renderCategoryTabs() {
+  const tabsEl = _container?.querySelector('#recipes-category-tabs');
+  if (!tabsEl) return;
+
+  if (!state.grouped || state.recipes.length === 0) {
+    tabsEl.hidden = true;
+    return;
+  }
+
+  const groups = buildGroups();
+  if (groups.size === 0) { tabsEl.hidden = true; return; }
+
+  tabsEl.hidden = false;
+  tabsEl.innerHTML = [...groups.keys()].map((key) => {
+    const label = key === '__uncategorized__' ? t('mealie.uncategorized') : esc(key);
+    return `<button class="recipes-cat-tab" data-slug="${catSlug(key)}">${label}</button>`;
+  }).join('');
+
+  wireTabs(tabsEl);
 }
 
 function recipeCardHTML(recipe) {
@@ -227,8 +253,7 @@ function recipeCardHTML(recipe) {
     ? `${state.mealieUrl}/api/media/recipes/${recipe.id}/images/min-original.webp`
     : null;
 
-  const categories = (recipe.recipeCategory ?? []).map((c) => esc(c.name)).join(', ');
-  const totalTime  = recipe.totalTime ?? recipe.prepTime ?? null;
+  const totalTime = recipe.totalTime ?? recipe.prepTime ?? null;
 
   return `
     <div class="recipe-card" data-slug="${esc(recipe.slug)}" role="button" tabindex="0"
@@ -241,8 +266,7 @@ function recipeCardHTML(recipe) {
       </div>
       <div class="recipe-card__body">
         <div class="recipe-card__name">${esc(recipe.name)}</div>
-        ${categories ? `<div class="recipe-card__meta">${categories}</div>` : ''}
-        ${totalTime   ? `<div class="recipe-card__time"><i data-lucide="clock" style="width:12px;height:12px" aria-hidden="true"></i> ${esc(totalTime)}</div>` : ''}
+        ${totalTime ? `<div class="recipe-card__time"><i data-lucide="clock" style="width:12px;height:12px" aria-hidden="true"></i> ${esc(totalTime)}</div>` : ''}
       </div>
     </div>
   `;
@@ -322,18 +346,10 @@ function wireSearch() {
   input.addEventListener('input', () => {
     clearTimeout(_searchTimer);
     _searchTimer = setTimeout(async () => {
-      state.search = input.value.trim();
-      await loadRecipes(true);
-    }, 300);
-  });
-}
-
-function wireLoadMore() {
-  const btn = _container.querySelector('#recipes-load-more');
-  if (!btn) return;
-  btn.addEventListener('click', async () => {
-    state.page++;
-    await loadRecipes(false);
+      state.search  = input.value.trim();
+      _gridWired    = false;
+      await loadAllRecipes();
+    }, 400);
   });
 }
 
@@ -344,7 +360,31 @@ function wireGroupToggle() {
     state.grouped = !state.grouped;
     btn.classList.toggle('is-active', state.grouped);
     btn.setAttribute('aria-pressed', String(state.grouped));
+    _gridWired = false;
     renderGrid();
+    renderCategoryTabs();
+  });
+}
+
+function wireTabs(tabsEl) {
+  tabsEl.addEventListener('click', (e) => {
+    const tab = e.target.closest('.recipes-cat-tab');
+    if (!tab) return;
+
+    // Highlight active tab
+    tabsEl.querySelectorAll('.recipes-cat-tab').forEach(t => t.classList.remove('is-active'));
+    tab.classList.add('is-active');
+
+    // Scroll to section, accounting for sticky header height
+    const target  = _container.querySelector(`#cat-${tab.dataset.slug}`);
+    const header  = _container.querySelector('#recipes-header');
+    const scroller = document.getElementById('main-content');
+    if (!target || !scroller) return;
+
+    const headerH = header?.offsetHeight ?? 0;
+    const scrollerTop = scroller.getBoundingClientRect().top;
+    const targetTop   = target.getBoundingClientRect().top;
+    scroller.scrollBy({ top: targetTop - scrollerTop - headerH - 8, behavior: 'smooth' });
   });
 }
 
@@ -361,24 +401,4 @@ function wireCards(grid) {
       if (card) { e.preventDefault(); await openRecipeModal(card.dataset.slug); }
     }
   });
-}
-
-function updateLoadMoreBtn() {
-  const footer = _container?.querySelector('#recipes-footer');
-  const btn    = _container?.querySelector('#recipes-load-more');
-  if (!footer || !btn) return;
-
-  const hasMore = state.recipes.length < state.total;
-  footer.hidden = !state.configured || state.recipes.length === 0;
-
-  if (state.loading) {
-    btn.disabled    = true;
-    btn.textContent = t('mealie.loadingIndicator');
-  } else if (hasMore) {
-    btn.disabled    = false;
-    btn.textContent = t('mealie.loadMoreBtn');
-  } else {
-    btn.disabled    = true;
-    btn.textContent = t('mealie.allLoaded');
-  }
 }
