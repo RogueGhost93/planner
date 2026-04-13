@@ -263,7 +263,7 @@ async function renderPage(route, previousPath = null) {
     }
 
     // Remove any FABs that were hoisted out of the previous page wrapper.
-    content.querySelectorAll(':scope > .page-fab').forEach(fab => fab.remove());
+    content.querySelectorAll(':scope > .page-fab, :scope > .fab-container').forEach(fab => fab.remove());
 
     // Old content is now gone - old stylesheet can be removed
     const pageWrapper = document.createElement('div');
@@ -278,7 +278,7 @@ async function renderPage(route, previousPath = null) {
     // the animated element, not children. A CSS transform on a parent creates a
     // new containing block for position:fixed descendants, which makes them jump
     // during the slide-in animation. Moving them one level up avoids this.
-    pageWrapper.querySelectorAll('.page-fab').forEach(fab => content.appendChild(fab));
+    pageWrapper.querySelectorAll('.page-fab, .fab-container').forEach(fab => content.appendChild(fab));
 
     // Make visible and start animation only after render() + CSS
     pageWrapper.style.opacity = '';
