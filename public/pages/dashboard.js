@@ -587,7 +587,7 @@ function initFab(container, signal) {
     '/tasks':    'tasks-create-new',
     '/calendar': 'calendar-create-new',
     '/notes':    'notes-create-new',
-    '/lists': 'lists-create-new',
+    '/lists': 'lists-add-item',
   };
 
   fabActions.querySelectorAll('[data-route]').forEach((el) => {

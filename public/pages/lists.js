@@ -672,6 +672,10 @@ export async function render(container, { user }) {
     localStorage.removeItem('lists-create-new');
     container.querySelector('[data-fab-action="new-head"]')?.click();
   }
+  if (localStorage.getItem('lists-add-item')) {
+    localStorage.removeItem('lists-add-item');
+    openAddItemDialog(container);
+  }
 }
 
 // --------------------------------------------------------
@@ -717,7 +721,18 @@ function wireFabMenu(container) {
   });
 }
 
+let _addItemDialogOpen = false;
 async function openAddItemDialog(container) {
+  if (_addItemDialogOpen) return;
+  _addItemDialogOpen = true;
+  try {
+    await _openAddItemDialogInner(container);
+  } finally {
+    setTimeout(() => { _addItemDialogOpen = false; }, 300);
+  }
+}
+
+async function _openAddItemDialogInner(container) {
   if (!state.heads.length) {
     window.planner.showToast(t('shopping.noHeadLists'), 'danger');
     return;
