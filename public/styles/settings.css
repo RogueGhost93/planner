@@ -206,6 +206,11 @@
   color: var(--neutral-50);
 }
 
+.settings-sync-logo--mealie {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+}
+
 .settings-sync-info__name {
   font-size: var(--text-base);
   font-weight: var(--font-weight-semibold);

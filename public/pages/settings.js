@@ -23,16 +23,19 @@ export async function render(container, { user }) {
   let users        = [];
   let googleStatus = { configured: false, connected: false, lastSync: null };
   let appleStatus  = { configured: false, lastSync: null };
+  let mealieStatus = { configured: false, url: null };
 
   try {
-    const [usersRes, gStatus, aStatus] = await Promise.allSettled([
+    const [usersRes, gStatus, aStatus, mStatus] = await Promise.allSettled([
       user.role === 'admin' ? auth.getUsers() : Promise.resolve({ data: [] }),
       api.get('/calendar/google/status'),
       api.get('/calendar/apple/status'),
+      api.get('/mealie/status'),
     ]);
     if (usersRes.status === 'fulfilled')  users        = usersRes.value.data  ?? [];
     if (gStatus.status  === 'fulfilled')  googleStatus = gStatus.value;
     if (aStatus.status  === 'fulfilled')  appleStatus  = aStatus.value;
+    if (mStatus.status  === 'fulfilled')  mealieStatus = mStatus.value;
   } catch (_) { /* non-critical */ }
 
   const googleStatusText = googleStatus.connected
@@ -248,6 +251,44 @@ export async function render(container, { user }) {
               <button type="submit" class="btn btn--primary" id="apple-connect-btn">${t('settings.appleConnectBtn')}</button>
             </form>
           ` : `<span class="form-hint">${t('settings.appleOnlyAdmin')}</span>`}
+        </div>
+      </section>
+
+      <!-- Mealie Integration -->
+      <section class="settings-section">
+        <h2 class="settings-section__title">${t('settings.sectionMealie')}</h2>
+        <div class="settings-card" id="mealie-card">
+          <div class="settings-sync-header">
+            <div class="settings-sync-logo settings-sync-logo--mealie">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 11h.01"/><path d="M11 15h.01"/><path d="M16 16h.01"/><path d="m2 16 20 6-6-20A20 20 0 0 0 2 16"/><path d="M5.71 17.11a17.04 17.04 0 0 1 11.4-11.4"/></svg>
+            </div>
+            <div class="settings-sync-info">
+              <div class="settings-sync-info__name">Mealie</div>
+              <div class="settings-sync-info__status ${mealieStatus?.configured ? 'settings-sync-info__status--connected' : ''}" id="mealie-status-text">
+                ${mealieStatus?.configured ? t('settings.mealieConnected') : t('settings.mealieNotConnected')}
+              </div>
+            </div>
+          </div>
+          ${mealieStatus?.configured ? `
+            ${user?.role === 'admin' ? `
+            <div class="settings-sync-actions">
+              <button class="btn btn--danger-outline" id="mealie-disconnect-btn">${t('settings.mealieDisconnectBtn')}</button>
+            </div>` : ''}
+          ` : user?.role === 'admin' ? `
+            <form id="mealie-connect-form" class="settings-form settings-form--compact">
+              <div class="form-group">
+                <label class="form-label" for="mealie-url">${t('settings.mealieUrlLabel')}</label>
+                <input class="form-input" type="url" id="mealie-url" placeholder="${t('settings.mealieUrlPlaceholder')}" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="mealie-token">${t('settings.mealieTokenLabel')}</label>
+                <input class="form-input" type="password" id="mealie-token" placeholder="${t('settings.mealieTokenPlaceholder')}" autocomplete="off" required />
+                <span class="form-hint">${t('settings.mealieTokenHint')}</span>
+              </div>
+              <div id="mealie-connect-error" class="form-error" hidden></div>
+              <button type="submit" class="btn btn--primary" id="mealie-connect-btn">${t('settings.mealieSaveBtn')}</button>
+            </form>
+          ` : `<span class="form-hint">${t('settings.mealieOnlyAdmin')}</span>`}
         </div>
       </section>
 
@@ -504,6 +545,48 @@ function bindEvents(container, user) {
       } finally {
         btn.disabled = false;
         btn.textContent = t('settings.appleConnectBtn');
+      }
+    });
+  }
+
+  // Mealie Connect (Admin)
+  const mealieConnectForm = container.querySelector('#mealie-connect-form');
+  if (mealieConnectForm) {
+    mealieConnectForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = container.querySelector('#mealie-connect-error');
+      errorEl.hidden = true;
+
+      const url   = container.querySelector('#mealie-url').value.trim();
+      const token = container.querySelector('#mealie-token').value.trim();
+      const btn   = container.querySelector('#mealie-connect-btn');
+
+      btn.disabled    = true;
+      btn.textContent = '…';
+      try {
+        await api.post('/mealie/config', { url, token });
+        window.planner?.showToast(t('settings.mealieSavedToast'), 'success');
+        window.planner?.navigate('/settings');
+      } catch (err) {
+        showError(errorEl, err.data?.error ?? err.message);
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = t('settings.mealieSaveBtn');
+      }
+    });
+  }
+
+  // Mealie Disconnect (Admin)
+  const mealieDisconnectBtn = container.querySelector('#mealie-disconnect-btn');
+  if (mealieDisconnectBtn) {
+    mealieDisconnectBtn.addEventListener('click', async () => {
+      if (!await showConfirm(t('settings.mealieDisconnectConfirm'), { danger: true })) return;
+      try {
+        await api.delete('/mealie/config');
+        window.planner?.showToast(t('settings.mealieDisconnectedToast'), 'default');
+        window.planner?.navigate('/settings');
+      } catch (err) {
+        window.planner?.showToast(err.data?.error ?? err.message, 'danger');
       }
     });
   }
