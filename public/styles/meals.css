@@ -229,7 +229,7 @@
 }
 
 .recipe-card__name {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   line-height: 1.3;
