@@ -274,6 +274,29 @@
     "chooseListEnterNumber": "Enter number:"
   },
 
+  "mealie": {
+    "title": "Recipes",
+    "searchPlaceholder": "Search recipes…",
+    "notConfiguredTitle": "Mealie not set up",
+    "notConfiguredDesc": "Connect your Mealie instance in Settings to browse your recipe library.",
+    "goToSettings": "Open Settings",
+    "loadError": "Could not load recipes.",
+    "noResults": "No recipes found.",
+    "loadingIndicator": "Loading recipes…",
+    "ingredients": "Ingredients",
+    "instructions": "Instructions",
+    "prepTime": "Prep",
+    "cookTime": "Cook",
+    "totalTime": "Total",
+    "servings": "Servings",
+    "openInMealie": "Open in Mealie",
+    "noIngredients": "No ingredients listed.",
+    "noInstructions": "No instructions listed.",
+    "connectionError": "Could not reach Mealie. Check your URL and token in Settings.",
+    "loadMoreBtn": "Load more",
+    "allLoaded": "All recipes loaded"
+  },
+
   "calendar": {
     "title": "Calendar",
     "newEvent": "New Event",
@@ -577,7 +600,21 @@
     "appleDisconnectConfirm": "Disconnect Apple Calendar?",
     "localeSystem": "System",
     "localeLabel": "Language",
-    "languageTitle": "Language"
+    "languageTitle": "Language",
+    "sectionMealie": "Mealie Recipe Integration",
+    "mealieUrlLabel": "Mealie Server URL",
+    "mealieUrlPlaceholder": "https://mealie.example.com",
+    "mealieTokenLabel": "API Token",
+    "mealieTokenPlaceholder": "Paste your Mealie API token",
+    "mealieTokenHint": "Generate a token in Mealie under User Profile → API Tokens.",
+    "mealieSaveBtn": "Connect",
+    "mealieDisconnectBtn": "Disconnect",
+    "mealieDisconnectConfirm": "Disconnect Mealie?",
+    "mealieConnected": "Connected",
+    "mealieNotConnected": "Not connected",
+    "mealieOnlyAdmin": "Only admins can configure Mealie.",
+    "mealieSavedToast": "Mealie connected",
+    "mealieDisconnectedToast": "Mealie disconnected"
   },
 
   "login": {

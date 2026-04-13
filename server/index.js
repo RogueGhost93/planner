@@ -24,6 +24,7 @@ import contactsRouter from './routes/contacts.js';
 import budgetRouter from './routes/budget.js';
 import weatherRouter from './routes/weather.js';
 import quotesRouter from './routes/quotes.js';
+import mealieRouter from './routes/mealie.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
@@ -48,7 +49,7 @@ app.use(helmet({
         'https://cdn.jsdelivr.net',
       ],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:'],
+      imgSrc: ["'self'", 'data:', 'https:', 'http:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
@@ -165,6 +166,7 @@ app.use('/api/v1/contacts', contactsRouter);
 app.use('/api/v1/budget', budgetRouter);
 app.use('/api/v1/weather', weatherRouter);
 app.use('/api/v1/quotes', quotesRouter);
+app.use('/api/v1/mealie', mealieRouter);
 
 // --------------------------------------------------------
 // Health-Check (für Docker)

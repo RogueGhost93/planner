@@ -1,99 +1,88 @@
 /**
- * Modul: Essensplan (Meals)
- * Zweck: Wochenansicht mit Mahlzeit-CRUD, Zutaten-Verwaltung und Einkaufslisten-Integration
+ * Modul: Recipes (Mealie Integration)
+ * Zweck: Browse recipes from a self-hosted Mealie instance via proxy API
  * Abhängigkeiten: /api.js, /router.js (window.planner)
  */
 
 import { api } from '/api.js';
-import { openModal as openSharedModal, closeModal as closeSharedModal, showConfirm, showPrompt } from '/components/modal.js';
+import { openModal as openSharedModal, closeModal } from '/components/modal.js';
 import { stagger } from '/utils/ux.js';
-import { t, formatDate } from '/i18n.js';
+import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
-
-// --------------------------------------------------------
-// Konstanten
-// --------------------------------------------------------
-
-const MEAL_TYPES = () => [
-  { key: 'breakfast', label: t('meals.typeBreakfast'), icon: 'sunrise' },
-  { key: 'lunch',     label: t('meals.typeLunch'),     icon: 'sun'     },
-  { key: 'dinner',    label: t('meals.typeDinner'),    icon: 'moon'    },
-  { key: 'snack',     label: t('meals.typeSnack'),     icon: 'cookie'  },
-];
-
-const DAY_NAMES = () => [
-  t('meals.dayMo'), t('meals.dayDi'), t('meals.dayMi'), t('meals.dayDo'),
-  t('meals.dayFr'), t('meals.daySa'), t('meals.daySo'),
-];
 
 // --------------------------------------------------------
 // State
 // --------------------------------------------------------
 
 let state = {
-  currentWeek: null,   // YYYY-MM-DD (Montag)
-  meals:       [],
-  lists:       [],     // Einkaufslisten für Transfer-Dropdown
-  modal:       null,
+  configured: false,
+  mealieUrl:  null,
+  recipes:    [],
+  page:       1,
+  total:      0,
+  perPage:    32,
+  search:     '',
+  loading:    false,
 };
 
-// Container-Referenz für Hilfsfunktionen (wird in render() gesetzt)
-let _container = null;
+let _container   = null;
+let _searchTimer = null;
+let _gridWired   = false;
 
 // --------------------------------------------------------
-// Datumshelfer
+// API helpers
 // --------------------------------------------------------
 
-function getMondayOf(dateStr) {
-  const d   = new Date(dateStr + 'T00:00:00Z');
-  const day = d.getUTCDay();
-  const diff = (day === 0 ? -6 : 1 - day);
-  d.setUTCDate(d.getUTCDate() + diff);
-  return d.toISOString().slice(0, 10);
-}
-
-function addDays(dateStr, n) {
-  const d = new Date(dateStr + 'T00:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-function formatWeekLabel(monday) {
-  const sunday = addDays(monday, 6);
-  return `${formatDate(monday)} – ${formatDate(sunday)}`;
-}
-
-function isToday(dateStr) {
-  return dateStr === new Date().toISOString().slice(0, 10);
-}
-
-function formatDayDate(dateStr) {
-  return formatDate(dateStr);
-}
-
-// --------------------------------------------------------
-// API-Wrapper
-// --------------------------------------------------------
-
-async function loadWeek(week) {
+async function checkStatus() {
   try {
-    const res = await api.get(`/meals?week=${week}`);
-    state.meals       = res.data;
-    state.currentWeek = getMondayOf(week);
-  } catch (err) {
-    console.error('[Meals] loadWeek Fehler:', err);
-    state.meals       = [];
-    state.currentWeek = getMondayOf(week);
-    window.planner?.showToast(t('meals.loadError'), 'danger');
+    const res = await api.get('/mealie/status');
+    state.configured = res.configured ?? false;
+    state.mealieUrl  = res.url ?? null;
+  } catch {
+    state.configured = false;
+    state.mealieUrl  = null;
   }
 }
 
-async function loadLists() {
+async function loadRecipes(reset = false) {
+  if (!state.configured) return;
+  if (state.loading) return;
+
+  if (reset) {
+    state.page    = 1;
+    state.recipes = [];
+  }
+
+  state.loading = true;
+  updateLoadMoreBtn();
+
   try {
-    const res   = await api.get('/lists/sublists');
-    state.lists = res.data;
+    const res = await api.get(
+      `/mealie/recipes?page=${state.page}&perPage=${state.perPage}` +
+      (state.search ? `&search=${encodeURIComponent(state.search)}` : '')
+    );
+    const items = res.items ?? [];
+    state.total   = res.total ?? 0;
+    state.recipes = reset ? items : [...state.recipes, ...items];
+    renderGrid();
+  } catch (err) {
+    const code = err?.data?.code ?? err?.status;
+    const msg  = (code === 401 || code === 502)
+      ? t('mealie.connectionError')
+      : t('mealie.loadError');
+    window.planner?.showToast(msg, 'danger');
+  } finally {
+    state.loading = false;
+    updateLoadMoreBtn();
+  }
+}
+
+async function loadRecipeDetail(slug) {
+  try {
+    return await api.get(`/mealie/recipes/${encodeURIComponent(slug)}`);
   } catch {
-    state.lists = [];
+    window.planner?.showToast(t('mealie.loadError'), 'danger');
+    return null;
   }
 }
 
@@ -103,639 +92,238 @@ async function loadLists() {
 
 export async function render(container, { user }) {
   _container = container;
+  _gridWired = false;
+  state.recipes = [];
+  state.page    = 1;
+  state.total   = 0;
+  state.search  = '';
+  state.loading = false;
+
   container.innerHTML = `
     <div class="meals-page">
-      <h1 class="sr-only">${t('meals.title')}</h1>
-      <div class="week-nav">
-        <button class="btn btn--icon" id="week-prev" aria-label="${t('meals.prevWeek')}">
-          <i data-lucide="chevron-left" aria-hidden="true"></i>
-        </button>
-        <span class="week-nav__label" id="week-label"></span>
-        <button class="week-nav__today" id="week-today">${t('meals.today')}</button>
-        <button class="btn btn--icon" id="week-next" aria-label="${t('meals.nextWeek')}">
-          <i data-lucide="chevron-right" aria-hidden="true"></i>
-        </button>
+      <h1 class="sr-only">${t('mealie.title')}</h1>
+      <div class="recipes-toolbar">
+        <div class="recipes-search-wrap">
+          <i data-lucide="search" class="recipes-search-icon" aria-hidden="true"></i>
+          <input
+            type="search"
+            id="recipes-search"
+            class="recipes-search"
+            placeholder="${t('mealie.searchPlaceholder')}"
+            value=""
+            autocomplete="off"
+          />
+        </div>
       </div>
-      <div class="week-grid" id="week-grid">
-        <div style="margin:auto;padding:2rem;text-align:center;color:var(--color-text-disabled)">${t('meals.loadingIndicator')}</div>
+      <div class="recipes-grid" id="recipes-grid">
+        <div class="recipes-loading">${t('mealie.loadingIndicator')}</div>
+      </div>
+      <div class="recipes-footer" id="recipes-footer" hidden>
+        <button class="btn btn--secondary" id="recipes-load-more">${t('mealie.loadMoreBtn')}</button>
       </div>
     </div>
   `;
 
   if (window.lucide) lucide.createIcons();
 
-  const today  = new Date().toISOString().slice(0, 10);
-  const monday = getMondayOf(today);
+  await checkStatus();
 
-  await Promise.all([loadWeek(monday), loadLists()]);
-  renderWeekGrid();
-  wireNav();
-
-  if (localStorage.getItem('meals-create-new')) {
-    localStorage.removeItem('meals-create-new');
-    openMealModal({ mode: 'create', date: today, mealType: 'breakfast' });
+  if (!state.configured) {
+    renderNotConfigured();
+    return;
   }
+
+  await loadRecipes(true);
+  wireSearch();
+  wireLoadMore();
 }
 
-// --------------------------------------------------------
-// Wochengitter
-// --------------------------------------------------------
+function renderNotConfigured() {
+  const grid = _container.querySelector('#recipes-grid');
+  if (!grid) return;
+  grid.innerHTML = `
+    <div class="recipes-empty-state">
+      <i data-lucide="chef-hat" class="recipes-empty-state__icon" aria-hidden="true"></i>
+      <h2 class="recipes-empty-state__title">${t('mealie.notConfiguredTitle')}</h2>
+      <p class="recipes-empty-state__desc">${t('mealie.notConfiguredDesc')}</p>
+      <button class="btn btn--primary" id="go-to-settings">${t('mealie.goToSettings')}</button>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+  _container.querySelector('#go-to-settings')?.addEventListener('click', () => {
+    window.planner?.navigate('/settings');
+  });
+}
 
-function renderWeekGrid() {
-  const grid = _container.querySelector('#week-grid');
+function renderGrid() {
+  const grid = _container.querySelector('#recipes-grid');
   if (!grid) return;
 
-  _container.querySelector('#week-label').textContent =
-    formatWeekLabel(state.currentWeek);
-
-  const days = Array.from({ length: 7 }, (_, i) => addDays(state.currentWeek, i));
-  const dayNames = DAY_NAMES();
-
-  grid.innerHTML = days.map((date, idx) => {
-    const mealsForDay = state.meals.filter((m) => m.date === date);
-    const todayClass  = isToday(date) ? 'day-header--today' : '';
-
-    return `
-      <div class="day-column">
-        <div class="day-header ${todayClass}">
-          <span class="day-header__name">${dayNames[idx]}</span>
-          <span class="day-header__date">${formatDayDate(date)}</span>
-        </div>
-        <div class="day-slots">
-          ${MEAL_TYPES().map((type) => renderSlot(date, type, mealsForDay)).join('')}
-        </div>
+  if (state.recipes.length === 0) {
+    grid.innerHTML = `
+      <div class="recipes-empty-state">
+        <i data-lucide="search-x" class="recipes-empty-state__icon" aria-hidden="true"></i>
+        <p class="recipes-empty-state__desc">${t('mealie.noResults')}</p>
       </div>
     `;
-  }).join('');
-
-  if (window.lucide) lucide.createIcons();
-  stagger(grid.querySelectorAll('.meal-card'));
-  wireGrid(grid);
-}
-
-function renderSlot(date, type, mealsForDay) {
-  const meal = mealsForDay.find((m) => m.meal_type === type.key);
-
-  if (!meal) {
-    return `
-      <div class="meal-slot meal-slot--empty" data-date="${date}" data-type="${type.key}">
-        <div class="meal-slot__type-label">${type.label}</div>
-        <div class="empty-state empty-state--compact">
-          <div class="empty-state__description">${t('meals.noMealPlanned')}</div>
-        </div>
-        <button
-          class="meal-slot__add-btn"
-          data-action="add-meal"
-          data-date="${date}"
-          data-type="${type.key}"
-          aria-label="${t('meals.addMeal', { type: type.label })}"
-        >
-          <i data-lucide="plus" style="width:16px;height:16px;" aria-hidden="true"></i>
-        </button>
-      </div>
-    `;
+    if (window.lucide) lucide.createIcons();
+    updateLoadMoreBtn();
+    return;
   }
 
-  const ingCount = meal.ingredients?.length ?? 0;
-  const ingDone  = meal.ingredients?.filter((i) => i.on_shopping_list).length ?? 0;
-  const ingLabel = ingCount > 0 ? (ingCount !== 1 ? t('meals.ingredientCountPlural', { count: ingCount }) : t('meals.ingredientCount', { count: ingCount })) : '';
-  const ingDoneLabel = ingCount > 0 && ingDone === ingCount ? ' ✓' : '';
-  const canTransfer  = ingCount > 0 && ingDone < ingCount;
+  grid.innerHTML = state.recipes.map(recipeCardHTML).join('');
+  if (window.lucide) lucide.createIcons();
+  stagger(grid.querySelectorAll('.recipe-card'));
+  if (!_gridWired) { wireCards(grid); _gridWired = true; }
+  updateLoadMoreBtn();
+}
+
+function recipeCardHTML(recipe) {
+  const imgUrl = recipe.image && state.mealieUrl
+    ? `${state.mealieUrl}/api/media/recipes/${recipe.id}/images/min-original.webp`
+    : null;
+
+  const categories = (recipe.recipeCategory ?? []).map((c) => esc(c.name)).join(', ');
+  const totalTime  = recipe.totalTime ?? recipe.prepTime ?? null;
 
   return `
-    <div class="meal-slot meal-slot--has-meal" data-meal-id="${meal.id}" data-date="${meal.date}" data-type="${type.key}">
-      <div class="meal-slot__type-label">${type.label}</div>
-      <div class="meal-card"
-           data-action="edit-meal"
-           data-meal-id="${meal.id}"
-           role="button" tabindex="0">
-        <div class="meal-card__title">${esc(meal.title)}</div>
-        ${ingLabel ? `<div class="meal-card__meta">
-          <span class="meal-card__ingredients-count">${ingLabel}${esc(ingDoneLabel)}</span>
-        </div>` : ''}
-        <div class="meal-card__actions">
-          ${meal.recipe_url ? `<a class="meal-card__action-btn meal-card__action-btn--recipe"
-            href="${esc(meal.recipe_url)}" target="_blank" rel="noopener noreferrer"
-            aria-label="Open recipe" onclick="event.stopPropagation()"
-          ><i data-lucide="link" style="width:14px;height:14px;" aria-hidden="true"></i></a>` : ''}
-          ${canTransfer ? `<button class="meal-card__action-btn meal-card__action-btn--shopping"
-            data-action="transfer-meal"
-            data-meal-id="${meal.id}"
-            aria-label="${t('meals.transferToShoppingList')}"
-          ><i data-lucide="shopping-cart" style="width:14px;height:14px;" aria-hidden="true"></i></button>` : ''}
-          <button class="meal-card__action-btn"
-            data-action="delete-meal"
-            data-meal-id="${meal.id}"
-            aria-label="${t('meals.deleteMeal')}"
-          ><i data-lucide="trash-2" style="width:14px;height:14px;" aria-hidden="true"></i></button>
-        </div>
+    <div class="recipe-card" data-slug="${esc(recipe.slug)}" role="button" tabindex="0"
+         aria-label="${esc(recipe.name)}">
+      <div class="recipe-card__image-wrap">
+        ${imgUrl
+          ? `<img class="recipe-card__image" src="${esc(imgUrl)}" alt="" loading="lazy" decoding="async">`
+          : `<div class="recipe-card__image-placeholder"><i data-lucide="utensils" aria-hidden="true"></i></div>`
+        }
+      </div>
+      <div class="recipe-card__body">
+        <div class="recipe-card__name">${esc(recipe.name)}</div>
+        ${categories ? `<div class="recipe-card__meta">${categories}</div>` : ''}
+        ${totalTime   ? `<div class="recipe-card__time"><i data-lucide="clock" style="width:12px;height:12px" aria-hidden="true"></i> ${esc(totalTime)}</div>` : ''}
       </div>
     </div>
   `;
 }
 
 // --------------------------------------------------------
-// Event-Delegation
+// Recipe detail modal
 // --------------------------------------------------------
 
-function wireNav() {
-  _container.querySelector('#week-prev')?.addEventListener('click', async () => {
-    await loadWeek(addDays(state.currentWeek, -7));
-    renderWeekGrid();
-  });
+async function openRecipeModal(slug) {
+  const recipe = await loadRecipeDetail(slug);
+  if (!recipe) return;
 
-  _container.querySelector('#week-next')?.addEventListener('click', async () => {
-    await loadWeek(addDays(state.currentWeek, 7));
-    renderWeekGrid();
-  });
+  const recipeUrl = state.mealieUrl ? `${state.mealieUrl}/g/home/r/${slug}` : null;
+  const imgUrl    = recipe.image && state.mealieUrl
+    ? `${state.mealieUrl}/api/media/recipes/${recipe.id}/images/original.webp`
+    : null;
 
-  _container.querySelector('#week-today')?.addEventListener('click', async () => {
-    const monday = getMondayOf(new Date().toISOString().slice(0, 10));
-    if (monday === state.currentWeek) return;
-    await loadWeek(monday);
-    renderWeekGrid();
-  });
-}
+  const ingredients  = recipe.recipeIngredient ?? [];
+  const instructions = recipe.recipeInstructions ?? [];
 
-function wireGrid(grid) {
-  grid.addEventListener('click', async (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
+  const ingHTML = ingredients.length
+    ? `<ul class="recipe-detail__list">${ingredients.map((i) => {
+        const note = i.note ? ` – ${esc(i.note)}` : '';
+        const qty  = i.quantity ? `${esc(String(i.quantity))} ` : '';
+        const unit = i.unit?.name ? `${esc(i.unit.name)} ` : '';
+        return `<li>${qty}${unit}${esc(i.food?.name ?? i.display ?? '')}${note}</li>`;
+      }).join('')}</ul>`
+    : `<p class="recipe-detail__empty">${t('mealie.noIngredients')}</p>`;
 
-    const action = btn.dataset.action;
+  const stepsHTML = instructions.length
+    ? `<ol class="recipe-detail__steps">${instructions.map((s) =>
+        `<li>${esc(s.text ?? '')}</li>`
+      ).join('')}</ol>`
+    : `<p class="recipe-detail__empty">${t('mealie.noInstructions')}</p>`;
 
-    if (action === 'add-meal') {
-      openMealModal({ mode: 'create', date: btn.dataset.date, mealType: btn.dataset.type });
-      return;
-    }
+  const timeMeta = [
+    recipe.prepTime  ? `<span><strong>${t('mealie.prepTime')}:</strong> ${esc(recipe.prepTime)}</span>`  : '',
+    recipe.cookTime  ? `<span><strong>${t('mealie.cookTime')}:</strong> ${esc(recipe.cookTime)}</span>`  : '',
+    recipe.totalTime ? `<span><strong>${t('mealie.totalTime')}:</strong> ${esc(recipe.totalTime)}</span>` : '',
+    recipe.recipeYield ? `<span><strong>${t('mealie.servings')}:</strong> ${esc(String(recipe.recipeYield))}</span>` : '',
+  ].filter(Boolean).join('');
 
-    if (action === 'edit-meal') {
-      const mealId = parseInt(btn.dataset.mealId, 10);
-      const meal   = state.meals.find((m) => m.id === mealId);
-      if (meal) openMealModal({ mode: 'edit', meal, date: meal.date, mealType: meal.meal_type });
-      return;
-    }
-
-    if (action === 'delete-meal') {
-      await deleteMeal(parseInt(btn.dataset.mealId, 10));
-      return;
-    }
-
-    if (action === 'transfer-meal') {
-      await transferMeal(parseInt(btn.dataset.mealId, 10));
-    }
-  });
-
-  grid.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      const card = e.target.closest('[data-action="edit-meal"]');
-      if (card) { e.preventDefault(); card.click(); }
-    }
-  });
-
-  wireDragDrop(grid);
-}
-
-// --------------------------------------------------------
-// Drag & Drop
-// --------------------------------------------------------
-
-let _suppressNextClick = false;
-
-function wireDragDrop(grid) {
-  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let dragging = null; // { mealId, sourceDate, sourceType, ghost, startX, startY }
-
-  grid.addEventListener('pointerdown', (e) => {
-    const card = e.target.closest('.meal-card');
-    if (!card) return;
-    if (e.target.closest('[data-action="delete-meal"], [data-action="transfer-meal"]')) return;
-
-    const slot = card.closest('.meal-slot');
-    if (!slot) return;
-
-    const mealId     = parseInt(slot.dataset.mealId, 10);
-    const sourceDate = slot.dataset.date;
-    const sourceType = slot.dataset.type;
-
-    e.preventDefault();
-    card.setPointerCapture(e.pointerId);
-
-    let ghost = null;
-    if (!reducedMotion) {
-      ghost = card.cloneNode(true);
-      ghost.classList.add('meal-card--ghost');
-      ghost.style.width  = card.offsetWidth + 'px';
-      ghost.style.height = card.offsetHeight + 'px';
-      ghost.style.left   = (e.clientX - card.offsetWidth / 2) + 'px';
-      ghost.style.top    = (e.clientY - card.offsetHeight / 2) + 'px';
-      document.body.appendChild(ghost);
-    }
-
-    slot.classList.add('meal-slot--dragging');
-    dragging = { mealId, sourceDate, sourceType, ghost, card, slot };
-
-    let lastTarget = null;
-
-    function onMove(ev) {
-      if (!dragging) return;
-      if (ghost) {
-        ghost.style.left = (ev.clientX - ghost.offsetWidth / 2) + 'px';
-        ghost.style.top  = (ev.clientY - ghost.offsetHeight / 2) + 'px';
-      }
-      if (ghost) ghost.style.display = 'none';
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      if (ghost) ghost.style.display = '';
-
-      const targetSlot = el?.closest('.meal-slot');
-      if (targetSlot !== lastTarget) {
-        lastTarget?.classList.remove('meal-slot--drop-target');
-        if (targetSlot && targetSlot !== dragging.slot) {
-          targetSlot.classList.add('meal-slot--drop-target');
-        }
-        lastTarget = targetSlot;
-      }
-    }
-
-    async function onUp(ev) {
-      if (!dragging) return;
-      const { mealId, sourceDate, sourceType, slot: sourceSlot } = dragging;
-      cleanup(); // setzt dragging = null - Werte daher vorher destrukturieren
-
-      if (ghost) ghost.style.display = 'none';
-      const el = document.elementFromPoint(ev.clientX, ev.clientY);
-      if (ghost) ghost.style.display = '';
-
-      const targetSlot = el?.closest('.meal-slot');
-      if (targetSlot && targetSlot !== sourceSlot) {
-        const targetDate    = targetSlot.dataset.date;
-        const targetType    = targetSlot.dataset.type;
-        const targetMealId  = targetSlot.dataset.mealId ? parseInt(targetSlot.dataset.mealId, 10) : null;
-        _suppressNextClick = true;
-        setTimeout(() => { _suppressNextClick = false; }, 300);
-        await moveMeal(mealId, sourceDate, sourceType, targetDate, targetType, targetMealId);
-      }
-    }
-
-    function onCancel() { cleanup(); }
-
-    function cleanup() {
-      ghost?.remove();
-      dragging?.slot?.classList.remove('meal-slot--dragging');
-      lastTarget?.classList.remove('meal-slot--drop-target');
-      dragging = null;
-      card.removeEventListener('pointermove',   onMove);
-      card.removeEventListener('pointerup',     onUp);
-      card.removeEventListener('pointercancel', onCancel);
-    }
-
-    card.addEventListener('pointermove',   onMove);
-    card.addEventListener('pointerup',     onUp);
-    card.addEventListener('pointercancel', onCancel);
-  });
-
-  // Suppress click after a completed drag
-  grid.addEventListener('click', (e) => {
-    if (_suppressNextClick) {
-      e.stopImmediatePropagation();
-      _suppressNextClick = false;
-    }
-  }, true);
-}
-
-async function moveMeal(mealId, sourceDate, sourceType, targetDate, targetType, targetMealId) {
-  try {
-    if (targetMealId) {
-      // Swap: move both meals to each other's slots
-      await Promise.all([
-        api.put(`/meals/${mealId}`,       { date: targetDate, meal_type: targetType }),
-        api.put(`/meals/${targetMealId}`, { date: sourceDate, meal_type: sourceType }),
-      ]);
-      const m1 = state.meals.find((m) => m.id === mealId);
-      const m2 = state.meals.find((m) => m.id === targetMealId);
-      if (m1) { m1.date = targetDate; m1.meal_type = targetType; }
-      if (m2) { m2.date = sourceDate; m2.meal_type = sourceType; }
-    } else {
-      // Move to empty slot
-      await api.put(`/meals/${mealId}`, { date: targetDate, meal_type: targetType });
-      const m = state.meals.find((m) => m.id === mealId);
-      if (m) { m.date = targetDate; m.meal_type = targetType; }
-    }
-    renderWeekGrid();
-  } catch {
-    // Re-render to restore visual state
-    renderWeekGrid();
-  }
-}
-
-// --------------------------------------------------------
-// Modal
-// --------------------------------------------------------
-
-function openMealModal(opts) {
-  state.modal = opts;
-  const { mode, date, mealType, meal } = opts;
-  const isEdit = mode === 'edit';
-
-  const content = buildModalContent(opts);
+  const content = `
+    ${imgUrl ? `<img class="recipe-detail__hero" src="${esc(imgUrl)}" alt="" loading="lazy">` : ''}
+    ${recipe.description ? `<p class="recipe-detail__desc">${esc(recipe.description)}</p>` : ''}
+    ${timeMeta ? `<div class="recipe-detail__meta">${timeMeta}</div>` : ''}
+    <h3 class="recipe-detail__section-title">${t('mealie.ingredients')}</h3>
+    ${ingHTML}
+    <h3 class="recipe-detail__section-title">${t('mealie.instructions')}</h3>
+    ${stepsHTML}
+    <div class="modal-panel__footer" style="border:none;padding:0;margin-top:var(--space-4);display:flex;gap:var(--space-2);justify-content:flex-end">
+      ${recipeUrl ? `<a class="btn btn--secondary" href="${esc(recipeUrl)}" target="_blank" rel="noopener noreferrer">${t('mealie.openInMealie')}</a>` : ''}
+      <button class="btn btn--primary" id="recipe-modal-close">${t('common.close')}</button>
+    </div>
+  `;
 
   openSharedModal({
-    title: isEdit ? t('meals.editMeal') : t('meals.addMealTitle'),
+    title:   esc(recipe.name),
     content,
-    size: 'md',
+    size:    'lg',
     onSave(panel) {
-      // Autocomplete
-      const titleInput = panel.querySelector('#modal-title');
-      const acDropdown = panel.querySelector('#modal-autocomplete');
-      let acIndex = -1;
-      let acTimer;
-
-      titleInput.addEventListener('input', () => {
-        clearTimeout(acTimer);
-        acTimer = setTimeout(async () => {
-          const q = titleInput.value.trim();
-          if (!q) { acDropdown.hidden = true; return; }
-          try {
-            const res = await api.get(`/meals/suggestions?q=${encodeURIComponent(q)}`);
-            if (!res.data.length) { acDropdown.hidden = true; return; }
-            acIndex = -1;
-            acDropdown.innerHTML = res.data.map((s) => `
-              <div class="meal-modal__autocomplete-item" data-title="${esc(s.title)}">${esc(s.title)}</div>
-            `).join('');
-            acDropdown.hidden = false;
-          } catch { acDropdown.hidden = true; }
-        }, 200);
-      });
-
-      titleInput.addEventListener('keydown', (e) => {
-        const items = [...acDropdown.querySelectorAll('.meal-modal__autocomplete-item')];
-        if (!items.length) return;
-        if (e.key === 'ArrowDown') { e.preventDefault(); acIndex = Math.min(acIndex + 1, items.length - 1); items.forEach((el, i) => el.classList.toggle('meal-modal__autocomplete-item--active', i === acIndex)); }
-        if (e.key === 'ArrowUp')   { e.preventDefault(); acIndex = Math.max(acIndex - 1, 0);                items.forEach((el, i) => el.classList.toggle('meal-modal__autocomplete-item--active', i === acIndex)); }
-        if (e.key === 'Enter' && acIndex >= 0) { e.preventDefault(); titleInput.value = items[acIndex].dataset.title; acDropdown.hidden = true; acIndex = -1; }
-        if (e.key === 'Escape') acDropdown.hidden = true;
-      });
-
-      acDropdown.addEventListener('mousedown', (e) => {
-        const item = e.target.closest('.meal-modal__autocomplete-item');
-        if (item) { titleInput.value = item.dataset.title; acDropdown.hidden = true; }
-      });
-
-      // Zutaten
-      const ingList   = panel.querySelector('#ingredient-list');
-      const addIngBtn = panel.querySelector('#add-ingredient-btn');
-
-      addIngBtn.addEventListener('click', () => {
-        const tmp  = document.createElement('div');
-        tmp.innerHTML = ingredientRowHTML('', '', null);
-        const row = tmp.firstElementChild;
-        ingList.appendChild(row);
-        if (window.lucide) lucide.createIcons();
-        row.querySelector('input').focus();
-      });
-
-      ingList.addEventListener('click', (e) => {
-        const btn = e.target.closest('[data-action="remove-ingredient"]');
-        if (btn) btn.closest('.ingredient-row').remove();
-      });
-
-      // Einkaufslisten-Transfer
-      panel.querySelector('#transfer-btn')?.addEventListener('click', async () => {
-        const selectEl = panel.querySelector('#transfer-list-select');
-        const listId   = parseInt(selectEl?.value, 10);
-        if (!listId || !state.modal?.meal) return;
-        const btn = panel.querySelector('#transfer-btn');
-        btn.disabled = true;
-        try {
-          const res = await api.post(`/meals/${state.modal.meal.id}/to-shopping-list`, { listId });
-          if (res.data.transferred > 0) {
-            window.planner?.showToast(res.data.transferred !== 1 ? t('meals.transferSuccessPlural', { count: res.data.transferred }) : t('meals.transferSuccess', { count: res.data.transferred }), 'success');
-            await loadWeek(state.currentWeek);
-            closeModal();
-            renderWeekGrid();
-          } else {
-            window.planner?.showToast(t('meals.transferAlreadyDone'), 'info');
-            btn.disabled = false;
-          }
-        } catch (err) {
-          window.planner?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
-          btn.disabled = false;
-        }
-      });
-
-      panel.querySelector('#modal-cancel').addEventListener('click', closeModal);
-      panel.querySelector('#modal-save').addEventListener('click', () => saveModal(panel));
+      panel.querySelector('#recipe-modal-close')?.addEventListener('click', () => closeModal());
     },
   });
+
+  if (window.lucide) lucide.createIcons();
 }
 
-function buildModalContent({ mode, date, mealType, meal }) {
-  const isEdit   = mode === 'edit';
-  const typeOpts = MEAL_TYPES().map((mt) =>
-    `<option value="${mt.key}" ${mt.key === mealType ? 'selected' : ''}>${mt.label}</option>`
-  ).join('');
+// --------------------------------------------------------
+// Event wiring
+// --------------------------------------------------------
 
-  const listOpts = state.lists.length
-    ? state.lists.map((l) => `<option value="${l.id}">${esc(l.head_name ? `${l.head_name} › ${l.name}` : l.name)}</option>`).join('')
-    : `<option value="" disabled>${t('meals.noShoppingLists')}</option>`;
-
-  const ingRows = isEdit && meal.ingredients?.length
-    ? meal.ingredients.map((ing) => ingredientRowHTML(ing.name, ing.quantity ?? '', ing.id)).join('')
-    : '';
-
-  const hasIngOpen = isEdit && meal.ingredients?.some((i) => !i.on_shopping_list);
-
-  return `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
-      <div class="form-group" style="margin-bottom:0">
-        <label class="form-label" for="modal-date">${t('meals.dateLabel')}</label>
-        <input type="date" class="form-input" id="modal-date" value="${date}">
-      </div>
-      <div class="form-group" style="margin-bottom:0">
-        <label class="form-label" for="modal-type">${t('meals.mealTypeLabel')}</label>
-        <select class="form-input" id="modal-type">${typeOpts}</select>
-      </div>
-    </div>
-
-    <div class="form-group" style="position:relative;">
-      <label class="form-label" for="modal-title">${t('meals.titleLabel')}</label>
-      <input type="text" class="form-input" id="modal-title"
-             placeholder="${t('meals.titlePlaceholder')}"
-             value="${esc(isEdit ? meal.title : '')}"
-             autocomplete="off">
-      <div id="modal-autocomplete" class="meal-modal__autocomplete" hidden></div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" for="modal-notes">${t('meals.notesLabel')}</label>
-      <textarea class="form-input" id="modal-notes" rows="2"
-                placeholder="${t('meals.notesPlaceholder')}">${esc(isEdit && meal.notes ? meal.notes : '')}</textarea>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label" for="modal-recipe-url">Recipe URL <span style="font-weight:normal;opacity:0.6">(optional)</span></label>
-      <input type="url" class="form-input" id="modal-recipe-url"
-             placeholder="https://..." value="${esc(isEdit && meal.recipe_url ? meal.recipe_url : '')}">
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">${t('meals.ingredientsLabel')}</label>
-      <div class="ingredient-list" id="ingredient-list">${ingRows}</div>
-      <button class="add-ingredient-btn" id="add-ingredient-btn" type="button">
-        <i data-lucide="plus" style="width:14px;height:14px;" aria-hidden="true"></i>
-        ${t('meals.addIngredient')}
-      </button>
-    </div>
-
-    ${isEdit && hasIngOpen ? `
-    <div class="shopping-transfer">
-      <div class="shopping-transfer__label">
-        <i data-lucide="shopping-cart" style="width:14px;height:14px;" aria-hidden="true"></i>
-        ${t('meals.transferLabel')}
-      </div>
-      <select class="shopping-transfer__select" id="transfer-list-select">${listOpts}</select>
-      <button class="btn btn--secondary shopping-transfer__btn" id="transfer-btn" type="button">
-        ${t('meals.transferNow')}
-      </button>
-    </div>` : ''}
-
-    <div class="modal-panel__footer" style="border:none;padding:0;margin-top:var(--space-4)">
-      <button class="btn btn--secondary" id="modal-cancel">${t('common.cancel')}</button>
-      <button class="btn btn--primary" id="modal-save">${isEdit ? t('common.save') : t('common.add')}</button>
-    </div>`;
+function wireSearch() {
+  const input = _container.querySelector('#recipes-search');
+  if (!input) return;
+  input.addEventListener('input', () => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(async () => {
+      state.search = input.value.trim();
+      await loadRecipes(true);
+    }, 300);
+  });
 }
 
-function ingredientRowHTML(name, qty, id) {
-  return `
-    <div class="ingredient-row" data-ing-id="${id ?? ''}">
-      <input type="text" class="form-input ingredient-row__name" placeholder="${t('meals.ingredientNamePlaceholder')}" value="${esc(name)}">
-      <input type="text" class="form-input ingredient-row__qty" placeholder="${t('meals.ingredientQtyPlaceholder')}" value="${esc(qty)}">
-      <button class="ingredient-row__remove" data-action="remove-ingredient" type="button" aria-label="${t('meals.removeIngredient')}">
-        <i data-lucide="x" style="width:14px;height:14px;" aria-hidden="true"></i>
-      </button>
-    </div>
-  `;
+function wireLoadMore() {
+  const btn = _container.querySelector('#recipes-load-more');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    state.page++;
+    await loadRecipes(false);
+  });
 }
 
-function closeModal() {
-  closeSharedModal();
-  state.modal = null;
-}
-
-async function saveModal(overlay) {
-  const saveBtn   = overlay.querySelector('#modal-save');
-  const date      = overlay.querySelector('#modal-date').value;
-  const meal_type = overlay.querySelector('#modal-type').value;
-  const title     = overlay.querySelector('#modal-title').value.trim();
-  const notes      = overlay.querySelector('#modal-notes').value.trim() || null;
-  const recipe_url = overlay.querySelector('#modal-recipe-url').value.trim() || null;
-
-  if (!title) {
-    window.planner?.showToast(t('meals.titleRequired'), 'error');
-    return;
-  }
-
-  const ingredients = [];
-  overlay.querySelectorAll('.ingredient-row').forEach((row) => {
-    const name = row.querySelector('.ingredient-row__name').value.trim();
-    const qty  = row.querySelector('.ingredient-row__qty').value.trim() || null;
-    if (name) ingredients.push({ name, quantity: qty, id: row.dataset.ingId || null });
+function wireCards(grid) {
+  grid.addEventListener('click', async (e) => {
+    const card = e.target.closest('.recipe-card');
+    if (!card) return;
+    await openRecipeModal(card.dataset.slug);
   });
 
-  saveBtn.disabled    = true;
-  saveBtn.textContent = '…';
-
-  try {
-    const { mode, meal } = state.modal;
-
-    if (mode === 'create') {
-      const res     = await api.post('/meals', { date, meal_type, title, notes, recipe_url, ingredients });
-      state.meals.push(res.data);
-    } else {
-      // Update meal meta
-      await api.put(`/meals/${meal.id}`, { date, meal_type, title, notes, recipe_url });
-
-      // Sync ingredients
-      const existingIds = new Set((meal.ingredients ?? []).map((i) => i.id));
-      const keptIds     = new Set(
-        ingredients.filter((i) => i.id).map((i) => parseInt(i.id, 10))
-      );
-
-      for (const id of existingIds) {
-        if (!keptIds.has(id)) await api.delete(`/meals/ingredients/${id}`);
-      }
-      for (const ing of ingredients) {
-        if (!ing.id) await api.post(`/meals/${meal.id}/ingredients`, { name: ing.name, quantity: ing.quantity });
-      }
-
-      // Reload updated meal
-      await loadWeek(state.currentWeek);
+  grid.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const card = e.target.closest('.recipe-card');
+      if (card) { e.preventDefault(); await openRecipeModal(card.dataset.slug); }
     }
-
-    closeModal();
-    renderWeekGrid();
-    window.planner?.showToast(mode === 'create' ? t('meals.addMealTitle') : t('meals.editMeal'), 'success');
-  } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('common.errorGeneric'), 'error');
-    saveBtn.disabled    = false;
-    saveBtn.textContent = state.modal?.mode === 'edit' ? t('common.save') : t('common.add');
-  }
+  });
 }
 
-// --------------------------------------------------------
-// Mahlzeit löschen
-// --------------------------------------------------------
+function updateLoadMoreBtn() {
+  const footer = _container?.querySelector('#recipes-footer');
+  const btn    = _container?.querySelector('#recipes-load-more');
+  if (!footer || !btn) return;
 
-async function deleteMeal(mealId) {
-  if (!await showConfirm(t('meals.deleteMeal') + '?', { danger: true })) return;
-  try {
-    await api.delete(`/meals/${mealId}`);
-    state.meals = state.meals.filter((m) => m.id !== mealId);
-    renderWeekGrid();
-    window.planner?.showToast(t('meals.deleteMeal'), 'success');
-  } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('common.errorGeneric'), 'error');
+  const hasMore = state.recipes.length < state.total;
+  footer.hidden = !state.configured || state.recipes.length === 0;
+
+  if (state.loading) {
+    btn.disabled    = true;
+    btn.textContent = t('mealie.loadingIndicator');
+  } else if (hasMore) {
+    btn.disabled    = false;
+    btn.textContent = t('mealie.loadMoreBtn');
+  } else {
+    btn.disabled    = true;
+    btn.textContent = t('mealie.allLoaded');
   }
 }
-
-// --------------------------------------------------------
-// Zutaten → Einkaufsliste (Quick-Transfer vom Slot aus)
-// --------------------------------------------------------
-
-async function transferMeal(mealId) {
-  if (!state.lists.length) {
-    window.planner?.showToast(t('meals.noShoppingLists'), 'error');
-    return;
-  }
-
-  let listId = state.lists[0].id;
-
-  if (state.lists.length > 1) {
-    const names  = state.lists.map((l, i) => `${i + 1}. ${l.name}`).join('<br>');
-    const choice = await showPrompt(t('meals.chooseListTitle') || 'Choose list', '', {
-      title: t('meals.chooseListTitle') || 'Choose list',
-      description: `${names}`,
-    });
-    const n = parseInt(choice, 10);
-    if (!n || n < 1 || n > state.lists.length) return;
-    listId = state.lists[n - 1].id;
-  }
-
-  try {
-    const res = await api.post(`/meals/${mealId}/to-shopping-list`, { listId });
-    if (res.data.transferred > 0) {
-      window.planner?.showToast(res.data.transferred !== 1 ? t('meals.transferSuccessPlural', { count: res.data.transferred }) : t('meals.transferSuccess', { count: res.data.transferred }), 'success');
-      await loadWeek(state.currentWeek);
-      renderWeekGrid();
-    } else {
-      window.planner?.showToast(t('meals.transferAlreadyDone'), 'info');
-    }
-  } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('common.errorGeneric'), 'error');
-  }
-}
-
-// --------------------------------------------------------
-// Hilfsfunktion
-// --------------------------------------------------------
-

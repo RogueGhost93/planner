@@ -505,6 +505,16 @@ const MIGRATIONS = [
       PRAGMA foreign_keys=ON;
     `,
   },
+  {
+    version: 13,
+    description: 'Add app_settings table for global integration config (Mealie etc.)',
+    up: `
+      CREATE TABLE app_settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `,
+  },
 ];
 
 /**
