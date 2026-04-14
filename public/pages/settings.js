@@ -336,6 +336,10 @@ export async function render(container, { user }) {
                 <span class="toggle-switch__slider"></span>
               </label>
             </div>
+            <div style="margin-top:var(--space-3);display:flex;align-items:center;gap:var(--space-3)">
+              <button class="btn btn--secondary" id="freshrss-test-btn">Test connection</button>
+              <span id="freshrss-test-result" style="font-size:var(--text-sm)"></span>
+            </div>
             ${user?.role === 'admin' ? `
             <div class="settings-sync-actions" style="margin-top:var(--space-3)">
               <button class="btn btn--danger-outline" id="freshrss-disconnect-btn">Disconnect</button>
@@ -676,6 +680,32 @@ function bindEvents(container, user) {
         window.planner?.navigate('/settings');
       } catch (err) {
         window.planner?.showToast(err.data?.error ?? err.message, 'danger');
+      }
+    });
+  }
+
+  // FreshRSS test connection
+  const freshrssTestBtn = container.querySelector('#freshrss-test-btn');
+  if (freshrssTestBtn) {
+    freshrssTestBtn.addEventListener('click', async () => {
+      const resultEl = container.querySelector('#freshrss-test-result');
+      freshrssTestBtn.disabled = true;
+      resultEl.textContent = 'Testing…';
+      resultEl.style.color = '';
+      try {
+        const res = await api.get('/freshrss/test');
+        if (res.ok) {
+          resultEl.textContent = `✓ Connected — ${res.count} article${res.count !== 1 ? 's' : ''} fetched`;
+          resultEl.style.color = 'var(--color-success)';
+        } else {
+          resultEl.textContent = `✗ ${res.error}`;
+          resultEl.style.color = 'var(--color-danger)';
+        }
+      } catch (err) {
+        resultEl.textContent = `✗ ${err.data?.error ?? err.message}`;
+        resultEl.style.color = 'var(--color-danger)';
+      } finally {
+        freshrssTestBtn.disabled = false;
       }
     });
   }
