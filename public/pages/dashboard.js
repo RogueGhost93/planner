@@ -170,7 +170,7 @@ function skeletonWidget(lines = 3) {
 // Widget-Renderer
 // --------------------------------------------------------
 
-function renderGreeting(user, stats = {}) {
+function renderGreeting(user, stats = {}, headlines = null) {
   const { urgentTasks = [] } = stats;
   const quickLink = user?.quick_link || '';
 
@@ -200,6 +200,16 @@ function renderGreeting(user, stats = {}) {
        </button>`
     : '';
 
+  const showNews = isNewsEnabled() && headlines && headlines.length > 0;
+  const newsRow = showNews
+    ? `<div class="widget-greeting__news" id="greeting-news" aria-live="polite" aria-atomic="true">
+        <i data-lucide="rss" style="width:11px;height:11px;flex-shrink:0;opacity:0.7" aria-hidden="true"></i>
+        <span class="greeting-news__source" id="greeting-news-source">${esc(headlines[0].source)}</span>
+        <span class="greeting-news__sep" aria-hidden="true">·</span>
+        <span class="greeting-news__title" id="greeting-news-title">${esc(headlines[0].title)}</span>
+       </div>`
+    : '';
+
   return `
     <div class="widget-greeting">
       <div class="widget-greeting__content">
@@ -213,6 +223,7 @@ function renderGreeting(user, stats = {}) {
           ${homeBtn}
         </div>
       </div>
+      ${newsRow}
     </div>
   `;
 }
@@ -510,9 +521,14 @@ function wireQuickNotes(container) {
 // --------------------------------------------------------
 
 const QUOTE_LS_KEY = 'planner-show-quotes';
+const NEWS_LS_KEY  = 'planner-show-news';
 
 function isQuoteEnabled() {
   return localStorage.getItem(QUOTE_LS_KEY) !== 'false';
+}
+
+function isNewsEnabled() {
+  return localStorage.getItem(NEWS_LS_KEY) === 'true';
 }
 
 function renderQuoteWidget(quote) {
@@ -678,6 +694,27 @@ function wireGreetingLink(container) {
   });
 }
 
+function wireNewsRotation(container, headlines, signal) {
+  if (!headlines || headlines.length <= 1) return;
+  const sourceEl = container.querySelector('#greeting-news-source');
+  const titleEl  = container.querySelector('#greeting-news-title');
+  if (!sourceEl || !titleEl) return;
+
+  let idx = 0;
+  const rotate = () => {
+    idx = (idx + 1) % headlines.length;
+    titleEl.classList.add('greeting-news__title--fade');
+    setTimeout(() => {
+      sourceEl.textContent = headlines[idx].source;
+      titleEl.textContent  = headlines[idx].title;
+      titleEl.classList.remove('greeting-news__title--fade');
+    }, 300);
+  };
+
+  const timerId = setInterval(rotate, 10_000);
+  signal.addEventListener('abort', () => clearInterval(timerId));
+}
+
 // --------------------------------------------------------
 // Haupt-Render
 // --------------------------------------------------------
@@ -707,18 +744,21 @@ export async function render(container, { user }) {
     ${renderFab()}
   `;
 
-  let data    = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], lists: [], listItems: [] };
-  let weather = null;
-  let quote   = null;
+  let data      = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], lists: [], listItems: [] };
+  let weather   = null;
+  let quote     = null;
+  let headlines = null;
   try {
-    const [dashRes, weatherRes, quoteRes] = await Promise.all([
+    const [dashRes, weatherRes, quoteRes, newsRes] = await Promise.all([
       api.get('/dashboard'),
       api.get('/weather').catch(() => ({ data: null })),
       isQuoteEnabled() ? api.get('/quotes/today').catch(() => null) : Promise.resolve(null),
+      isNewsEnabled() ? api.get('/freshrss/headlines').catch(() => ({ data: null })) : Promise.resolve({ data: null }),
     ]);
-    data    = dashRes;
-    weather = weatherRes.data ?? null;
-    quote   = quoteRes;
+    data      = dashRes;
+    weather   = weatherRes.data ?? null;
+    quote     = quoteRes;
+    headlines = newsRes?.data ?? null;
   } catch (err) {
     console.error('[Dashboard] Ladefehler:', err.message);
     window.planner?.showToast(t('dashboard.loadError'), 'warning');
@@ -747,7 +787,7 @@ export async function render(container, { user }) {
     <div class="dashboard">
       <h1 class="sr-only">${t('dashboard.title')}</h1>
       <div class="dashboard__grid">
-        ${renderGreeting(user, stats)}
+        ${renderGreeting(user, stats, headlines)}
         ${renderQuoteWidget(quote)}
         ${renderWeatherWidget(weather)}
         ${renderUrgentTasks(widgetTasks)}
@@ -762,6 +802,7 @@ export async function render(container, { user }) {
 
   wireLinks(container);
   wireGreetingLink(container);
+  wireNewsRotation(container, headlines, _fabController.signal);
   initFab(container, _fabController.signal);
   wireTasksWidget(container);
   wireShoppingWidget(container, data);

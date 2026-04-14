@@ -196,6 +196,48 @@
 }
 
 /* --------------------------------------------------------
+ * Greeting News Ticker
+ * -------------------------------------------------------- */
+.widget-greeting__news {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.greeting-news__source {
+  font-weight: var(--font-weight-semibold);
+  flex-shrink: 0;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.greeting-news__sep {
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.greeting-news__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  transition: opacity 0.3s ease;
+}
+
+.greeting-news__title--fade {
+  opacity: 0;
+}
+
+/* --------------------------------------------------------
  * Quote of the Day Widget
  * -------------------------------------------------------- */
 .quote-widget {

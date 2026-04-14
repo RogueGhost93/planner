@@ -515,6 +515,11 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    version: 14,
+    description: 'Add notify_tone preference to users',
+    up: `ALTER TABLE users ADD COLUMN notify_tone TEXT NOT NULL DEFAULT 'default';`,
+  },
 ];
 
 /**

@@ -25,6 +25,7 @@ import budgetRouter from './routes/budget.js';
 import weatherRouter from './routes/weather.js';
 import quotesRouter from './routes/quotes.js';
 import mealieRouter from './routes/mealie.js';
+import freshrssRouter from './routes/freshrss.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
@@ -167,6 +168,7 @@ app.use('/api/v1/budget', budgetRouter);
 app.use('/api/v1/weather', weatherRouter);
 app.use('/api/v1/quotes', quotesRouter);
 app.use('/api/v1/mealie', mealieRouter);
+app.use('/api/v1/freshrss', freshrssRouter);
 
 // --------------------------------------------------------
 // Health-Check (für Docker)

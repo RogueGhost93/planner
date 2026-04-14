@@ -236,7 +236,7 @@ router.post('/logout', requireAuth, csrfMiddleware, (req, res) => {
 router.get('/me', requireAuth, (req, res) => {
   try {
     const user = db.get()
-      .prepare('SELECT id, username, display_name, avatar_color, role, theme, accent, quick_link, notify_popup, notify_sound, notify_time, notify_interval FROM users WHERE id = ?')
+      .prepare('SELECT id, username, display_name, avatar_color, role, theme, accent, quick_link, notify_popup, notify_sound, notify_time, notify_interval, notify_tone FROM users WHERE id = ?')
       .get(req.session.userId);
 
     if (!user) {
@@ -328,11 +328,13 @@ router.post('/users', requireAuth, requireAdmin, csrfMiddleware, async (req, res
 router.patch('/me/preferences', requireAuth, csrfMiddleware, (req, res) => {
   const VALID_THEMES  = ['system', 'light', 'dark'];
   const VALID_ACCENTS = ['blue', 'purple', 'teal', 'green', 'orange', 'red', 'gold', 'pink'];
-  const { theme, accent, quick_link, notify_popup, notify_sound, notify_time, notify_interval } = req.body;
+  const VALID_TONES   = ['short', 'default', 'long', 'gentle', 'alert'];
+  const { theme, accent, quick_link, notify_popup, notify_sound, notify_time, notify_interval, notify_tone } = req.body;
   if (theme  && !VALID_THEMES.includes(theme))   return res.status(400).json({ error: 'Invalid theme.',  code: 400 });
   if (accent && !VALID_ACCENTS.includes(accent))  return res.status(400).json({ error: 'Invalid accent.', code: 400 });
   if (notify_time != null && !/^\d{2}:\d{2}$/.test(notify_time)) return res.status(400).json({ error: 'Invalid notify_time.', code: 400 });
   if (notify_interval != null && (typeof notify_interval !== 'number' || notify_interval < 1 || notify_interval > 24)) return res.status(400).json({ error: 'Invalid notify_interval.', code: 400 });
+  if (notify_tone != null && !VALID_TONES.includes(notify_tone)) return res.status(400).json({ error: 'Invalid notify_tone.', code: 400 });
   const updates = []; const params = [];
   if (theme)  { updates.push('theme = ?');  params.push(theme);  }
   if (accent) { updates.push('accent = ?'); params.push(accent); }
@@ -341,6 +343,7 @@ router.patch('/me/preferences', requireAuth, csrfMiddleware, (req, res) => {
   if (notify_sound != null)    { updates.push('notify_sound = ?');    params.push(notify_sound ? 1 : 0); }
   if (notify_time != null)     { updates.push('notify_time = ?');     params.push(notify_time); }
   if (notify_interval != null) { updates.push('notify_interval = ?'); params.push(notify_interval); }
+  if (notify_tone != null)     { updates.push('notify_tone = ?');     params.push(notify_tone); }
   if (!updates.length) return res.json({ ok: true });
   params.push(req.session.userId);
   db.get().prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).run(...params);

@@ -8,6 +8,7 @@ import { api, auth } from '/api.js';
 import { t, formatDate, formatTime } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { showConfirm } from '/components/modal.js';
+import { previewTone } from '/components/task-notifications.js';
 
 /**
  * @param {HTMLElement} container
@@ -23,19 +24,22 @@ export async function render(container, { user }) {
   let users        = [];
   let googleStatus = { configured: false, connected: false, lastSync: null };
   let appleStatus  = { configured: false, lastSync: null };
-  let mealieStatus = { configured: false, url: null };
+  let mealieStatus   = { configured: false, url: null };
+  let freshrssStatus = { configured: false };
 
   try {
-    const [usersRes, gStatus, aStatus, mStatus] = await Promise.allSettled([
+    const [usersRes, gStatus, aStatus, mStatus, fStatus] = await Promise.allSettled([
       user.role === 'admin' ? auth.getUsers() : Promise.resolve({ data: [] }),
       api.get('/calendar/google/status'),
       api.get('/calendar/apple/status'),
       api.get('/mealie/status'),
+      api.get('/freshrss/status'),
     ]);
-    if (usersRes.status === 'fulfilled')  users        = usersRes.value.data  ?? [];
-    if (gStatus.status  === 'fulfilled')  googleStatus = gStatus.value;
-    if (aStatus.status  === 'fulfilled')  appleStatus  = aStatus.value;
-    if (mStatus.status  === 'fulfilled')  mealieStatus = mStatus.value;
+    if (usersRes.status === 'fulfilled')  users          = usersRes.value.data ?? [];
+    if (gStatus.status  === 'fulfilled')  googleStatus   = gStatus.value;
+    if (aStatus.status  === 'fulfilled')  appleStatus    = aStatus.value;
+    if (mStatus.status  === 'fulfilled')  mealieStatus   = mStatus.value;
+    if (fStatus.status  === 'fulfilled')  freshrssStatus = fStatus.value;
   } catch (_) { /* non-critical */ }
 
   const googleStatusText = googleStatus.connected
@@ -101,6 +105,14 @@ export async function render(container, { user }) {
               <span class="toggle-switch__slider"></span>
             </label>
           </div>
+
+          <div class="settings-toggle-row" style="margin-top:var(--space-3)">
+            <label class="settings-toggle-label" for="show-news">Show news headlines in greeting bar</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="show-news" ${localStorage.getItem('planner-show-news') === 'true' ? 'checked' : ''} />
+              <span class="toggle-switch__slider"></span>
+            </label>
+          </div>
         </div>
       </section>
 
@@ -137,6 +149,22 @@ export async function render(container, { user }) {
               ${[1,2,3,4,6,8,12].map(h => `<option value="${h}" ${(user?.notify_interval || 4) === h ? 'selected' : ''}>${h} ${h === 1 ? t('settings.notifyIntervalHour') : t('settings.notifyIntervalHours')}</option>`).join('')}
             </select>
             <span class="form-hint">${t('settings.notifyIntervalHint')}</span>
+          </div>
+
+          <div class="form-group" style="margin-top:var(--space-3)">
+            <label class="form-label" for="notify-tone">${t('settings.notifyToneLabel')}</label>
+            <div style="display:flex;gap:var(--space-2);align-items:center">
+              <select class="form-input" id="notify-tone" style="max-width:180px">
+                <option value="short"   ${(user?.notify_tone || 'default') === 'short'   ? 'selected' : ''}>${t('settings.notifyToneShort')}</option>
+                <option value="default" ${(user?.notify_tone || 'default') === 'default' ? 'selected' : ''}>${t('settings.notifyToneDefault')}</option>
+                <option value="long"    ${(user?.notify_tone || 'default') === 'long'    ? 'selected' : ''}>${t('settings.notifyToneLong')}</option>
+                <option value="gentle"  ${(user?.notify_tone || 'default') === 'gentle'  ? 'selected' : ''}>${t('settings.notifyToneGentle')}</option>
+                <option value="alert"   ${(user?.notify_tone || 'default') === 'alert'   ? 'selected' : ''}>${t('settings.notifyToneAlert')}</option>
+              </select>
+              <button class="btn btn--secondary btn--icon" id="notify-tone-preview" type="button" title="${t('settings.notifyTonePreview')}" aria-label="${t('settings.notifyTonePreview')}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -292,6 +320,48 @@ export async function render(container, { user }) {
         </div>
       </section>
 
+      <!-- FreshRSS Integration -->
+      <section class="settings-section">
+        <h2 class="settings-section__title">FreshRSS</h2>
+        <div class="settings-card" id="freshrss-card">
+          <div class="settings-sync-header">
+            <div class="settings-sync-logo settings-sync-logo--mealie">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/></svg>
+            </div>
+            <div class="settings-sync-info">
+              <div class="settings-sync-info__name">FreshRSS</div>
+              <div class="settings-sync-info__status ${freshrssStatus?.configured ? 'settings-sync-info__status--connected' : ''}" id="freshrss-status-text">
+                ${freshrssStatus?.configured ? 'Connected' : 'Not connected'}
+              </div>
+            </div>
+          </div>
+          ${freshrssStatus?.configured ? `
+            ${user?.role === 'admin' ? `
+            <div class="settings-sync-actions">
+              <button class="btn btn--danger-outline" id="freshrss-disconnect-btn">Disconnect</button>
+            </div>` : ''}
+          ` : user?.role === 'admin' ? `
+            <form id="freshrss-connect-form" class="settings-form settings-form--compact">
+              <div class="form-group">
+                <label class="form-label" for="freshrss-url">FreshRSS URL</label>
+                <input class="form-input" type="url" id="freshrss-url" placeholder="https://freshrss.example.com" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="freshrss-username">Username</label>
+                <input class="form-input" type="text" id="freshrss-username" autocomplete="username" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="freshrss-password">Password</label>
+                <input class="form-input" type="password" id="freshrss-password" autocomplete="current-password" required />
+                <span class="form-hint">Uses your FreshRSS login credentials via the Google Reader API</span>
+              </div>
+              <div id="freshrss-connect-error" class="form-error" hidden></div>
+              <button type="submit" class="btn btn--primary" id="freshrss-connect-btn">Save</button>
+            </form>
+          ` : `<span class="form-hint">Only admins can configure FreshRSS</span>`}
+        </div>
+      </section>
+
       <!-- Familienmitglieder (nur Admin) -->
       ${user?.role === 'admin' ? `
       <section class="settings-section">
@@ -387,6 +457,14 @@ function bindEvents(container, user) {
     });
   }
 
+  // News headlines toggle (localStorage only)
+  const showNews = container.querySelector('#show-news');
+  if (showNews) {
+    showNews.addEventListener('change', () => {
+      localStorage.setItem('planner-show-news', showNews.checked ? 'true' : 'false');
+    });
+  }
+
   // Quick Link
   const quickLinkSave = container.querySelector('#quick-link-save');
   if (quickLinkSave) {
@@ -406,7 +484,7 @@ function bindEvents(container, user) {
   }
 
   // Notification settings - auto-save on change
-  for (const id of ['notify-popup', 'notify-sound', 'notify-time', 'notify-interval']) {
+  for (const id of ['notify-popup', 'notify-sound', 'notify-time', 'notify-interval', 'notify-tone']) {
     const el = container.querySelector(`#${id}`);
     if (!el) continue;
     el.addEventListener('change', async () => {
@@ -415,6 +493,10 @@ function bindEvents(container, user) {
       if (id === 'notify-sound')    payload.notify_sound    = el.checked;
       if (id === 'notify-time')     payload.notify_time     = el.value;
       if (id === 'notify-interval') payload.notify_interval = parseInt(el.value, 10);
+      if (id === 'notify-tone') {
+        payload.notify_tone = el.value;
+        previewTone(el.value);
+      }
       try {
         await api.patch('/auth/me/preferences', payload);
         window.planner?.showToast(t('settings.notifySavedToast'), 'success');
@@ -423,6 +505,13 @@ function bindEvents(container, user) {
       }
     });
   }
+
+  // Tone preview button
+  const tonePreviewBtn = container.querySelector('#notify-tone-preview');
+  const toneSelect     = container.querySelector('#notify-tone');
+  tonePreviewBtn?.addEventListener('click', () => {
+    previewTone(toneSelect?.value || 'default');
+  });
 
   // Passwort ändern
   const passwordForm = container.querySelector('#password-form');
@@ -584,6 +673,45 @@ function bindEvents(container, user) {
       try {
         await api.delete('/mealie/config');
         window.planner?.showToast(t('settings.mealieDisconnectedToast'), 'default');
+        window.planner?.navigate('/settings');
+      } catch (err) {
+        window.planner?.showToast(err.data?.error ?? err.message, 'danger');
+      }
+    });
+  }
+
+  // FreshRSS connect
+  const freshrssConnectForm = container.querySelector('#freshrss-connect-form');
+  if (freshrssConnectForm) {
+    freshrssConnectForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl  = container.querySelector('#freshrss-connect-error');
+      errorEl.hidden = true;
+      const url      = container.querySelector('#freshrss-url').value.trim();
+      const username = container.querySelector('#freshrss-username').value.trim();
+      const password = container.querySelector('#freshrss-password').value.trim();
+      const btn      = container.querySelector('#freshrss-connect-btn');
+      btn.disabled   = true;
+      try {
+        await api.post('/freshrss/config', { url, username, password });
+        window.planner?.showToast('FreshRSS connected', 'success');
+        window.planner?.navigate('/settings');
+      } catch (err) {
+        errorEl.textContent = err.data?.error ?? err.message ?? 'Connection failed';
+        errorEl.hidden = false;
+        btn.disabled   = false;
+      }
+    });
+  }
+
+  // FreshRSS disconnect
+  const freshrssDisconnectBtn = container.querySelector('#freshrss-disconnect-btn');
+  if (freshrssDisconnectBtn) {
+    freshrssDisconnectBtn.addEventListener('click', async () => {
+      if (!await showConfirm('Disconnect FreshRSS?', { danger: true })) return;
+      try {
+        await api.delete('/freshrss/config');
+        window.planner?.showToast('FreshRSS disconnected', 'default');
         window.planner?.navigate('/settings');
       } catch (err) {
         window.planner?.showToast(err.data?.error ?? err.message, 'danger');
