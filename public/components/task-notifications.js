@@ -36,11 +36,17 @@ const TONES = {
     { freq: 520, start: 0,    duration: 0.4,  volume: 0.15 },
     { freq: 660, start: 0.15, duration: 0.4,  volume: 0.15 },
   ],
-  // Slow triple chime
+  // Triple chime repeated 3 times (ascending 440→550→660, gap, repeat x3)
   long: [
     { freq: 440, start: 0,    duration: 0.6,  volume: 0.13 },
     { freq: 550, start: 0.25, duration: 0.6,  volume: 0.13 },
     { freq: 660, start: 0.5,  duration: 0.6,  volume: 0.13 },
+    { freq: 440, start: 1.4,  duration: 0.6,  volume: 0.13 },
+    { freq: 550, start: 1.65, duration: 0.6,  volume: 0.13 },
+    { freq: 660, start: 1.9,  duration: 0.6,  volume: 0.13 },
+    { freq: 440, start: 2.8,  duration: 0.6,  volume: 0.13 },
+    { freq: 550, start: 3.05, duration: 0.6,  volume: 0.13 },
+    { freq: 660, start: 3.3,  duration: 0.6,  volume: 0.13 },
   ],
   // Soft low-pitch gentle fade
   gentle: [

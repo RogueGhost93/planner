@@ -106,13 +106,6 @@ export async function render(container, { user }) {
             </label>
           </div>
 
-          <div class="settings-toggle-row" style="margin-top:var(--space-3)">
-            <label class="settings-toggle-label" for="show-news">Show news headlines in greeting bar</label>
-            <label class="toggle-switch">
-              <input type="checkbox" id="show-news" ${localStorage.getItem('planner-show-news') === 'true' ? 'checked' : ''} />
-              <span class="toggle-switch__slider"></span>
-            </label>
-          </div>
         </div>
       </section>
 
@@ -336,8 +329,15 @@ export async function render(container, { user }) {
             </div>
           </div>
           ${freshrssStatus?.configured ? `
+            <div class="settings-toggle-row" style="margin-top:var(--space-4)">
+              <label class="settings-toggle-label" for="show-news">Show headlines in greeting bar <span class="form-hint" style="display:inline;margin:0">(this device only)</span></label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="show-news" ${localStorage.getItem('planner-show-news') === 'true' ? 'checked' : ''} />
+                <span class="toggle-switch__slider"></span>
+              </label>
+            </div>
             ${user?.role === 'admin' ? `
-            <div class="settings-sync-actions">
+            <div class="settings-sync-actions" style="margin-top:var(--space-3)">
               <button class="btn btn--danger-outline" id="freshrss-disconnect-btn">Disconnect</button>
             </div>` : ''}
           ` : user?.role === 'admin' ? `
