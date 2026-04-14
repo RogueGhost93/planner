@@ -22,23 +22,68 @@ const LS_LAST_SOUND = 'planner-notify-last-sound';
 // --------------------------------------------------------
 let audioCtx = null;
 
-function playNotificationSound() {
+/**
+ * Tone definitions. Each entry is an array of { freq, start, duration, volume } descriptors.
+ * All times are in seconds relative to audioCtx.currentTime.
+ */
+const TONES = {
+  // Single short beep
+  short: [
+    { freq: 600, start: 0,    duration: 0.18, volume: 0.15 },
+  ],
+  // Default two-tone chime (original behaviour)
+  default: [
+    { freq: 520, start: 0,    duration: 0.4,  volume: 0.15 },
+    { freq: 660, start: 0.15, duration: 0.4,  volume: 0.15 },
+  ],
+  // Slow triple chime
+  long: [
+    { freq: 440, start: 0,    duration: 0.6,  volume: 0.13 },
+    { freq: 550, start: 0.25, duration: 0.6,  volume: 0.13 },
+    { freq: 660, start: 0.5,  duration: 0.6,  volume: 0.13 },
+  ],
+  // Soft low-pitch gentle fade
+  gentle: [
+    { freq: 320, start: 0,    duration: 0.8,  volume: 0.10 },
+    { freq: 400, start: 0.4,  duration: 0.8,  volume: 0.08 },
+  ],
+  // Sharp high-pitch double alert
+  alert: [
+    { freq: 880, start: 0,    duration: 0.15, volume: 0.18 },
+    { freq: 880, start: 0.2,  duration: 0.15, volume: 0.18 },
+  ],
+};
+
+function playTone(toneName) {
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    // Two-tone chime
-    [520, 660].forEach((freq, i) => {
-      const osc = audioCtx.createOscillator();
+    const steps = TONES[toneName] || TONES.default;
+    steps.forEach(({ freq, start, duration, volume }) => {
+      const osc  = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sine';
       osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime + i * 0.15);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.15 + 0.4);
+      const t0 = audioCtx.currentTime + start;
+      gain.gain.setValueAtTime(volume, t0);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
-      osc.start(audioCtx.currentTime + i * 0.15);
-      osc.stop(audioCtx.currentTime + i * 0.15 + 0.4);
+      osc.start(t0);
+      osc.stop(t0 + duration);
     });
   } catch { /* AudioContext may not be available */ }
+}
+
+function playNotificationSound(tone) {
+  playTone(tone || 'default');
+}
+
+/**
+ * Play a tone preview (e.g. from the settings page).
+ * @param {string} toneName
+ */
+export function previewTone(toneName) {
+  playTone(toneName || 'default');
 }
 
 // --------------------------------------------------------
@@ -201,7 +246,7 @@ async function checkNotifications(prefs) {
 
       // Play sound with popup if enabled
       if (prefs.notify_sound && data.today.length > 0) {
-        playNotificationSound();
+        playNotificationSound(prefs.notify_tone);
         localStorage.setItem(LS_LAST_SOUND, new Date().toISOString());
       }
       return; // Don't double-sound on first check
@@ -213,7 +258,7 @@ async function checkNotifications(prefs) {
     const lastSound = localStorage.getItem(LS_LAST_SOUND);
     const interval = prefs.notify_interval || 4;
     if (hoursSince(lastSound) >= interval) {
-      playNotificationSound();
+      playNotificationSound(prefs.notify_tone);
       localStorage.setItem(LS_LAST_SOUND, new Date().toISOString());
     }
   }
@@ -232,6 +277,7 @@ export function initNotifications(user) {
     notify_sound:    user.notify_sound ?? 1,
     notify_time:     user.notify_time  || '09:00',
     notify_interval: user.notify_interval ?? 4,
+    notify_tone:     user.notify_tone  || 'default',
   };
 
   // Initial check (slight delay to let the page settle)
