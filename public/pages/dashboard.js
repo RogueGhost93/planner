@@ -538,13 +538,36 @@ function renderQuoteWidget(quote) {
   if (!quote || !isQuoteEnabled()) return '';
   const author = quote.author ? `<span class="quote-widget__author">\u2014 ${esc(quote.author)}</span>` : '';
   return `
-    <div class="widget quote-widget" style="grid-column:1/-1">
+    <div class="widget quote-widget" id="quote-widget" style="grid-column:1/-1">
       <div class="widget__body quote-widget__body">
         <i data-lucide="quote" class="quote-widget__icon" aria-hidden="true"></i>
         <blockquote class="quote-widget__text">${esc(quote.quote)}</blockquote>
         ${author}
       </div>
     </div>`;
+}
+
+function scheduleMidnightQuoteRefresh(container, signal) {
+  if (!isQuoteEnabled()) return;
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const msUntilMidnight = midnight - now;
+
+  const timerId = setTimeout(async () => {
+    if (signal.aborted) return;
+    try {
+      const fresh = await api.get('/quotes/today').catch(() => null);
+      const el = container.querySelector('#quote-widget');
+      if (el && fresh) {
+        el.outerHTML = renderQuoteWidget(fresh);
+        const newEl = container.querySelector('#quote-widget');
+        if (newEl && window.lucide) window.lucide.createIcons({ el: newEl });
+      }
+    } catch { /* non-critical */ }
+  }, msUntilMidnight);
+
+  signal.addEventListener('abort', () => clearTimeout(timerId));
 }
 
 // --------------------------------------------------------
@@ -808,6 +831,7 @@ export async function render(container, { user }) {
   wireLinks(container);
   wireGreetingLink(container);
   wireNewsRotation(container, headlines, _fabController.signal);
+  scheduleMidnightQuoteRefresh(container, _fabController.signal);
   initFab(container, _fabController.signal);
   wireTasksWidget(container);
   wireShoppingWidget(container, data);

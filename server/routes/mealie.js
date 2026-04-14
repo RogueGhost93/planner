@@ -130,6 +130,25 @@ router.delete('/config', (req, res) => {
 });
 
 // --------------------------------------------------------
+// GET /api/v1/mealie/test
+// Tests the connection by fetching one recipe.
+// Response: { ok: true, count: N } | { ok: false, error: string }
+// --------------------------------------------------------
+router.get('/test', async (req, res) => {
+  const { url, token } = getConfig();
+  if (!url || !token) {
+    return res.json({ ok: false, error: 'Mealie is not configured.' });
+  }
+  try {
+    const data = await mealieFetch(url, token, '/recipes', { page: 1, perPage: 1 });
+    return res.json({ ok: true, count: data?.total ?? 0 });
+  } catch (err) {
+    const msg = err.status === 401 ? 'Invalid token (401)' : `Request failed: ${err.message}`;
+    return res.json({ ok: false, error: msg });
+  }
+});
+
+// --------------------------------------------------------
 // GET /api/v1/mealie/recipes
 // Query: ?search=&page=&perPage=
 // Proxies to Mealie GET /api/recipes

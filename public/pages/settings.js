@@ -291,8 +291,12 @@ export async function render(container, { user }) {
             </div>
           </div>
           ${mealieStatus?.configured ? `
+            <div style="margin-top:var(--space-4);display:flex;align-items:center;gap:var(--space-3)">
+              <button class="btn btn--secondary" id="mealie-test-btn">Test connection</button>
+              <span id="mealie-test-result" style="font-size:var(--text-sm)"></span>
+            </div>
             ${user?.role === 'admin' ? `
-            <div class="settings-sync-actions">
+            <div class="settings-sync-actions" style="margin-top:var(--space-3)">
               <button class="btn btn--danger-outline" id="mealie-disconnect-btn">${t('settings.mealieDisconnectBtn')}</button>
             </div>` : ''}
           ` : user?.role === 'admin' ? `
@@ -638,6 +642,32 @@ function bindEvents(container, user) {
       } finally {
         btn.disabled = false;
         btn.textContent = t('settings.appleConnectBtn');
+      }
+    });
+  }
+
+  // Mealie test connection
+  const mealieTestBtn = container.querySelector('#mealie-test-btn');
+  if (mealieTestBtn) {
+    mealieTestBtn.addEventListener('click', async () => {
+      const resultEl = container.querySelector('#mealie-test-result');
+      mealieTestBtn.disabled = true;
+      resultEl.textContent = 'Testing…';
+      resultEl.style.color = '';
+      try {
+        const res = await api.get('/mealie/test');
+        if (res.ok) {
+          resultEl.textContent = `✓ Connected — ${res.count} recipe${res.count !== 1 ? 's' : ''} found`;
+          resultEl.style.color = 'var(--color-success)';
+        } else {
+          resultEl.textContent = `✗ ${res.error}`;
+          resultEl.style.color = 'var(--color-danger)';
+        }
+      } catch (err) {
+        resultEl.textContent = `✗ ${err.data?.error ?? err.message}`;
+        resultEl.style.color = 'var(--color-danger)';
+      } finally {
+        mealieTestBtn.disabled = false;
       }
     });
   }

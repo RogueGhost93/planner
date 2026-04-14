@@ -218,12 +218,6 @@ let checkInterval = null;
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-function hoursSince(isoOrTimestamp) {
-  if (!isoOrTimestamp) return Infinity;
-  const ms = Date.now() - new Date(isoOrTimestamp).getTime();
-  return ms / (1000 * 60 * 60);
-}
-
 function currentTimeMinutes() {
   const now = new Date();
   return now.getHours() * 60 + now.getMinutes();
@@ -267,19 +261,32 @@ async function checkNotifications(prefs) {
       // Play sound with popup if enabled
       if (prefs.notify_sound && data.today.length > 0) {
         playNotificationSound(prefs.notify_tone);
-        localStorage.setItem(LS_LAST_SOUND, new Date().toISOString());
+        const h = new Date().getHours();
+        localStorage.setItem(LS_LAST_SOUND, `${todayStr()}:${String(h).padStart(2, '0')}`);
       }
       return; // Don't double-sound on first check
     }
   }
 
-  // Recurring sound: only for incomplete today-tasks
+  // Recurring sound: fire at scheduled round hours (notifyTime, notifyTime+interval, ...)
   if (prefs.notify_sound && data.today.length > 0) {
-    const lastSound = localStorage.getItem(LS_LAST_SOUND);
-    const interval = prefs.notify_interval || 4;
-    if (hoursSince(lastSound) >= interval) {
-      playNotificationSound(prefs.notify_tone);
-      localStorage.setItem(LS_LAST_SOUND, new Date().toISOString());
+    const interval   = prefs.notify_interval || 4;
+    const startHour  = Math.floor(notifyTime / 60);
+    const nowObj     = new Date();
+    const currentHour   = nowObj.getHours();
+    const currentMinute = nowObj.getMinutes();
+
+    // Only trigger on the exact minute=0 of a scheduled slot
+    if (
+      currentMinute === 0 &&
+      currentHour >= startHour &&
+      (currentHour - startHour) % interval === 0
+    ) {
+      const slotKey = `${todayStr()}:${String(currentHour).padStart(2, '0')}`;
+      if (localStorage.getItem(LS_LAST_SOUND) !== slotKey) {
+        playNotificationSound(prefs.notify_tone);
+        localStorage.setItem(LS_LAST_SOUND, slotKey);
+      }
     }
   }
 }
