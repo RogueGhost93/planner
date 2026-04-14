@@ -162,6 +162,52 @@ router.delete('/config', (req, res) => {
 });
 
 // --------------------------------------------------------
+// GET /api/v1/freshrss/test
+// Tests the connection and returns a human-readable result.
+// Response: { ok: true, count: N } | { ok: false, error: string }
+// --------------------------------------------------------
+router.get('/test', async (req, res) => {
+  const { url, username, password } = getConfig();
+
+  if (!url || !username || !password) {
+    return res.json({ ok: false, error: 'FreshRSS is not configured.' });
+  }
+
+  try {
+    // Force re-auth for the test (bypass token cache)
+    const savedToken = tokenCache;
+    tokenCache = { token: null, ts: 0 };
+    let token;
+    try {
+      token = await getAuthToken(url, username, password);
+    } catch (authErr) {
+      tokenCache = savedToken; // restore
+      return res.json({ ok: false, error: `Login failed: ${authErr.message}` });
+    }
+
+    const { default: fetch } = await import('node-fetch');
+    const streamUrl = `${url}/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/reading-list`
+      + `?n=5&output=json`;
+
+    const streamRes = await fetch(streamUrl, {
+      headers: { Authorization: `GoogleLogin auth=${token}` },
+      signal:  AbortSignal.timeout(8000),
+    });
+
+    if (!streamRes.ok) {
+      return res.json({ ok: false, error: `Stream request failed with HTTP ${streamRes.status}` });
+    }
+
+    const json = await streamRes.json();
+    const count = (json.items ?? []).length;
+    return res.json({ ok: true, count });
+  } catch (err) {
+    log.warn('test GET:', err.message);
+    return res.json({ ok: false, error: err.message });
+  }
+});
+
+// --------------------------------------------------------
 // GET /api/v1/freshrss/headlines
 // Returns latest headlines from all feeds.
 // Response: { data: [{ title, url, source }] } | { data: null }

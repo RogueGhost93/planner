@@ -27,16 +27,22 @@ let audioCtx = null;
  * All times are in seconds relative to audioCtx.currentTime.
  */
 const TONES = {
-  // Single short beep
+  // Short beep x3
   short: [
     { freq: 600, start: 0,    duration: 0.18, volume: 0.15 },
+    { freq: 600, start: 0.35, duration: 0.18, volume: 0.15 },
+    { freq: 600, start: 0.7,  duration: 0.18, volume: 0.15 },
   ],
-  // Default two-tone chime (original behaviour)
+  // Two-tone chime x3
   default: [
     { freq: 520, start: 0,    duration: 0.4,  volume: 0.15 },
     { freq: 660, start: 0.15, duration: 0.4,  volume: 0.15 },
+    { freq: 520, start: 0.9,  duration: 0.4,  volume: 0.15 },
+    { freq: 660, start: 1.05, duration: 0.4,  volume: 0.15 },
+    { freq: 520, start: 1.8,  duration: 0.4,  volume: 0.15 },
+    { freq: 660, start: 1.95, duration: 0.4,  volume: 0.15 },
   ],
-  // Triple chime repeated 3 times (ascending 440→550→660, gap, repeat x3)
+  // Triple chime x3
   long: [
     { freq: 440, start: 0,    duration: 0.6,  volume: 0.13 },
     { freq: 550, start: 0.25, duration: 0.6,  volume: 0.13 },
@@ -48,15 +54,23 @@ const TONES = {
     { freq: 550, start: 3.05, duration: 0.6,  volume: 0.13 },
     { freq: 660, start: 3.3,  duration: 0.6,  volume: 0.13 },
   ],
-  // Soft low-pitch gentle fade
+  // Gentle two-tone fade x3
   gentle: [
     { freq: 320, start: 0,    duration: 0.8,  volume: 0.10 },
     { freq: 400, start: 0.4,  duration: 0.8,  volume: 0.08 },
+    { freq: 320, start: 1.4,  duration: 0.8,  volume: 0.10 },
+    { freq: 400, start: 1.8,  duration: 0.8,  volume: 0.08 },
+    { freq: 320, start: 2.8,  duration: 0.8,  volume: 0.10 },
+    { freq: 400, start: 3.2,  duration: 0.8,  volume: 0.08 },
   ],
-  // Sharp high-pitch double alert
+  // Sharp double alert x3
   alert: [
     { freq: 880, start: 0,    duration: 0.15, volume: 0.18 },
     { freq: 880, start: 0.2,  duration: 0.15, volume: 0.18 },
+    { freq: 880, start: 0.65, duration: 0.15, volume: 0.18 },
+    { freq: 880, start: 0.85, duration: 0.15, volume: 0.18 },
+    { freq: 880, start: 1.3,  duration: 0.15, volume: 0.18 },
+    { freq: 880, start: 1.5,  duration: 0.15, volume: 0.18 },
   ],
 };
 
