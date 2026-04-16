@@ -201,6 +201,7 @@
 .widget-greeting__news {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-1);
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
@@ -234,6 +235,14 @@
   transition: opacity 0.3s ease;
   color: inherit;
   text-decoration: none;
+}
+
+@media (max-width: 767px) {
+  .greeting-news__title {
+    flex-basis: 100%;
+    white-space: normal;
+    text-overflow: unset;
+  }
 }
 
 .greeting-news__title:hover {
