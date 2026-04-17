@@ -403,7 +403,17 @@ let state = {
   dragTaskId:    null,
   selectMode:    false,
   selectedIds:   new Set(),
+  // Personal lists (solo todos, scoped to current user)
+  taskLists:     [],            // [{ id, name, color, pending_count, total_count }]
+  activeTab:     'household',   // 'household' | <list_id:number>
+  personalItems: [],            // items for the currently active personal list
 };
+
+// Preset palette for personal-list color picker (8 swatches)
+const PERSONAL_LIST_COLORS = [
+  '#2563EB', '#7C3AED', '#0B7A73', '#16A34A',
+  '#C2410C', '#DC2626', '#B45309', '#DB2777',
+];
 
 // --------------------------------------------------------
 // API-Aktionen
@@ -1191,84 +1201,496 @@ function wireTaskList(container) {
 }
 
 // --------------------------------------------------------
-// Haupt-Render
+// Persönliche Listen (solo todos)
+// Eigenes UI: Tabs oben, einfache Item-Rows ohne Modal.
 // --------------------------------------------------------
 
-export async function render(container, { user }) {
-  // Re-read view preference on each render (handles "All" button from dashboard)
-  state.viewMode = localStorage.getItem('tasks-view') || 'list';
+function readActiveTab() {
+  const raw = localStorage.getItem('tasks-active-tab');
+  if (!raw || raw === 'household') return 'household';
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? n : 'household';
+}
 
-  // Initiales Skeleton
-  container.innerHTML = `
-    <div class="tasks-page">
-      <div class="tasks-toolbar">
-        <h1 class="tasks-toolbar__title">${t('tasks.title')}</h1>
-        <div class="tasks-toolbar__actions">
-          <div class="group-toggle" id="view-toggle">
-            <button class="group-toggle__btn group-toggle__btn--active" data-view="list"
-                    title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}">
-              <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-            </button>
-            <button class="group-toggle__btn" data-view="kanban"
-                    title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}">
-              <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-            </button>
-          </div>
-          <div class="group-toggle" id="group-mode-toggle">
-            <button class="group-toggle__btn group-toggle__btn--active" data-mode="category">${t('tasks.categoryLabel')}</button>
-            <button class="group-toggle__btn" data-mode="due">${t('tasks.dueDateLabel')}</button>
-          </div>
-          <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
-                  aria-label="${t('tasks.selectMode')}" aria-pressed="false"
-                  title="${t('tasks.selectMode')}">
-            <i data-lucide="check-square" style="width:18px;height:18px" aria-hidden="true"></i>
-          </button>
-          <button class="btn btn--primary tasks-toolbar__new-btn" id="btn-new-task" style="gap:var(--space-1)">
-            <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i> ${t('tasks.newTask')}
-          </button>
-          <span class="bulk-bar__count tasks-toolbar__bulk-count" id="bulk-count" hidden></span>
-          <button class="btn btn--danger tasks-toolbar__bulk-btn" id="btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
-        </div>
-      </div>
+async function loadPersonalLists() {
+  try {
+    const data = await api.get('/personal-lists');
+    state.taskLists = data.data ?? [];
+  } catch (err) {
+    state.taskLists = [];
+  }
+}
 
-      <div class="tasks-filters" id="filter-bar"></div>
+async function loadPersonalItems(listId) {
+  try {
+    const data = await api.get(`/personal-lists/${listId}/items`);
+    state.personalItems = data.data ?? [];
+  } catch (err) {
+    state.personalItems = [];
+    window.planner.showToast(t('tasks.personalListLoadError'), 'danger');
+  }
+}
 
-      <div id="task-list">
-        ${[1,2,3].map(() => `
-          <div class="widget-skeleton" style="margin-bottom:var(--space-2)">
-            <div class="skeleton skeleton-line skeleton-line--medium" style="height:18px;margin-bottom:var(--space-3)"></div>
-            <div class="skeleton skeleton-line skeleton-line--full" style="height:14px;margin-bottom:var(--space-2)"></div>
-            <div class="skeleton skeleton-line skeleton-line--short" style="height:12px"></div>
-          </div>`).join('')}
-      </div>
-      <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}">
-        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+function renderTaskTabsBar(container) {
+  const bar = container.querySelector('#task-tabs-bar');
+  if (!bar) return;
+
+  const householdTab = `
+    <button class="task-tab ${state.activeTab === 'household' ? 'task-tab--active' : ''}"
+            data-action="switch-tab" data-tab="household">
+      <i data-lucide="users" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+      ${t('tasks.tabHousehold')}
+    </button>`;
+
+  const personalTabs = state.taskLists.map((l) => {
+    const isActive = state.activeTab === l.id;
+    return `
+      <button class="task-tab ${isActive ? 'task-tab--active' : ''}"
+              data-action="switch-tab" data-tab="${l.id}"
+              style="--tab-color: ${esc(l.color)}">
+        <span class="task-tab__color-dot" aria-hidden="true"></span>
+        ${esc(l.name)}
+        ${l.pending_count > 0 ? `<span class="task-tab__count">${l.pending_count}</span>` : ''}
+      </button>`;
+  }).join('');
+
+  bar.innerHTML = householdTab + personalTabs + `
+    <button class="task-tab__new" data-action="new-list"
+            aria-label="${t('tasks.newPersonalList')}" title="${t('tasks.newPersonalList')}">
+      <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i>
+    </button>
+  `;
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function renderPersonalItemRow(item) {
+  return `
+    <div class="personal-item ${item.done ? 'personal-item--done' : ''}"
+         data-item-id="${item.id}">
+      <button class="personal-item__check ${item.done ? 'personal-item__check--checked' : ''}"
+              data-action="toggle-personal-item"
+              aria-label="${item.done ? 'Mark as not done' : 'Mark as done'}">
+        ${item.done ? '<i data-lucide="check" style="width:12px;height:12px;color:#fff;pointer-events:none" aria-hidden="true"></i>' : ''}
       </button>
+      <span class="personal-item__title" data-action="edit-personal-item"
+            role="button" tabindex="0">${esc(item.title)}</span>
+      <button class="personal-item__delete" data-action="delete-personal-item"
+              aria-label="Delete">
+        <i data-lucide="x" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+      </button>
+    </div>`;
+}
+
+function renderPersonalItems() {
+  const pending = state.personalItems.filter((i) => !i.done);
+  const done    = state.personalItems.filter((i) =>  i.done);
+
+  if (!pending.length && !done.length) {
+    return `<div class="personal-list__empty">${t('tasks.personalListEmpty')}</div>`;
+  }
+
+  let html = `<div class="personal-list__items">${pending.map(renderPersonalItemRow).join('')}</div>`;
+
+  if (done.length) {
+    html += `
+      <div class="personal-list__divider">
+        <span>${t('tasks.personalListDoneSection')} (${done.length})</span>
+        <button class="btn btn--ghost personal-list__clear-btn" data-action="clear-done-items">
+          <i data-lucide="trash-2" style="width:14px;height:14px" aria-hidden="true"></i>
+          ${t('tasks.personalListClearDone')}
+        </button>
+      </div>
+      <div class="personal-list__items personal-list__items--done">
+        ${done.map(renderPersonalItemRow).join('')}
+      </div>`;
+  }
+  return html;
+}
+
+function renderPersonalView(container) {
+  const list = state.taskLists.find((l) => l.id === state.activeTab);
+  const content = container.querySelector('#tasks-content');
+  if (!content) return;
+  if (!list) {
+    state.activeTab = 'household';
+    localStorage.setItem('tasks-active-tab', 'household');
+    renderTaskTabsBar(container);
+    renderHouseholdView(container);
+    return;
+  }
+
+  content.innerHTML = `
+    <div class="personal-list" style="--list-color: ${esc(list.color)}">
+      <div class="personal-list__header">
+        <div class="personal-list__title-wrap">
+          <span class="personal-list__color-dot" aria-hidden="true"></span>
+          <h1 class="personal-list__title" data-action="edit-list" role="button" tabindex="0"
+              title="${t('tasks.renamePersonalList')}">
+            ${esc(list.name)}
+            <i data-lucide="pencil" class="personal-list__title-icon" aria-hidden="true"></i>
+          </h1>
+        </div>
+        <button class="btn btn--ghost btn--icon" data-action="delete-list"
+                aria-label="${t('common.delete')}" title="${t('common.delete')}"
+                style="color:var(--color-text-secondary)">
+          <i data-lucide="trash" style="width:18px;height:18px" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <form class="personal-list__add" data-action="add-personal-item" novalidate autocomplete="off">
+        <input class="personal-list__add-input" type="text" name="title"
+               placeholder="${t('tasks.personalListAddPlaceholder')}"
+               maxlength="200" autocomplete="off">
+        <button class="personal-list__add-btn" type="submit"
+                aria-label="${t('tasks.personalListAdd')}">
+          <i data-lucide="plus" style="width:20px;height:20px;pointer-events:none" aria-hidden="true"></i>
+        </button>
+      </form>
+
+      <div id="personal-items-container">
+        ${renderPersonalItems()}
+      </div>
     </div>
+  `;
+  if (window.lucide) window.lucide.createIcons();
+  wirePersonalView(container);
+
+  // Auto-focus add input on desktop only (avoids mobile keyboard popping up unexpectedly)
+  if (window.matchMedia('(min-width: 1024px)').matches) {
+    content.querySelector('.personal-list__add-input')?.focus();
+  }
+}
+
+function refreshPersonalItems(container) {
+  const wrap = container.querySelector('#personal-items-container');
+  if (wrap) wrap.innerHTML = renderPersonalItems();
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function wirePersonalView(container) {
+  const view = container.querySelector('.personal-list');
+  if (!view) return;
+
+  // Quick-add form
+  view.querySelector('.personal-list__add')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = e.currentTarget.querySelector('.personal-list__add-input');
+    const title = input.value.trim();
+    if (!title) return;
+    const listId = state.activeTab;
+    input.value = '';
+    try {
+      const res = await api.post(`/personal-lists/${listId}/items`, { title });
+      state.personalItems.push(res.data);
+      refreshPersonalItems(container);
+      // Update tab badge count
+      const list = state.taskLists.find((l) => l.id === listId);
+      if (list) { list.pending_count++; list.total_count++; renderTaskTabsBar(container); }
+      input.focus();
+    } catch (err) {
+      window.planner.showToast(err.message, 'danger');
+    }
+  });
+
+  // Delegated clicks for items + header actions
+  view.addEventListener('click', async (e) => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+
+    if (action === 'edit-list') {
+      const list = state.taskLists.find((l) => l.id === state.activeTab);
+      if (list) openListDialog({ list, container });
+      return;
+    }
+
+    if (action === 'delete-list') {
+      const ok = await showConfirm(t('tasks.deletePersonalListConfirm'), { danger: true });
+      if (!ok) return;
+      try {
+        await api.delete(`/personal-lists/${state.activeTab}`);
+        state.taskLists = state.taskLists.filter((l) => l.id !== state.activeTab);
+        state.activeTab = 'household';
+        localStorage.setItem('tasks-active-tab', 'household');
+        renderTaskTabsBar(container);
+        await loadTasks(container);
+        renderHouseholdView(container);
+        window.planner.showToast(t('tasks.personalListDeletedToast'), 'default');
+      } catch (err) {
+        window.planner.showToast(err.message, 'danger');
+      }
+      return;
+    }
+
+    if (action === 'clear-done-items') {
+      const ok = await showConfirm(t('tasks.personalListClearDoneConfirm'), { danger: true });
+      if (!ok) return;
+      try {
+        await api.post(`/personal-lists/${state.activeTab}/clear-done`, {});
+        state.personalItems = state.personalItems.filter((i) => !i.done);
+        refreshPersonalItems(container);
+      } catch (err) {
+        window.planner.showToast(err.message, 'danger');
+      }
+      return;
+    }
+
+    const row = target.closest('.personal-item');
+    const itemId = row ? parseInt(row.dataset.itemId, 10) : null;
+
+    if (action === 'toggle-personal-item' && itemId) {
+      const item = state.personalItems.find((i) => i.id === itemId);
+      if (!item) return;
+      const newDone = !item.done;
+      // Optimistic update
+      item.done = newDone;
+      refreshPersonalItems(container);
+      const list = state.taskLists.find((l) => l.id === state.activeTab);
+      if (list) {
+        list.pending_count += newDone ? -1 : 1;
+        renderTaskTabsBar(container);
+      }
+      try {
+        await api.patch(`/personal-lists/${state.activeTab}/items/${itemId}`, { done: newDone });
+      } catch (err) {
+        // Rollback
+        item.done = !newDone;
+        if (list) { list.pending_count += newDone ? 1 : -1; renderTaskTabsBar(container); }
+        refreshPersonalItems(container);
+        window.planner.showToast(err.message, 'danger');
+      }
+      return;
+    }
+
+    if (action === 'delete-personal-item' && itemId) {
+      try {
+        await api.delete(`/personal-lists/${state.activeTab}/items/${itemId}`);
+        const removed = state.personalItems.find((i) => i.id === itemId);
+        state.personalItems = state.personalItems.filter((i) => i.id !== itemId);
+        refreshPersonalItems(container);
+        const list = state.taskLists.find((l) => l.id === state.activeTab);
+        if (list) {
+          if (removed && !removed.done) list.pending_count = Math.max(0, list.pending_count - 1);
+          list.total_count = Math.max(0, list.total_count - 1);
+          renderTaskTabsBar(container);
+        }
+      } catch (err) {
+        window.planner.showToast(err.message, 'danger');
+      }
+      return;
+    }
+
+    if (action === 'edit-personal-item' && itemId) {
+      const item = state.personalItems.find((i) => i.id === itemId);
+      if (!item) return;
+      const newTitle = await showPrompt(t('common.edit') ?? 'Edit', item.title);
+      if (newTitle === null) return;
+      const trimmed = newTitle.trim();
+      if (!trimmed || trimmed === item.title) return;
+      try {
+        const res = await api.patch(`/personal-lists/${state.activeTab}/items/${itemId}`,
+          { title: trimmed });
+        item.title = res.data.title;
+        refreshPersonalItems(container);
+      } catch (err) {
+        window.planner.showToast(err.message, 'danger');
+      }
+      return;
+    }
+  });
+}
+
+// --------------------------------------------------------
+// New / Rename Personal List Dialog
+// --------------------------------------------------------
+
+function openListDialog({ list = null, container } = {}) {
+  const isEdit = !!list;
+  const currentColor = list?.color ?? PERSONAL_LIST_COLORS[0];
+
+  const swatches = PERSONAL_LIST_COLORS.map((c) => `
+    <button type="button" class="color-swatch ${c === currentColor ? 'color-swatch--active' : ''}"
+            data-color="${c}" style="background-color:${c}"
+            aria-label="${c}"></button>
+  `).join('');
+
+  openSharedModal({
+    title: isEdit ? t('tasks.renamePersonalList') : t('tasks.newPersonalListTitle'),
+    size: 'sm',
+    content: `
+      <form id="personal-list-form" novalidate autocomplete="off">
+        <div class="form-group">
+          <label class="label" for="personal-list-name">${t('tasks.personalListNameLabel')}</label>
+          <input class="input" type="text" id="personal-list-name" name="name"
+                 value="${esc(list?.name ?? '')}"
+                 placeholder="${t('tasks.personalListNamePlaceholder')}"
+                 required maxlength="200" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+          <label class="label">${t('tasks.personalListColorLabel')}</label>
+          <div class="color-swatches" id="color-swatches">${swatches}</div>
+          <input type="hidden" id="personal-list-color" value="${currentColor}">
+        </div>
+
+        <div id="personal-list-form-error" class="login-error" hidden></div>
+
+        <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
+          <button type="submit" class="btn btn--primary" id="personal-list-submit">
+            ${isEdit ? t('common.save') : t('common.create')}
+          </button>
+        </div>
+      </form>
+    `,
+    onSave(panel) {
+      // Color swatch picker
+      const swatchesEl = panel.querySelector('#color-swatches');
+      const colorInput = panel.querySelector('#personal-list-color');
+      swatchesEl?.addEventListener('click', (e) => {
+        const swatch = e.target.closest('.color-swatch');
+        if (!swatch) return;
+        swatchesEl.querySelectorAll('.color-swatch--active')
+          .forEach((s) => s.classList.remove('color-swatch--active'));
+        swatch.classList.add('color-swatch--active');
+        colorInput.value = swatch.dataset.color;
+      });
+
+      // Form submit
+      panel.querySelector('#personal-list-form')
+        ?.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const errEl = panel.querySelector('#personal-list-form-error');
+          const btn   = panel.querySelector('#personal-list-submit');
+          errEl.hidden = true;
+          btn.disabled = true;
+
+          const name  = panel.querySelector('#personal-list-name').value.trim();
+          const color = colorInput.value;
+          if (!name) {
+            errEl.textContent = t('common.required');
+            errEl.hidden = false;
+            btn.disabled = false;
+            return;
+          }
+
+          try {
+            if (isEdit) {
+              const res = await api.put(`/personal-lists/${list.id}`, { name, color });
+              const idx = state.taskLists.findIndex((l) => l.id === list.id);
+              if (idx >= 0) state.taskLists[idx] = { ...state.taskLists[idx], ...res.data };
+              renderTaskTabsBar(container);
+              renderPersonalView(container);
+              window.planner.showToast(t('tasks.savedToast'), 'success');
+            } else {
+              const res = await api.post('/personal-lists', { name, color });
+              state.taskLists.push(res.data);
+              state.activeTab = res.data.id;
+              localStorage.setItem('tasks-active-tab', String(res.data.id));
+              state.personalItems = [];
+              renderTaskTabsBar(container);
+              renderPersonalView(container);
+              window.planner.showToast(t('tasks.personalListCreatedToast'), 'success');
+            }
+            closeModal();
+          } catch (err) {
+            errEl.textContent = err.message;
+            errEl.hidden = false;
+            btn.disabled = false;
+          }
+        });
+    },
+  });
+}
+
+// --------------------------------------------------------
+// Tab-Bar wiring (clicks on tab + new-list button)
+// --------------------------------------------------------
+
+function wireTaskTabsBar(container) {
+  const bar = container.querySelector('#task-tabs-bar');
+  if (!bar) return;
+
+  bar.addEventListener('click', async (e) => {
+    const target = e.target.closest('[data-action]');
+    if (!target) return;
+    const action = target.dataset.action;
+
+    if (action === 'new-list') {
+      openListDialog({ container });
+      return;
+    }
+
+    if (action === 'switch-tab') {
+      const tab = target.dataset.tab === 'household' ? 'household' : parseInt(target.dataset.tab, 10);
+      if (tab === state.activeTab) return;
+      state.activeTab = tab;
+      localStorage.setItem('tasks-active-tab', String(tab));
+      renderTaskTabsBar(container);
+      if (tab === 'household') {
+        renderHouseholdView(container);
+        await loadTasks(container);
+      } else {
+        await loadPersonalItems(tab);
+        renderPersonalView(container);
+      }
+    }
+  });
+}
+
+// --------------------------------------------------------
+// Household View (the original full-featured tasks UI)
+// Extracted so we can swap between household and personal views.
+// --------------------------------------------------------
+
+function renderHouseholdView(container) {
+  const content = container.querySelector('#tasks-content');
+  if (!content) return;
+
+  content.innerHTML = `
+    <div class="tasks-toolbar">
+      <h1 class="tasks-toolbar__title">${t('tasks.title')}</h1>
+      <div class="tasks-toolbar__actions">
+        <div class="group-toggle" id="view-toggle">
+          <button class="group-toggle__btn group-toggle__btn--active" data-view="list"
+                  title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}">
+            <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+          </button>
+          <button class="group-toggle__btn" data-view="kanban"
+                  title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}">
+            <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="group-toggle" id="group-mode-toggle">
+          <button class="group-toggle__btn group-toggle__btn--active" data-mode="category">${t('tasks.categoryLabel')}</button>
+          <button class="group-toggle__btn" data-mode="due">${t('tasks.dueDateLabel')}</button>
+        </div>
+        <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
+                aria-label="${t('tasks.selectMode')}" aria-pressed="false"
+                title="${t('tasks.selectMode')}">
+          <i data-lucide="check-square" style="width:18px;height:18px" aria-hidden="true"></i>
+        </button>
+        <button class="btn btn--primary tasks-toolbar__new-btn" id="btn-new-task" style="gap:var(--space-1)">
+          <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i> ${t('tasks.newTask')}
+        </button>
+        <span class="bulk-bar__count tasks-toolbar__bulk-count" id="bulk-count" hidden></span>
+        <button class="btn btn--danger tasks-toolbar__bulk-btn" id="btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
+      </div>
+    </div>
+
+    <div class="tasks-filters" id="filter-bar"></div>
+
+    <div id="task-list"></div>
+    <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}">
+      <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+    </button>
   `;
 
   if (window.lucide) window.lucide.createIcons();
 
-  // Daten laden
-  try {
-    const [tasksData, metaData] = await Promise.all([
-      api.get('/tasks'),
-      api.get('/tasks/meta/options'),
-    ]);
-    state.tasks = tasksData.data ?? [];
-    state.users = metaData.users ?? [];
-  } catch (err) {
-    console.error('[Tasks] Ladefehler:', err.message);
-    window.planner.showToast(t('tasks.loadError'), 'danger');
-    state.tasks = [];
-    state.users = [];
-  }
-
-  // Reset select state on page load
+  // Reset select state when entering household view
   state.selectMode = false;
   state.selectedIds.clear();
 
-  // UI verdrahten
   wireViewToggle(container);
   wireGroupToggle(container);
   wireNewTaskBtn(container);
@@ -1276,8 +1698,87 @@ export async function render(container, { user }) {
   wireTaskList(container);
   renderFilters(container);
   renderTaskList(container);
+}
 
-  // Dashboard FAB → open new task modal immediately
+// --------------------------------------------------------
+// Haupt-Render
+// --------------------------------------------------------
+
+export async function render(container, { user }) {
+  // Re-read view preference on each render (handles "All" button from dashboard)
+  state.viewMode  = localStorage.getItem('tasks-view') || 'list';
+  state.activeTab = readActiveTab();
+
+  // Skeleton: shared tabs bar + content slot (filled per-tab)
+  container.innerHTML = `
+    <div class="tasks-page">
+      <div class="task-tabs-bar" id="task-tabs-bar"></div>
+      <div id="tasks-content">
+        ${[1,2,3].map(() => `
+          <div class="widget-skeleton" style="margin-bottom:var(--space-2)">
+            <div class="skeleton skeleton-line skeleton-line--medium" style="height:18px;margin-bottom:var(--space-3)"></div>
+            <div class="skeleton skeleton-line skeleton-line--full" style="height:14px;margin-bottom:var(--space-2)"></div>
+            <div class="skeleton skeleton-line skeleton-line--short" style="height:12px"></div>
+          </div>`).join('')}
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) window.lucide.createIcons();
+
+  // Daten laden (parallel)
+  try {
+    const [tasksData, metaData, listsData] = await Promise.all([
+      api.get('/tasks'),
+      api.get('/tasks/meta/options'),
+      api.get('/personal-lists'),
+    ]);
+    state.tasks     = tasksData.data ?? [];
+    state.users     = metaData.users ?? [];
+    state.taskLists = listsData.data ?? [];
+  } catch (err) {
+    console.error('[Tasks] Ladefehler:', err.message);
+    window.planner.showToast(t('tasks.loadError'), 'danger');
+    state.tasks     = [];
+    state.users     = [];
+    state.taskLists = [];
+  }
+
+  // Validate active tab — fall back to household if list no longer exists
+  if (state.activeTab !== 'household'
+      && !state.taskLists.some((l) => l.id === state.activeTab)) {
+    state.activeTab = 'household';
+    localStorage.setItem('tasks-active-tab', 'household');
+  }
+
+  // Pre-load items for active personal list
+  if (state.activeTab !== 'household') {
+    await loadPersonalItems(state.activeTab);
+  }
+
+  // Reset select state on page load
+  state.selectMode = false;
+  state.selectedIds.clear();
+
+  renderTaskTabsBar(container);
+  wireTaskTabsBar(container);
+
+  // Dashboard hints force the household view
+  const forceHousehold = localStorage.getItem('tasks-create-new')
+                       || localStorage.getItem('tasks-open-task');
+  if (forceHousehold && state.activeTab !== 'household') {
+    state.activeTab = 'household';
+    localStorage.setItem('tasks-active-tab', 'household');
+    renderTaskTabsBar(container);
+  }
+
+  if (state.activeTab === 'household') {
+    renderHouseholdView(container);
+  } else {
+    renderPersonalView(container);
+  }
+
+  // Dashboard FAB → open new task modal immediately (household only)
   if (localStorage.getItem('tasks-create-new')) {
     localStorage.removeItem('tasks-create-new');
     openTaskModal({ users: state.users }, container);
