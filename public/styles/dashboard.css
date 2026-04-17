@@ -1322,8 +1322,8 @@
 }
 
 .shopping-widget__head-tab--active {
-  color: var(--module-lists);
-  border-bottom-color: var(--module-lists);
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
 }
 
 .shopping-widget__head-count {
@@ -1356,6 +1356,6 @@
 }
 
 .shopping-widget__type-tab--active {
-  color: var(--module-lists);
-  border-bottom-color: var(--module-lists);
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
 }

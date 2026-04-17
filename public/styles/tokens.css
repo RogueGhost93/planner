@@ -460,33 +460,33 @@
 
 /* ------ Teal ------ */
 :root[data-accent="teal"] {
-  --color-accent:            #0D9488;
-  --color-accent-hover:      #0F766E;
-  --color-accent-active:     #115E59;
+  --color-accent:            #0B7A73;
+  --color-accent-hover:      #096860;
+  --color-accent-active:     #075950;
   --color-accent-light:      #F0FDFA;
   --color-accent-subtle:     #CCFBF1;
-  --color-btn-primary:       #0D9488;
-  --color-btn-primary-hover: #0F766E;
+  --color-btn-primary:       #0B7A73;
+  --color-btn-primary-hover: #096860;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"])[data-accent="teal"] {
     --color-accent:            #2DD4BF;
-    --color-accent-hover:      #14B8A6;
+    --color-accent-hover:      #0FB8A8;
     --color-accent-active:     #0D9488;
     --color-accent-light:      #042F2E;
     --color-accent-subtle:     #134E4A;
-    --color-btn-primary:       #14B8A6;
-    --color-btn-primary-hover: #0D9488;
+    --color-btn-primary:       #2DD4BF;
+    --color-btn-primary-hover: #0FB8A8;
   }
 }
 :root[data-theme="dark"][data-accent="teal"] {
   --color-accent:            #2DD4BF;
-  --color-accent-hover:      #14B8A6;
+  --color-accent-hover:      #0FB8A8;
   --color-accent-active:     #0D9488;
   --color-accent-light:      #042F2E;
   --color-accent-subtle:     #134E4A;
-  --color-btn-primary:       #14B8A6;
-  --color-btn-primary-hover: #0D9488;
+  --color-btn-primary:       #2DD4BF;
+  --color-btn-primary-hover: #0FB8A8;
 }
 
 /* ------ Green ------ */
@@ -522,13 +522,13 @@
 
 /* ------ Orange ------ */
 :root[data-accent="orange"] {
-  --color-accent:            #EA580C;
-  --color-accent-hover:      #C2410C;
-  --color-accent-active:     #9A3412;
+  --color-accent:            #C2410C;
+  --color-accent-hover:      #9A3412;
+  --color-accent-active:     #7C2D12;
   --color-accent-light:      #FFF7ED;
   --color-accent-subtle:     #FED7AA;
-  --color-btn-primary:       #EA580C;
-  --color-btn-primary-hover: #C2410C;
+  --color-btn-primary:       #C2410C;
+  --color-btn-primary-hover: #9A3412;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"])[data-accent="orange"] {
@@ -537,8 +537,8 @@
     --color-accent-active:     #EA580C;
     --color-accent-light:      #431407;
     --color-accent-subtle:     #7C2D12;
-    --color-btn-primary:       #F97316;
-    --color-btn-primary-hover: #EA580C;
+    --color-btn-primary:       #FB923C;
+    --color-btn-primary-hover: #F97316;
   }
 }
 :root[data-theme="dark"][data-accent="orange"] {
@@ -547,8 +547,8 @@
   --color-accent-active:     #EA580C;
   --color-accent-light:      #431407;
   --color-accent-subtle:     #7C2D12;
-  --color-btn-primary:       #F97316;
-  --color-btn-primary-hover: #EA580C;
+  --color-btn-primary:       #FB923C;
+  --color-btn-primary-hover: #F97316;
 }
 
 /* ------ Red ------ */
@@ -584,13 +584,13 @@
 
 /* ------ Gold ------ */
 :root[data-accent="gold"] {
-  --color-accent:            #D97706;
-  --color-accent-hover:      #B45309;
-  --color-accent-active:     #92400E;
+  --color-accent:            #B45309;
+  --color-accent-hover:      #92400E;
+  --color-accent-active:     #78350F;
   --color-accent-light:      #FFFBEB;
   --color-accent-subtle:     #FDE68A;
-  --color-btn-primary:       #D97706;
-  --color-btn-primary-hover: #B45309;
+  --color-btn-primary:       #B45309;
+  --color-btn-primary-hover: #92400E;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"])[data-accent="gold"] {
@@ -599,8 +599,8 @@
     --color-accent-active:     #F59E0B;
     --color-accent-light:      #451A03;
     --color-accent-subtle:     #78350F;
-    --color-btn-primary:       #F59E0B;
-    --color-btn-primary-hover: #D97706;
+    --color-btn-primary:       #FCD34D;
+    --color-btn-primary-hover: #FBBF24;
   }
 }
 :root[data-theme="dark"][data-accent="gold"] {
@@ -609,8 +609,8 @@
   --color-accent-active:     #F59E0B;
   --color-accent-light:      #451A03;
   --color-accent-subtle:     #78350F;
-  --color-btn-primary:       #F59E0B;
-  --color-btn-primary-hover: #D97706;
+  --color-btn-primary:       #FCD34D;
+  --color-btn-primary-hover: #FBBF24;
 }
 
 /* ------ Pink ------ */

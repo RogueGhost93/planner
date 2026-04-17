@@ -7,7 +7,7 @@
 /* --------------------------------------------------------
  * Modul-Akzent
  * -------------------------------------------------------- */
-.shopping-page { --module-accent: var(--module-lists); }
+.shopping-page { --module-accent: var(--color-accent); }
 
 /* --------------------------------------------------------
  * Seiten-Layout
