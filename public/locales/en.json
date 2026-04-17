@@ -157,7 +157,24 @@
     "deselectAll": "Deselect all",
     "bulkDelete": "Delete",
     "bulkDeleteConfirm": "Delete {{count}} task(s) and their subtasks?",
-    "bulkDeletedToast": "{{count}} task(s) deleted."
+    "bulkDeletedToast": "{{count}} task(s) deleted.",
+    "tabHousehold": "Household",
+    "newPersonalList": "New list",
+    "newPersonalListTitle": "New personal list",
+    "personalListNameLabel": "Name",
+    "personalListNamePlaceholder": "e.g. Errands",
+    "personalListColorLabel": "Color",
+    "renamePersonalList": "Rename list",
+    "deletePersonalListConfirm": "Delete this list and all its items?",
+    "personalListDeletedToast": "List deleted.",
+    "personalListCreatedToast": "List created.",
+    "personalListAddPlaceholder": "what needs doing?",
+    "personalListAdd": "Add",
+    "personalListEmpty": "Nothing to do — add something below",
+    "personalListDoneSection": "Done",
+    "personalListClearDone": "Clear done",
+    "personalListClearDoneConfirm": "Remove all done items from this list?",
+    "personalListLoadError": "Could not load list."
   },
 
   "shopping": {

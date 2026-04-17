@@ -520,6 +520,42 @@ const MIGRATIONS = [
     description: 'Add notify_tone preference to users',
     up: `ALTER TABLE users ADD COLUMN notify_tone TEXT NOT NULL DEFAULT 'default';`,
   },
+  {
+    version: 15,
+    description: 'Personal task lists (per-user solo todo lists)',
+    up: `
+      CREATE TABLE task_lists (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_id   INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name       TEXT    NOT NULL,
+        color      TEXT    NOT NULL DEFAULT '#2563EB',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+
+      CREATE TABLE personal_tasks (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        list_id    INTEGER NOT NULL REFERENCES task_lists(id) ON DELETE CASCADE,
+        title      TEXT    NOT NULL,
+        done       INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+
+      CREATE INDEX idx_task_lists_owner       ON task_lists(owner_id);
+      CREATE INDEX idx_personal_tasks_list    ON personal_tasks(list_id);
+
+      CREATE TRIGGER trg_task_lists_updated_at
+        AFTER UPDATE ON task_lists FOR EACH ROW
+        BEGIN UPDATE task_lists SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+
+      CREATE TRIGGER trg_personal_tasks_updated_at
+        AFTER UPDATE ON personal_tasks FOR EACH ROW
+        BEGIN UPDATE personal_tasks SET updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = OLD.id; END;
+    `,
+  },
 ];
 
 /**
