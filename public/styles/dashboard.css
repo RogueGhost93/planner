@@ -1364,17 +1364,43 @@
 /* --------------------------------------------------------
  * Tasks-Widget — Tab-Switcher (Household + Personal Lists)
  * -------------------------------------------------------- */
+.tasks-widget__tabs-wrap {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--color-border-subtle);
+  position: relative;
+  min-width: 0;
+}
+
+.tasks-widget__tabs-arrow {
+  background: var(--color-surface);
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0 var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color var(--transition-fast);
+}
+
+.tasks-widget__tabs-arrow:hover { color: var(--color-text-primary); }
+.tasks-widget__tabs-arrow[hidden] { display: none; }
+
 .tasks-widget__tabs {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-3) 0;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
-  border-bottom: 1px solid var(--color-border-subtle);
+  scroll-behavior: smooth;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 100%;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
 .tasks-widget__tabs::-webkit-scrollbar { display: none; }
