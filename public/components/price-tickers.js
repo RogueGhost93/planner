@@ -46,6 +46,17 @@ async function fetchPrices() {
   return res.json();
 }
 
+async function fetchWithRetry(attempts = 3) {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fetchPrices();
+    } catch (err) {
+      if (i === attempts - 1) throw err;
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+    }
+  }
+}
+
 function applyPrices(container, data) {
   TICKERS.forEach((ticker) => {
     const el = container.querySelector(`.price-ticker[data-ticker-id="${CSS.escape(ticker.id)}"]`);
@@ -79,11 +90,12 @@ export function wirePriceTickers(container, signal) {
 
   async function update() {
     try {
-      const data = await fetchPrices();
+      const data = await fetchWithRetry(3);
       if (signal?.aborted) return;
       applyPrices(tickerContainer, data);
     } catch (err) {
       console.warn('[PriceTickers] fetch failed:', err.message);
+      if (!signal?.aborted) applyPrices(tickerContainer, {});
     }
   }
 
