@@ -87,16 +87,28 @@
 }
 
 /* --------------------------------------------------------
- * Begrüßungs-Widget (compact date/day bar)
+ * Begrüßungs-Widget (canvas block — no card background)
  * -------------------------------------------------------- */
 .widget-greeting {
-  --greeting-from: var(--color-accent-active);
-  --greeting-to: var(--color-accent);
-  background: linear-gradient(135deg, var(--greeting-from), var(--greeting-to));
-  border-radius: var(--radius-md);
-  padding: var(--space-2) var(--space-4);
-  color: #ffffff;
+  background: transparent;
+  padding: 0 0 var(--space-6);
+  color: var(--color-text-primary);
   grid-column: 1 / -1;
+}
+
+.widget-greeting__heading {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-4xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 767px) {
+  .widget-greeting__heading {
+    font-size: var(--text-2xl);
+  }
 }
 
 .widget-greeting__content {
@@ -112,15 +124,16 @@
   align-items: center;
   gap: var(--space-2);
   font-size: var(--text-sm);
-  opacity: 0.95;
+  color: var(--color-text-secondary);
 }
 
 .widget-greeting__day {
   font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
 }
 
 .widget-greeting__sep {
-  opacity: 0.5;
+  color: var(--color-text-tertiary);
 }
 
 .widget-greeting__chips {
@@ -128,54 +141,57 @@
   align-items: center;
   gap: var(--space-2);
   flex-wrap: wrap;
+  margin-top: var(--space-2);
 }
 
 .greeting-home-btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  background: var(--color-glass);
-  color: #ffffff;
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
   padding: 3px var(--space-2);
   border-radius: var(--radius-full);
-  border: none;
+  border: 1px solid var(--color-border);
   cursor: pointer;
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.15s;
+  transition: background-color var(--transition-fast);
 }
 
-.greeting-home-btn:active {
-  opacity: 0.75;
+.greeting-home-btn:hover {
+  background-color: var(--color-surface-2);
 }
 
 .greeting-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  background: var(--color-glass);
-  color: #ffffff;
+  background: var(--color-surface-3);
+  color: var(--color-text-secondary);
   font-size: var(--text-xs);
   font-weight: var(--font-weight-medium);
   padding: 3px var(--space-2);
   border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
   flex-shrink: 0;
   max-width: 100%;
   cursor: pointer;
-  border: none;
   text-align: left;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity 0.15s;
+  transition: background-color var(--transition-fast);
 }
 
-.greeting-chip:active {
-  opacity: 0.75;
+.greeting-chip:hover {
+  background-color: var(--color-surface-2);
 }
 
 .greeting-chip--warn {
-  background: var(--color-danger-translucent);
+  background: var(--color-danger-light);
+  border-color: transparent;
+  color: var(--color-danger);
 }
 
 .greeting-chip__title {
@@ -186,7 +202,7 @@
 }
 
 .greeting-chip__more {
-  background: rgba(255,255,255,0.25);
+  background: var(--color-border);
   border-radius: var(--radius-full);
   padding: 0 5px;
   font-size: 10px;
@@ -222,7 +238,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  color: rgba(255, 255, 255, 0.95);
+  color: var(--color-text-primary);
   white-space: nowrap;
   font-weight: var(--font-weight-medium);
 }
@@ -230,7 +246,7 @@
 .price-ticker__label {
   font-weight: var(--font-weight-semibold);
   letter-spacing: 0.02em;
-  opacity: 0.85;
+  color: var(--color-text-secondary);
 }
 
 .price-ticker__value {
@@ -240,11 +256,10 @@
 .price-ticker__change {
   font-size: 10px;
   font-variant-numeric: tabular-nums;
-  opacity: 0.9;
 }
 
-.price-ticker__change--up   { color: #86efac; }
-.price-ticker__change--down { color: #fca5a5; }
+.price-ticker__change--up   { color: var(--color-success); }
+.price-ticker__change--down { color: var(--color-danger); }
 
 .price-ticker--hidden {
   opacity: 0;
@@ -257,6 +272,7 @@
     order: 3;
     width: 100%;
     margin-top: var(--space-1);
+    font-size: var(--text-xs);
   }
 }
 
@@ -270,15 +286,16 @@
   gap: var(--space-1);
   font-size: var(--text-sm);
   font-weight: var(--font-weight-medium);
-  color: rgba(255, 255, 255, 0.9);
+  color: var(--color-text-secondary);
   overflow: hidden;
-  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid var(--color-border-subtle);
   padding-top: var(--space-2);
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
 }
 
 .greeting-news__source {
   font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
   flex-shrink: 0;
   max-width: 120px;
   overflow: hidden;
@@ -287,7 +304,7 @@
 }
 
 .greeting-news__sep {
-  opacity: 0.5;
+  color: var(--color-text-tertiary);
   flex-shrink: 0;
 }
 
@@ -298,7 +315,7 @@
   flex: 1;
   min-width: 0;
   transition: opacity 0.3s ease;
-  color: inherit;
+  color: var(--color-text-secondary);
   text-decoration: none;
 }
 
@@ -395,6 +412,12 @@
   height: 16px;
   color: var(--color-accent);
 }
+
+#tasks-widget       .widget__title-icon { color: var(--module-tasks); }
+#events-widget      .widget__title-icon { color: var(--module-calendar); }
+.widget--meals      .widget__title-icon { color: var(--module-meals); }
+#shopping-widget    .widget__title-icon { color: var(--module-lists); }
+#quick-notes-widget .widget__title-icon { color: var(--module-notes); }
 
 .widget__header-actions {
   display: flex;
@@ -790,6 +813,15 @@
 
   .meal-slot:nth-child(4) {
     border-bottom-right-radius: var(--radius-md);
+  }
+}
+
+/* --------------------------------------------------------
+ * Tasks-Widget — spans 2 columns on desktop (3-col grid)
+ * -------------------------------------------------------- */
+@media (min-width: 1024px) {
+  #tasks-widget {
+    grid-column: span 2;
   }
 }
 

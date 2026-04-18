@@ -251,13 +251,13 @@
 }
 
 .month-day--today .month-day__number {
-  background-color: var(--color-accent);
+  background-color: var(--module-accent, var(--color-accent));
   color: #ffffff;
   font-weight: var(--font-weight-bold);
 }
 
 .month-day--today {
-  background-color: var(--color-accent-light);
+  background-color: color-mix(in srgb, var(--module-accent, var(--color-accent)) 10%, transparent);
 }
 
 .month-day__event {
@@ -330,7 +330,7 @@
 }
 
 .week-view__day-num--today {
-  background-color: var(--color-accent);
+  background-color: var(--module-accent, var(--color-accent));
   color: #ffffff;
 }
 

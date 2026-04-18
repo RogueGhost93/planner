@@ -91,7 +91,8 @@
 
 .group-toggle__btn--active {
   background-color: var(--color-surface);
-  color: var(--color-text-primary);
+  color: var(--module-accent, var(--color-accent));
+  font-weight: var(--font-weight-semibold);
   box-shadow: var(--shadow-sm);
 }
 
@@ -135,9 +136,9 @@
 }
 
 .filter-chip--active {
-  background-color: var(--color-accent-light);
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+  background-color: color-mix(in srgb, var(--module-accent, var(--color-accent)) 12%, transparent);
+  border-color: var(--module-accent, var(--color-accent));
+  color: var(--module-accent, var(--color-accent));
 }
 
 .filter-chip__remove {
