@@ -19,7 +19,7 @@ const router = express.Router();
 // --------------------------------------------------------
 
 const VALID_PRIORITIES = ['none', 'urgent'];
-const VALID_STATUSES   = ['open', 'in_progress', 'done'];
+const VALID_STATUSES   = ['open', 'done'];
 const VALID_CATEGORIES = ['Household', 'School', 'Shopping', 'Repairs',
                           'Health', 'Finance', 'Leisure', 'Other'];
 
@@ -286,7 +286,7 @@ router.put('/:id', (req, res) => {
 // --------------------------------------------------------
 // PATCH /api/v1/tasks/:id/status
 // Status einer Aufgabe schnell wechseln (z.B. Swipe-Geste / Checkbox).
-// Body: { status: 'open' | 'in_progress' | 'done' }
+// Body: { status: 'open' | 'done' }
 // Response: { data: { id, status } }
 // --------------------------------------------------------
 router.patch('/:id/status', (req, res) => {

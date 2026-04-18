@@ -24,9 +24,8 @@ const PRIORITIES = () => [
 ];
 
 const STATUSES = () => [
-  { value: 'open',        label: t('tasks.statusOpen')       },
-  { value: 'in_progress', label: t('tasks.statusInProgress') },
-  { value: 'done',        label: t('tasks.statusDone')       },
+  { value: 'open', label: t('tasks.statusOpen') },
+  { value: 'done', label: t('tasks.statusDone') },
 ];
 
 const CATEGORIES = [
@@ -69,41 +68,21 @@ function formatDueDate(dateStr) {
   return { label: formatDate(due), cls: '' };
 }
 
-function groupBy(tasks, mode) {
-  const groups = {};
-
-  if (mode === 'category') {
-    for (const t of tasks) {
-      const key = t.category || 'Other';
-      (groups[key] = groups[key] || []).push(t);
+// Sort tasks like personal lists do: pending first (urgent → soonest due),
+// then by due date / id. Done items are listed separately after.
+function sortTasksForList(tasks) {
+  const today = new Date().setHours(0, 0, 0, 0);
+  return tasks.slice().sort((a, b) => {
+    if ((a.priority === 'urgent') !== (b.priority === 'urgent')) {
+      return a.priority === 'urgent' ? -1 : 1;
     }
-    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, 'de'));
-  }
-
-  // mode === 'due'
-  const groupOverdue  = t('tasks.groupOverdue');
-  const groupToday    = t('tasks.groupToday');
-  const groupThisWeek = t('tasks.groupThisWeek');
-  const groupNextWeek = t('tasks.groupNextWeek');
-  const groupLater    = t('tasks.groupLater');
-  const groupNoDate   = t('tasks.groupNoDate');
-
-  for (const task of tasks) {
-    let key;
-    if (!task.due_date)                  key = groupNoDate;
-    else {
-      const diff = Math.round((new Date(task.due_date) - new Date().setHours(0,0,0,0)) / 86400000);
-      if (diff < 0)       key = groupOverdue;
-      else if (diff === 0) key = groupToday;
-      else if (diff <= 3)  key = groupThisWeek;
-      else if (diff <= 7)  key = groupNextWeek;
-      else                 key = groupLater;
-    }
-    (groups[key] = groups[key] || []).push(task);
-  }
-
-  const order = [groupOverdue, groupToday, groupThisWeek, groupNextWeek, groupLater, groupNoDate];
-  return order.filter((k) => groups[k]).map((k) => [k, groups[k]]);
+    const ad = a.due_date ? new Date(a.due_date).setHours(0, 0, 0, 0) : Infinity;
+    const bd = b.due_date ? new Date(b.due_date).setHours(0, 0, 0, 0) : Infinity;
+    if (ad !== bd) return ad - bd;
+    // Stable-ish: overdue ahead of future when same date is impossible here, so fall back to id
+    if (ad === today && bd === today) return 0;
+    return a.id - b.id;
+  });
 }
 
 // --------------------------------------------------------
@@ -220,20 +199,11 @@ function renderTaskCard(task, opts = {}) {
     </div>`;
 }
 
-const FAR_AHEAD_DAYS = 60;
+function renderTaskGroups(tasks) {
+  const pending = sortTasksForList(tasks.filter((t) => t.status !== 'done'));
+  const done    = sortTasksForList(tasks.filter((t) => t.status === 'done'));
 
-function isFarAhead(task) {
-  if (!task.due_date || task.status === 'done') return false;
-  const today = new Date(); today.setHours(0,0,0,0);
-  const due   = new Date(task.due_date + 'T00:00:00');
-  return (due - today) / 86400000 > FAR_AHEAD_DAYS;
-}
-
-function renderTaskGroups(tasks, groupMode) {
-  const nearTasks = tasks.filter((t) => !isFarAhead(t));
-  const farTasks  = tasks.filter((t) =>  isFarAhead(t));
-
-  if (!nearTasks.length && !farTasks.length) {
+  if (!pending.length && !done.length) {
     return `<div class="empty-state">
       <svg class="empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -246,32 +216,20 @@ function renderTaskGroups(tasks, groupMode) {
 
   let html = '';
 
-  if (nearTasks.length) {
-    const groups = groupBy(nearTasks, groupMode);
-    html += groups.map(([name, groupTasks]) => `
+  if (pending.length) {
+    html += `
       <div class="task-group">
-        <div class="task-group__header">
-          <span class="task-group__title">${name}</span>
-          <span class="task-group__count">${groupTasks.length}</span>
-        </div>
-        ${groupTasks.map((t) => renderSwipeRow(t, renderTaskCard(t))).join('')}
-      </div>`).join('');
+        ${pending.map((tk) => renderSwipeRow(tk, renderTaskCard(tk))).join('')}
+      </div>`;
   }
 
-  if (farTasks.length) {
+  if (done.length) {
     html += `
-      <div class="task-group task-group--far-ahead" id="far-ahead-group">
-        <button class="task-group__header task-group__header--toggle" id="far-ahead-toggle" aria-expanded="false">
-          <span class="task-group__title">
-            <i data-lucide="calendar-clock" style="width:14px;height:14px;margin-right:var(--space-1);opacity:0.6" aria-hidden="true"></i>
-            Far ahead
-          </span>
-          <span class="task-group__count">${farTasks.length}</span>
-          <i data-lucide="chevron-down" class="far-ahead-chevron" style="width:14px;height:14px;margin-left:auto;opacity:0.5;transition:transform 0.2s" aria-hidden="true"></i>
-        </button>
-        <div class="far-ahead-body" hidden>
-          ${farTasks.map((t) => renderSwipeRow(t, renderTaskCard(t))).join('')}
+      <div class="task-group task-group--done">
+        <div class="task-group__divider">
+          <span>${t('tasks.statusDone')} (${done.length})</span>
         </div>
+        ${done.map((tk) => renderSwipeRow(tk, renderTaskCard(tk))).join('')}
       </div>`;
   }
 
@@ -397,7 +355,6 @@ let state = {
   tasks:         [],
   users:         [],
   filters:       { status: '', priority: '', assigned_to: '' },
-  groupMode:     'category',   // 'category' | 'due'
   viewMode:      localStorage.getItem('tasks-view') || 'list',  // 'list' | 'kanban'
   expandedTasks: new Set(),
   dragTaskId:    null,
@@ -558,13 +515,12 @@ async function handleAddSubtask(parentId, container) {
 // --------------------------------------------------------
 
 const KANBAN_COLS = () => [
-  { status: 'open',        label: t('tasks.kanbanOpen'),       colorVar: '--color-text-secondary' },
-  { status: 'in_progress', label: t('tasks.kanbanInProgress'), colorVar: '--color-warning'        },
-  { status: 'done',        label: t('tasks.kanbanDone'),       colorVar: '--color-success'        },
+  { status: 'open', label: t('tasks.kanbanOpen'), colorVar: '--color-text-secondary' },
+  { status: 'done', label: t('tasks.kanbanDone'), colorVar: '--color-success'        },
 ];
 
-const KANBAN_STATUS_CYCLE = { open: 'in_progress', in_progress: 'done', done: 'open' };
-const KANBAN_STATUS_ICON  = { open: 'circle', in_progress: 'loader', done: 'check-circle' };
+const KANBAN_STATUS_CYCLE = { open: 'done', done: 'open' };
+const KANBAN_STATUS_ICON  = { open: 'circle', done: 'check-circle' };
 
 function renderKanbanCard(task) {
   const due = formatDueDate(task.due_date);
@@ -771,7 +727,7 @@ function renderTaskList(container) {
   }
   const listEl = container.querySelector('#task-list');
   if (!listEl) return;
-  listEl.innerHTML = renderTaskGroups(state.tasks, state.groupMode);
+  listEl.innerHTML = renderTaskGroups(state.tasks);
   listEl.classList.toggle('task-list--select-mode', state.selectMode);
   if (window.lucide) window.lucide.createIcons();
   stagger(listEl.querySelectorAll('.swipe-row, .kanban-card'));
@@ -1084,23 +1040,6 @@ function wireViewToggle(container) {
       toggle.querySelectorAll('[data-view]').forEach((b) =>
         b.classList.toggle('group-toggle__btn--active', b.dataset.view === state.viewMode)
       );
-      // Gruppierungs-Toggle nur in Listenansicht sinnvoll
-      const groupToggle = container.querySelector('#group-mode-toggle');
-      if (groupToggle) groupToggle.style.display = state.viewMode === 'list' ? '' : 'none';
-      renderTaskList(container);
-    });
-  });
-}
-
-function wireGroupToggle(container) {
-  const toggle = container.querySelector('#group-mode-toggle');
-  if (!toggle) return;
-  toggle.querySelectorAll('.group-toggle__btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      state.groupMode = btn.dataset.mode;
-      toggle.querySelectorAll('.group-toggle__btn').forEach((b) =>
-        b.classList.toggle('group-toggle__btn--active', b.dataset.mode === state.groupMode)
-      );
       renderTaskList(container);
     });
   });
@@ -1117,19 +1056,6 @@ function wireNewTaskBtn(container) {
 function wireTaskList(container) {
   const listEl = container.querySelector('#task-list');
   if (!listEl) return;
-
-  // Far-ahead toggle (event delegation since it's re-rendered)
-  listEl.addEventListener('click', (e) => {
-    const toggle = e.target.closest('#far-ahead-toggle');
-    if (!toggle) return;
-    const body    = toggle.nextElementSibling;
-    const chevron = toggle.querySelector('.far-ahead-chevron');
-    const open    = body.hidden;
-    body.hidden   = !open;
-    toggle.setAttribute('aria-expanded', String(open));
-    if (chevron) chevron.style.transform = open ? 'rotate(180deg)' : '';
-    if (open && window.lucide) window.lucide.createIcons();
-  });
 
   // Select mode: clicking anywhere on a card row toggles selection
   listEl.addEventListener('click', (e) => {
@@ -2007,10 +1933,6 @@ function renderHouseholdView(container) {
             <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
           </button>
         </div>
-        <div class="group-toggle" id="group-mode-toggle">
-          <button class="group-toggle__btn group-toggle__btn--active" data-mode="category">${t('tasks.categoryLabel')}</button>
-          <button class="group-toggle__btn" data-mode="due">${t('tasks.dueDateLabel')}</button>
-        </div>
         <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
                 aria-label="${t('tasks.selectMode')}" aria-pressed="false"
                 title="${t('tasks.selectMode')}">
@@ -2039,7 +1961,6 @@ function renderHouseholdView(container) {
   state.selectedIds.clear();
 
   wireViewToggle(container);
-  wireGroupToggle(container);
   wireNewTaskBtn(container);
   wireSelectMode(container);
   wireTaskList(container);
