@@ -1151,6 +1151,45 @@
 }
 
 /* --------------------------------------------------------
+ * Task Modal mode toggle (Task ↔ New list)
+ * -------------------------------------------------------- */
+.task-mode-toggle {
+  display: inline-flex;
+  padding: 3px;
+  margin-bottom: var(--space-4);
+  background: var(--color-glass);
+  border-radius: var(--radius-full);
+  gap: 2px;
+}
+
+.task-mode-toggle__btn {
+  flex: 1 1 auto;
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.task-mode-toggle__btn:hover:not(.task-mode-toggle__btn--active) {
+  color: var(--color-text-primary);
+}
+
+.task-mode-toggle__btn--active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* --------------------------------------------------------
  * Color Swatches (New-List Dialog)
  * -------------------------------------------------------- */
 .color-swatches {
