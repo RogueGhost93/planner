@@ -252,7 +252,12 @@
 }
 
 @media (max-width: 600px) {
-  .widget-greeting__tickers { display: none; }
+  .widget-greeting__content { flex-wrap: wrap; }
+  .widget-greeting__tickers {
+    order: 3;
+    width: 100%;
+    margin-top: var(--space-1);
+  }
 }
 
 /* --------------------------------------------------------
