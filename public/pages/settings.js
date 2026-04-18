@@ -89,7 +89,7 @@ export async function render(container, { user }) {
                       style="background-color:${c.light}">
               </button>`).join('')}
           </div>
-          <p class="settings-card__label" style="margin-top:var(--space-4);margin-bottom:var(--space-2)">Quick link</p>
+          <p class="settings-card__label" style="margin-top:var(--space-4);margin-bottom:var(--space-2)">Quick link <span class="form-hint" style="display:inline;margin:0">(this device only)</span></p>
           <div class="settings-quick-link" style="display:flex;gap:var(--space-2)">
             <input class="form-input" type="url" id="quick-link-input"
                    placeholder="https://example.com"
@@ -99,7 +99,7 @@ export async function render(container, { user }) {
           <span class="form-hint">Tap the greeting bar on the dashboard to open this link</span>
 
           <div class="settings-toggle-row" style="margin-top:var(--space-4)">
-            <label class="settings-toggle-label" for="show-quotes">${t('settings.showQuotesLabel')}</label>
+            <label class="settings-toggle-label" for="show-quotes">${t('settings.showQuotesLabel')} <span class="form-hint" style="display:inline;margin:0">(this device only)</span></label>
             <label class="toggle-switch">
               <input type="checkbox" id="show-quotes" ${localStorage.getItem('planner-show-quotes') !== 'false' ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
