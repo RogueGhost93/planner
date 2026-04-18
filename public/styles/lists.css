@@ -7,7 +7,7 @@
 /* --------------------------------------------------------
  * Modul-Akzent
  * -------------------------------------------------------- */
-.shopping-page { --module-accent: var(--color-accent); }
+.shopping-page { --module-accent: var(--module-lists); }
 
 /* --------------------------------------------------------
  * Seiten-Layout
@@ -66,8 +66,8 @@
 }
 
 .list-tab--active {
-  background-color: var(--color-accent);
-  border-color: var(--color-accent);
+  background-color: var(--module-accent, var(--color-accent));
+  border-color: var(--module-accent, var(--color-accent));
   color: #ffffff;
 }
 
@@ -234,7 +234,7 @@
   width: 44px;
   height: 44px;
   border-radius: var(--radius-sm);
-  background-color: var(--color-accent);
+  background-color: var(--module-accent, var(--color-accent));
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -246,7 +246,7 @@
   min-height: var(--target-lg);
 }
 
-.quick-add__btn:hover { background-color: var(--color-accent-hover); }
+.quick-add__btn:hover { background-color: color-mix(in srgb, var(--module-accent, var(--color-accent)) 85%, black); }
 
 /* Autocomplete-Dropdown */
 .autocomplete-dropdown {

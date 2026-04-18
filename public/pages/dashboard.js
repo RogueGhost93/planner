@@ -220,6 +220,7 @@ function renderGreeting(user, stats = {}, headlines = null) {
 
   return `
     <div class="widget-greeting">
+      <h1 class="widget-greeting__heading">${greeting(user?.display_name || user?.first_name || '')}</h1>
       <div class="widget-greeting__content">
         <div class="widget-greeting__date-row">
           <span class="widget-greeting__day">${dayName}</span>
@@ -382,7 +383,7 @@ function renderTasksWidget(widgetTasks, personalLists, personalItems) {
     headerCount = personalItems.filter((i) => i.list_id === activeTab && !i.done).length;
   }
 
-  return `<div class="widget" id="tasks-widget" data-active-tab="${activeTab}">
+  return `<div class="widget widget--wide" id="tasks-widget" data-active-tab="${activeTab}">
     ${widgetHeader('check-square', t('nav.tasks'), headerCount, '/tasks', undefined, '/tasks', 'tasks-create-new')}
     <div class="tasks-widget__tabs-wrap">
       <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="-1" aria-label="Scroll left" hidden>
@@ -401,7 +402,7 @@ function renderTasksWidget(widgetTasks, personalLists, personalItems) {
 
 function renderUpcomingEvents(events) {
   if (!events.length) {
-    return `<div class="widget">
+    return `<div class="widget" id="events-widget">
       ${widgetHeader('calendar', t('nav.calendar'), 0, '/calendar', undefined, '/calendar', 'calendar-create-new')}
       <div class="widget__empty">
         <i data-lucide="calendar-check" class="empty-state__icon" aria-hidden="true"></i>
@@ -433,7 +434,7 @@ function renderUpcomingEvents(events) {
     `;
   }).join('');
 
-  return `<div class="widget">
+  return `<div class="widget" id="events-widget">
     ${widgetHeader('calendar', t('nav.calendar'), events.length, '/calendar', undefined, '/calendar', 'calendar-create-new')}
     <div class="widget__body">${items}</div>
   </div>`;
@@ -1068,6 +1069,7 @@ export async function render(container, { user }) {
     <div class="dashboard">
       <div class="dashboard__grid">
         <div class="widget-greeting" style="grid-column:1/-1">
+          <h1 class="widget-greeting__heading">${greeting(user?.display_name || user?.first_name || '')}</h1>
           <div class="widget-greeting__content">
             <div class="widget-greeting__date-row">
               <span class="widget-greeting__day">${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()]}</span>
