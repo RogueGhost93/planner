@@ -128,6 +128,31 @@ router.post('/', (req, res) => {
 });
 
 // --------------------------------------------------------
+// PATCH /api/v1/personal-lists/reorder   (per-user)
+// Body: { ids: number[] } — only lists owned by the current user are reordered.
+// IDs not owned by the user are silently skipped.
+// --------------------------------------------------------
+router.patch('/reorder', (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids)) return res.status(400).json({ error: 'ids must be an array.', code: 400 });
+
+    const update = db.get().prepare(
+      'UPDATE task_lists SET sort_order = ? WHERE id = ? AND owner_id = ?'
+    );
+    const updateAll = db.get().transaction((arr, uid) => {
+      arr.forEach((id, i) => update.run(i, id, uid));
+    });
+    updateAll(ids.map((n) => Number(n)).filter(Number.isInteger), req.session.userId);
+
+    res.json({ ok: true });
+  } catch (err) {
+    log.error('PATCH /reorder', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
 // PUT /api/v1/personal-lists/:id   (owner-only)
 // Body: { name?, color? }
 // --------------------------------------------------------

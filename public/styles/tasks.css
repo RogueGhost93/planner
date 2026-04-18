@@ -849,6 +849,18 @@
   background-color: var(--color-glass-hover);
 }
 
+.task-tab[data-owned="1"] {
+  touch-action: pan-y;
+}
+
+.task-tab--dragging {
+  opacity: 0.55;
+  cursor: grabbing;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  position: relative;
+}
+
 .task-tab__new {
   display: inline-flex;
   align-items: center;
