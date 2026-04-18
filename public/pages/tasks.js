@@ -1250,6 +1250,7 @@ function renderTaskTabsBar(container) {
     return `
       <button class="task-tab ${isActive ? 'task-tab--active' : ''}"
               data-action="switch-tab" data-tab="${l.id}"
+              data-list-id="${l.id}" data-owned="${l.is_owner ? '1' : '0'}"
               style="--tab-color: ${esc(l.color)}"
               title="${!l.is_owner && l.owner_name ? esc(t('tasks.sharedByLabel', { name: l.owner_name })) : esc(l.name)}">
         <span class="task-tab__color-dot" aria-hidden="true"></span>
@@ -1901,6 +1902,89 @@ function wireTaskTabsBar(container) {
 }
 
 // --------------------------------------------------------
+// Drag-reorder for personal list tabs (owner-only).
+// Mirrors wireHeadTabDragReorder in lists.js.
+// Only tabs the current user owns are draggable; the household
+// tab, the new-list button and shared (non-owned) tabs stay put.
+// --------------------------------------------------------
+function wirePersonalTabsReorder(container) {
+  const bar = container.querySelector('#task-tabs-bar');
+  if (!bar) return;
+
+  let dragging  = null;
+  let dragPtrId = null;
+  let didDrag   = false;
+  let startX = 0, startY = 0;
+
+  const getOwnedTabs = () => [...bar.querySelectorAll('.task-tab[data-owned="1"]')];
+
+  bar.addEventListener('pointerdown', (e) => {
+    const tab = e.target.closest('.task-tab[data-owned="1"]');
+    if (!tab) return;
+    dragging  = tab;
+    dragPtrId = e.pointerId;
+    didDrag   = false;
+    startX = e.clientX; startY = e.clientY;
+  });
+
+  bar.addEventListener('pointermove', (e) => {
+    if (!dragging || e.pointerId !== dragPtrId) return;
+    const dx = e.clientX - startX;
+    const dy = Math.abs(e.clientY - startY);
+    if (!didDrag && dy > Math.abs(dx) + 5) { dragging = null; dragPtrId = null; return; }
+    if (!didDrag) {
+      if (Math.abs(dx) < 8) return;
+      didDrag = true;
+      dragging.classList.add('task-tab--dragging');
+      try { bar.setPointerCapture(e.pointerId); } catch {}
+    }
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.task-tab[data-owned="1"]');
+    if (!over || over === dragging) return;
+    const tabs = getOwnedTabs();
+    const dragIdx = tabs.indexOf(dragging);
+    const overIdx = tabs.indexOf(over);
+    if (dragIdx === -1 || overIdx === -1) return;
+    if (dragIdx < overIdx) over.after(dragging); else over.before(dragging);
+  });
+
+  const onPointerUp = async (e) => {
+    if (!dragging || e.pointerId !== dragPtrId) return;
+    const wasDragged = didDrag;
+    dragging.classList.remove('task-tab--dragging');
+    const newOwnedOrder = getOwnedTabs().map((el) => Number(el.dataset.listId));
+    const oldOwnedOrder = state.taskLists.filter((l) => l.is_owner).map((l) => l.id);
+    dragging = null; dragPtrId = null; didDrag = false;
+    if (!wasDragged) return;
+    bar.addEventListener('click', (ev) => ev.stopImmediatePropagation(), { once: true, capture: true });
+    if (JSON.stringify(newOwnedOrder) === JSON.stringify(oldOwnedOrder)) return;
+
+    // Reorder owned lists in state by the new sequence; shared lists keep their position
+    const ownedById = new Map(state.taskLists.filter((l) => l.is_owner).map((l) => [l.id, l]));
+    const sharedLists = state.taskLists.filter((l) => !l.is_owner);
+    const reorderedOwned = newOwnedOrder.map((id) => ownedById.get(id)).filter(Boolean);
+    const oldList = state.taskLists.slice();
+    state.taskLists = [...reorderedOwned, ...sharedLists];
+
+    try {
+      await api.patch('/personal-lists/reorder', { ids: newOwnedOrder });
+      vibrate(15);
+    } catch (err) {
+      window.planner?.showToast(err.message, 'danger');
+      state.taskLists = oldList;
+      renderTaskTabsBar(container);
+    }
+  };
+
+  bar.addEventListener('pointerup', onPointerUp);
+  bar.addEventListener('pointercancel', (e) => {
+    if (!dragging || e.pointerId !== dragPtrId) return;
+    dragging.classList.remove('task-tab--dragging');
+    dragging = null; dragPtrId = null; didDrag = false;
+    renderTaskTabsBar(container);
+  });
+}
+
+// --------------------------------------------------------
 // Household View (the original full-featured tasks UI)
 // Extracted so we can swap between household and personal views.
 // --------------------------------------------------------
@@ -2026,6 +2110,7 @@ export async function render(container, { user }) {
 
   renderTaskTabsBar(container);
   wireTaskTabsBar(container);
+  wirePersonalTabsReorder(container);
 
   // Dashboard hints force the household view
   const forceHousehold = localStorage.getItem('tasks-create-new')

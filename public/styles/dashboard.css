@@ -306,6 +306,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .widget__header {
@@ -1371,6 +1372,9 @@
   overflow-x: auto;
   scrollbar-width: none;
   border-bottom: 1px solid var(--color-border-subtle);
+  min-width: 0;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .tasks-widget__tabs::-webkit-scrollbar { display: none; }
