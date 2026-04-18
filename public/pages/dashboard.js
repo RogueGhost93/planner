@@ -376,8 +376,16 @@ function renderTasksWidget(widgetTasks, personalLists, personalItems) {
 
   return `<div class="widget" id="tasks-widget" data-active-tab="${activeTab}">
     ${widgetHeader('check-square', t('nav.tasks'), headerCount, '/tasks', undefined, '/tasks', 'tasks-create-new')}
-    <div class="tasks-widget__tabs" id="tasks-widget-tabs">
-      ${householdTab}${personalTabs}
+    <div class="tasks-widget__tabs-wrap">
+      <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="-1" aria-label="Scroll left" hidden>
+        <i data-lucide="chevron-left" style="width:14px;height:14px" aria-hidden="true"></i>
+      </button>
+      <div class="tasks-widget__tabs" id="tasks-widget-tabs">
+        ${householdTab}${personalTabs}
+      </div>
+      <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="1" aria-label="Scroll right" hidden>
+        <i data-lucide="chevron-right" style="width:14px;height:14px" aria-hidden="true"></i>
+      </button>
     </div>
     <div class="widget__body" id="tasks-widget-body">${body}</div>
   </div>`;
@@ -836,6 +844,40 @@ function wireTasksWidget(container, dashData, refreshWidget) {
       const tab = btn.dataset.tab;
       localStorage.setItem('dashboard-tasks-tab', tab);
       refreshWidget();
+    });
+  });
+
+  // Tab horizontal scroll arrows + wheel
+  const tabsEl = container.querySelector('#tasks-widget-tabs');
+  const leftArrow  = container.querySelector('[data-action="tasks-tabs-scroll"][data-dir="-1"]');
+  const rightArrow = container.querySelector('[data-action="tasks-tabs-scroll"][data-dir="1"]');
+  function updateTabsArrows() {
+    if (!tabsEl || !leftArrow || !rightArrow) return;
+    const overflow = tabsEl.scrollWidth - tabsEl.clientWidth > 2;
+    leftArrow.hidden  = !overflow || tabsEl.scrollLeft <= 2;
+    rightArrow.hidden = !overflow || tabsEl.scrollLeft + tabsEl.clientWidth >= tabsEl.scrollWidth - 2;
+  }
+  if (tabsEl) {
+    tabsEl.addEventListener('scroll', updateTabsArrows, { passive: true });
+    tabsEl.addEventListener('wheel', (e) => {
+      if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
+      if (tabsEl.scrollWidth - tabsEl.clientWidth <= 2) return;
+      e.preventDefault();
+      tabsEl.scrollBy({ left: e.deltaY, behavior: 'auto' });
+    }, { passive: false });
+    requestAnimationFrame(() => {
+      const active = tabsEl.querySelector('.tasks-widget__tab--active');
+      if (active) active.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      updateTabsArrows();
+    });
+    window.addEventListener('resize', updateTabsArrows);
+  }
+  container.querySelectorAll('[data-action="tasks-tabs-scroll"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!tabsEl) return;
+      const dir = Number(btn.dataset.dir);
+      tabsEl.scrollBy({ left: dir * Math.max(120, tabsEl.clientWidth * 0.7), behavior: 'smooth' });
     });
   });
 
