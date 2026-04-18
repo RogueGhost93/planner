@@ -96,21 +96,6 @@
   grid-column: 1 / -1;
 }
 
-.widget-greeting__heading {
-  margin: 0 0 var(--space-1);
-  font-size: var(--text-4xl);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: -0.5px;
-  line-height: 1.1;
-  color: var(--color-text-primary);
-}
-
-@media (max-width: 767px) {
-  .widget-greeting__heading {
-    font-size: var(--text-2xl);
-  }
-}
-
 .widget-greeting__content {
   display: flex;
   flex-direction: row;
@@ -813,15 +798,6 @@
 
   .meal-slot:nth-child(4) {
     border-bottom-right-radius: var(--radius-md);
-  }
-}
-
-/* --------------------------------------------------------
- * Tasks-Widget — spans 2 columns on desktop (3-col grid)
- * -------------------------------------------------------- */
-@media (min-width: 1024px) {
-  #tasks-widget {
-    grid-column: span 2;
   }
 }
 
