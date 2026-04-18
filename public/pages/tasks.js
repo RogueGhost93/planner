@@ -259,80 +259,128 @@ function renderModalContent({ task = null, users = [] } = {}) {
       `<option value="${p.value}" ${current === p.value ? 'selected' : ''}>${p.label}</option>`
     ).join('');
 
+  const modeToggle = isEdit ? '' : `
+    <div class="task-mode-toggle" role="tablist" aria-label="${t('tasks.newTask')}">
+      <button type="button" class="task-mode-toggle__btn task-mode-toggle__btn--active"
+              data-mode="task" role="tab" aria-selected="true">
+        ${t('tasks.newTask')}
+      </button>
+      <button type="button" class="task-mode-toggle__btn"
+              data-mode="list" role="tab" aria-selected="false">
+        ${t('tasks.newPersonalList')}
+      </button>
+    </div>
+    <input type="hidden" id="task-form-mode" name="mode" value="task">`;
+
+  const listModeFields = isEdit ? '' : `
+    <div data-mode-fields="list" hidden>
+      <div class="form-group">
+        <label class="label" for="new-list-name">${t('tasks.personalListNameLabel')}</label>
+        <input class="input" type="text" id="new-list-name" name="list_name"
+               placeholder="${t('tasks.personalListNamePlaceholder')}"
+               maxlength="200" autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label class="label">${t('tasks.personalListColorLabel')}</label>
+        <div class="color-swatches" id="new-list-swatches">
+          ${PERSONAL_LIST_COLORS.map((c, idx) => `
+            <button type="button" class="color-swatch ${idx === 0 ? 'color-swatch--active' : ''}"
+                    data-color="${c}" style="background-color:${c}"
+                    aria-label="${c}"></button>
+          `).join('')}
+        </div>
+        <input type="hidden" id="new-list-color" name="list_color" value="${PERSONAL_LIST_COLORS[0]}">
+      </div>
+
+      <div class="form-group">
+        <label class="label" for="new-list-items">${t('shopping.newListItemsLabel')}</label>
+        <textarea class="input" id="new-list-items" name="list_items"
+                  rows="4" placeholder="${t('tasks.personalListAddPlaceholder')}"
+                  style="resize:vertical"></textarea>
+      </div>
+    </div>`;
+
   return `
     <form id="task-form" novalidate>
       <input type="hidden" id="task-id" value="${task?.id ?? ''}">
 
-      <div class="form-group">
-        <div class="form-field">
-          <label class="label" for="task-title">${t('tasks.titleLabel')}</label>
-          <input class="input" type="text" id="task-title" name="title"
-                 value="${esc(task?.title)}" placeholder="${t('tasks.titlePlaceholder')}"
-                 required autocomplete="off">
-          <div class="form-field__error">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/>
-                 <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16.01"/>
-            </svg>
-            ${t('common.required')}
+      ${modeToggle}
+
+      <div data-mode-fields="task">
+        <div class="form-group">
+          <div class="form-field">
+            <label class="label" for="task-title">${t('tasks.titleLabel')}</label>
+            <input class="input" type="text" id="task-title" name="title"
+                   value="${esc(task?.title)}" placeholder="${t('tasks.titlePlaceholder')}"
+                   required autocomplete="off">
+            <div class="form-field__error">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/>
+                   <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12" y2="16.01"/>
+              </svg>
+              ${t('common.required')}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="form-group">
-        <label class="label" for="task-description">${t('tasks.descriptionLabel')}</label>
-        <textarea class="input" id="task-description" name="description"
-                  rows="2" placeholder="${t('tasks.descriptionPlaceholder')}"
-                  style="resize:vertical">${esc(task?.description)}</textarea>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
-        <div class="form-group" style="margin-bottom:0">
-          <label class="label" for="task-priority">${t('tasks.priorityLabel')}</label>
-          <select class="input" id="task-priority" name="priority" style="min-height:44px">
-            ${priorityOptions}
-          </select>
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="label" for="task-category">${t('tasks.categoryLabel')}</label>
-          <select class="input" id="task-category" name="category" style="min-height:44px">
-            ${categoryOptions}
-          </select>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-4)">
-        <div class="form-group" style="margin-bottom:0">
-          <label class="label" for="task-due-date">${t('tasks.dueDateLabel')}</label>
-          <input class="input" type="date" id="task-due-date" name="due_date"
-                 value="${task?.due_date ?? ''}">
-        </div>
-        <div class="form-group" style="margin-bottom:0">
-          <label class="label" for="task-due-time">${t('tasks.dueTimeLabel')}</label>
-          <input class="input" type="time" id="task-due-time" name="due_time"
-                 value="${task?.due_time ?? ''}">
-        </div>
-      </div>
-
-      <div class="form-group" style="margin-top:var(--space-4)">
-        <label class="label" for="task-assigned">${t('tasks.assignedLabel')}</label>
-        <select class="input" id="task-assigned" name="assigned_to" style="min-height:44px">
-          <option value="">${t('tasks.assignedNobody')}</option>
-          ${userOptions}
-        </select>
-      </div>
-
-      ${isEdit ? `
         <div class="form-group">
-          <label class="label" for="task-status">${t('tasks.statusLabel')}</label>
-          <select class="input" id="task-status" name="status" style="min-height:44px">
-            ${STATUSES().map((s) =>
-              `<option value="${s.value}" ${task.status === s.value ? 'selected' : ''}>${s.label}</option>`
-            ).join('')}
-          </select>
-        </div>` : ''}
+          <label class="label" for="task-description">${t('tasks.descriptionLabel')}</label>
+          <textarea class="input" id="task-description" name="description"
+                    rows="2" placeholder="${t('tasks.descriptionPlaceholder')}"
+                    style="resize:vertical">${esc(task?.description)}</textarea>
+        </div>
 
-      ${renderRRuleFields('task', task?.recurrence_rule)}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="label" for="task-priority">${t('tasks.priorityLabel')}</label>
+            <select class="input" id="task-priority" name="priority" style="min-height:44px">
+              ${priorityOptions}
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="label" for="task-category">${t('tasks.categoryLabel')}</label>
+            <select class="input" id="task-category" name="category" style="min-height:44px">
+              ${categoryOptions}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-4)">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="label" for="task-due-date">${t('tasks.dueDateLabel')}</label>
+            <input class="input" type="date" id="task-due-date" name="due_date"
+                   value="${task?.due_date ?? ''}">
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="label" for="task-due-time">${t('tasks.dueTimeLabel')}</label>
+            <input class="input" type="time" id="task-due-time" name="due_time"
+                   value="${task?.due_time ?? ''}">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:var(--space-4)">
+          <label class="label" for="task-assigned">${t('tasks.assignedLabel')}</label>
+          <select class="input" id="task-assigned" name="assigned_to" style="min-height:44px">
+            <option value="">${t('tasks.assignedNobody')}</option>
+            ${userOptions}
+          </select>
+        </div>
+
+        ${isEdit ? `
+          <div class="form-group">
+            <label class="label" for="task-status">${t('tasks.statusLabel')}</label>
+            <select class="input" id="task-status" name="status" style="min-height:44px">
+              ${STATUSES().map((s) =>
+                `<option value="${s.value}" ${task.status === s.value ? 'selected' : ''}>${s.label}</option>`
+              ).join('')}
+            </select>
+          </div>` : ''}
+
+        ${renderRRuleFields('task', task?.recurrence_rule)}
+      </div>
+
+      ${listModeFields}
 
       <div id="task-form-error" class="login-error" hidden></div>
 
@@ -426,6 +474,12 @@ function openTaskModal({ task = null, users = [] } = {}, container) {
       // Blur-Validierung für required-Felder aktivieren
       wireBlurValidation(panel);
 
+      // Mode toggle (Task ↔ New list) — create only
+      if (!isEdit) {
+        wireTaskModeToggle(panel);
+        wireNewListSwatches(panel);
+      }
+
       // Form-Events
       panel.querySelector('#task-form')
         ?.addEventListener('submit', (e) => handleFormSubmit(e, container));
@@ -433,6 +487,51 @@ function openTaskModal({ task = null, users = [] } = {}, container) {
       panel.querySelector('[data-action="delete-task"]')
         ?.addEventListener('click', (e) => handleDeleteTask(e.currentTarget.dataset.id, container));
     },
+  });
+}
+
+function wireTaskModeToggle(panel) {
+  const modeInput = panel.querySelector('#task-form-mode');
+  const taskFields = panel.querySelector('[data-mode-fields="task"]');
+  const listFields = panel.querySelector('[data-mode-fields="list"]');
+  const titleInput = panel.querySelector('#task-title');
+  const listNameInput = panel.querySelector('#new-list-name');
+  const submitBtn = panel.querySelector('#task-submit-btn');
+  if (!modeInput || !taskFields || !listFields) return;
+
+  const applyMode = (mode) => {
+    modeInput.value = mode;
+    const isList = mode === 'list';
+    taskFields.hidden = isList;
+    listFields.hidden = !isList;
+    if (titleInput) titleInput.required = !isList;
+    if (listNameInput) listNameInput.required = isList;
+    if (submitBtn) submitBtn.textContent = t('common.create');
+    panel.querySelectorAll('.task-mode-toggle__btn').forEach((btn) => {
+      const active = btn.dataset.mode === mode;
+      btn.classList.toggle('task-mode-toggle__btn--active', active);
+      btn.setAttribute('aria-selected', String(active));
+    });
+    const focusEl = isList ? listNameInput : titleInput;
+    setTimeout(() => focusEl?.focus(), 0);
+  };
+
+  panel.querySelectorAll('.task-mode-toggle__btn').forEach((btn) => {
+    btn.addEventListener('click', () => applyMode(btn.dataset.mode));
+  });
+}
+
+function wireNewListSwatches(panel) {
+  const swatches = panel.querySelector('#new-list-swatches');
+  const colorInput = panel.querySelector('#new-list-color');
+  if (!swatches || !colorInput) return;
+  swatches.addEventListener('click', (e) => {
+    const swatch = e.target.closest('.color-swatch');
+    if (!swatch) return;
+    swatches.querySelectorAll('.color-swatch--active')
+      .forEach((s) => s.classList.remove('color-swatch--active'));
+    swatch.classList.add('color-swatch--active');
+    colorInput.value = swatch.dataset.color;
   });
 }
 
@@ -446,6 +545,7 @@ async function handleFormSubmit(e, container) {
   const errorEl   = document.getElementById('task-form-error');
   const submitBtn = document.getElementById('task-submit-btn');
   const taskId    = document.getElementById('task-id').value;
+  const mode      = form.mode?.value ?? 'task';
 
   errorEl.hidden = true;
   submitBtn.disabled = true;
@@ -453,6 +553,59 @@ async function handleFormSubmit(e, container) {
 
   const originalLabel = taskId ? t('common.save') : t('common.create');
 
+  // --- "New list" path: create personal list + optional initial items ---
+  if (!taskId && mode === 'list') {
+    const name  = String(form.list_name?.value ?? '').trim();
+    const color = String(form.list_color?.value ?? '').trim() || PERSONAL_LIST_COLORS[0];
+    const itemsRaw = String(form.list_items?.value ?? '');
+    const itemTitles = itemsRaw.split('\n').map((s) => s.trim()).filter(Boolean);
+
+    if (!name) {
+      errorEl.textContent = t('common.required');
+      errorEl.hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+      return;
+    }
+
+    try {
+      const res = await api.post('/personal-lists', { name, color });
+      const newList = res.data;
+      state.taskLists.push(newList);
+
+      if (itemTitles.length) {
+        const created = await Promise.all(
+          itemTitles.map((title) =>
+            api.post(`/personal-lists/${newList.id}/items`, { title }).then((r) => r.data).catch(() => null)
+          )
+        );
+        state.personalItems = created.filter(Boolean);
+      } else {
+        state.personalItems = [];
+      }
+
+      state.activeTab = newList.id;
+      localStorage.setItem('tasks-active-tab', String(newList.id));
+
+      window.planner.showToast(t('tasks.personalListCreatedToast'), 'success');
+      btnSuccess(submitBtn, originalLabel);
+      setTimeout(() => closeModal(), 700);
+
+      if (container) {
+        renderTaskTabsBar(container);
+        renderPersonalView(container);
+      }
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalLabel;
+      btnError(submitBtn);
+    }
+    return;
+  }
+
+  // --- "Task" path (household task: create or edit) ---
   const rrule = getRRuleValues(document, 'task');
   const body = {
     title:           form.title.value.trim(),
@@ -2063,12 +2216,6 @@ export async function render(container, { user }) {
   if (localStorage.getItem('tasks-create-new')) {
     localStorage.removeItem('tasks-create-new');
     openTaskModal({ users: state.users }, container);
-  }
-
-  // Dashboard task widget → open new-personal-list dialog
-  if (localStorage.getItem('tasks-create-new-list')) {
-    localStorage.removeItem('tasks-create-new-list');
-    openListDialog({ container });
   }
 
   // Dashboard task widget → open the specific task that was clicked

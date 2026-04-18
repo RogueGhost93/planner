@@ -382,30 +382,8 @@ function renderTasksWidget(widgetTasks, personalLists, personalItems) {
     headerCount = personalItems.filter((i) => i.list_id === activeTab && !i.done).length;
   }
 
-  const tasksHeader = `
-    <div class="widget__header">
-      <span class="widget__title">
-        <i data-lucide="check-square" class="widget__title-icon" aria-hidden="true"></i>
-        ${t('nav.tasks')}
-      </span>
-      <div class="widget__header-actions">
-        <div class="widget__add-stack">
-          <button class="widget__add-stack__tab" data-route="/tasks" data-create-flag="tasks-create-new-list"
-                  aria-label="${t('tasks.newPersonalList')}" title="${t('tasks.newPersonalList')}">
-            <i data-lucide="list-plus" style="width:10px;height:10px;pointer-events:none" aria-hidden="true"></i>
-            <span>${t('tasks.newPersonalList')}</span>
-          </button>
-          <button class="widget__add-btn" data-route="/tasks" data-create-flag="tasks-create-new"
-                  aria-label="${t('common.add')}">
-            <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-          </button>
-        </div>
-        <button data-route="/tasks" class="widget__link">${t('dashboard.allLink')}</button>
-      </div>
-    </div>`;
-
   return `<div class="widget" id="tasks-widget" data-active-tab="${activeTab}">
-    ${tasksHeader}
+    ${widgetHeader('check-square', t('nav.tasks'), headerCount, '/tasks', undefined, '/tasks', 'tasks-create-new')}
     <div class="tasks-widget__tabs-wrap">
       <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="-1" aria-label="Scroll left" hidden>
         <i data-lucide="chevron-left" style="width:14px;height:14px" aria-hidden="true"></i>
@@ -1337,6 +1315,38 @@ function wireShoppingWidgetReorder(container, lists) {
   });
 }
 
+function ensureActiveShoppingTabVisible(tabsEl, smooth = false) {
+  if (!tabsEl) return;
+  const active = tabsEl.querySelector('.shopping-widget__head-tab--active');
+  if (!active) return;
+  const pad = 12;
+  const tabLeft  = active.offsetLeft;
+  const tabRight = tabLeft + active.offsetWidth;
+  const viewLeft  = tabsEl.scrollLeft;
+  const viewRight = viewLeft + tabsEl.clientWidth;
+  let target = viewLeft;
+  if (tabLeft < viewLeft + pad) {
+    target = Math.max(0, tabLeft - pad);
+  } else if (tabRight > viewRight - pad) {
+    target = tabRight - tabsEl.clientWidth + pad;
+  } else {
+    return;
+  }
+  const maxScroll = tabsEl.scrollWidth - tabsEl.clientWidth;
+  target = Math.max(0, Math.min(maxScroll, target));
+  if (Math.abs(target - tabsEl.scrollLeft) < 1) return;
+  tabsEl.scrollTo({ left: target, behavior: smooth ? 'smooth' : 'auto' });
+}
+
+function wireShoppingWidgetLinks(widget) {
+  widget.querySelectorAll('[data-route="/lists"][data-head-id]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('lists-open-head', el.dataset.headId);
+    });
+  });
+}
+
 function wireShoppingWidget(container, data) {
   const widget = container.querySelector('#shopping-widget');
   const body = container.querySelector('#shopping-widget-body');
@@ -1358,8 +1368,7 @@ function wireShoppingWidget(container, data) {
   if (tabsEl) {
     tabsEl.addEventListener('scroll', updateArrows, { passive: true });
     requestAnimationFrame(() => {
-      const active = tabsEl.querySelector('.shopping-widget__head-tab--active');
-      if (active) active.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+      ensureActiveShoppingTabVisible(tabsEl, false);
       updateArrows();
     });
     window.addEventListener('resize', updateArrows);
@@ -1374,26 +1383,72 @@ function wireShoppingWidget(container, data) {
     });
   });
 
+  function softSwitchHead(newId) {
+    if (!widget) return;
+    _widgetActiveHeadId = newId;
+    widget.querySelectorAll('[data-action="widget-switch-head"]').forEach((b) => {
+      b.classList.toggle('shopping-widget__head-tab--active', Number(b.dataset.id) === newId);
+    });
+    const heads    = data.heads    ?? [];
+    const sublists = data.sublists ?? [];
+    const listItems = data.listItems ?? [];
+    const activeSubs = sublists.filter((s) => s.head_list_id === newId && listItems.some((i) => i.list_id === s.id));
+    const renderItem = (i) => `
+      <div class="shopping-widget__item" data-item-id="${i.id}" data-list-id="${i.list_id}">
+        <button class="shopping-widget__check" data-action="check-item" data-id="${i.id}"
+                aria-label="Mark ${esc(i.name)} as done">
+          <i data-lucide="circle" style="width:14px;height:14px" aria-hidden="true"></i>
+        </button>
+        <span class="shopping-widget__item-name">${esc(i.name)}${i.quantity
+          ? ` <span class="shopping-widget__qty">${esc(i.quantity)}</span>` : ''}</span>
+      </div>`;
+    const renderSub = (sub) => {
+      const subItems = listItems.filter((i) => i.list_id === sub.id);
+      const visible  = subItems.slice(0, SHOPPING_COLLAPSE_AT);
+      const hidden   = subItems.slice(SHOPPING_COLLAPSE_AT);
+      return `
+        <div class="shopping-widget__list" data-list-id="${sub.id}">
+          <div class="shopping-widget__list-header">
+            <i data-lucide="grip-vertical" class="shopping-widget__drag-handle" aria-hidden="true" style="width:14px;height:14px;flex-shrink:0;cursor:grab;color:var(--color-text-tertiary);touch-action:none"></i>
+            <div class="shopping-widget__list-name" data-route="/lists" data-head-id="${sub.head_list_id}" role="button" tabindex="0">
+              ${esc(sub.name)}
+              <span data-badge="${sub.id}" hidden>${sub.unchecked_count}</span>
+            </div>
+          </div>
+          <div class="shopping-widget__items">
+            ${visible.map(renderItem).join('')}
+            ${hidden.length ? `
+              <div class="shopping-widget__overflow" hidden data-overflow="${sub.id}">
+                ${hidden.map(renderItem).join('')}
+              </div>
+              <button class="shopping-widget__more" data-action="show-more" data-list-id="${sub.id}">
+                +${hidden.length} more
+              </button>` : ''}
+          </div>
+        </div>`;
+    };
+    const newBody = activeSubs.length
+      ? activeSubs.map(renderSub).join('')
+      : `<div class="widget__empty" style="padding:var(--space-4)">${t('dashboard.noShoppingItems')}</div>`;
+    if (body) {
+      body.innerHTML = newBody;
+      if (window.lucide) window.lucide.createIcons({ el: body });
+      wireShoppingWidgetReorder(container, sublists);
+    }
+    if (tabsEl) ensureActiveShoppingTabVisible(tabsEl, true);
+    wireShoppingWidgetLinks(widget);
+  }
+
   widget.querySelectorAll('[data-action="widget-switch-head"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const newId = Number(btn.dataset.id);
       if (newId === _widgetActiveHeadId) return;
-      _widgetActiveHeadId = newId;
-      const fresh = renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? []);
-      widget.outerHTML = fresh;
-      if (window.lucide) window.lucide.createIcons();
-      wireShoppingWidget(container, data);
+      softSwitchHead(newId);
     });
   });
 
-  // Clicking a sublist name navigates to /lists and opens its head
-  widget.querySelectorAll('[data-route="/lists"][data-head-id]').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      localStorage.setItem('lists-open-head', el.dataset.headId);
-    });
-  });
+  wireShoppingWidgetLinks(widget);
 
   body.addEventListener('click', async (e) => {
     // Show more toggle
