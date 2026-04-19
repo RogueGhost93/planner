@@ -8,7 +8,7 @@
  * Modul-Akzent
  * -------------------------------------------------------- */
 .dashboard {
-  --module-accent: var(--module-dashboard);
+  --module-accent: var(--color-accent);
 }
 
 /* --------------------------------------------------------
@@ -68,6 +68,43 @@
   .widget--wide {
     grid-column: span 2;
   }
+
+  /* Fixed widget height — sized for 6 calendar event rows */
+  .widget:not(#quote-widget):not(.widget--meals) {
+    height: 376px;
+  }
+
+  .widget:not(#quote-widget):not(.widget--meals) .widget__body {
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .widget:not(#quote-widget):not(.widget--meals) .widget__body::-webkit-scrollbar {
+    display: none;
+  }
+
+  #tasks-widget .widget__body,
+  #shopping-widget .widget__body {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(128, 128, 128, 0.18) transparent;
+  }
+
+  #tasks-widget .widget__body::-webkit-scrollbar,
+  #shopping-widget .widget__body::-webkit-scrollbar {
+    display: block;
+    width: 3px;
+  }
+
+  #tasks-widget .widget__body::-webkit-scrollbar-track,
+  #shopping-widget .widget__body::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  #tasks-widget .widget__body::-webkit-scrollbar-thumb,
+  #shopping-widget .widget__body::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.18);
+    border-radius: 99px;
+  }
 }
 
 @media (min-width: 1440px) {
@@ -90,10 +127,8 @@
  * Begrüßungs-Widget (canvas block — no card background)
  * -------------------------------------------------------- */
 .widget-greeting {
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
-  border-left: 3px solid var(--module-dashboard);
+  background: transparent;
+  border-top: 3px solid var(--module-accent);
   padding: var(--space-3) var(--space-4);
   color: var(--color-text-primary);
   grid-column: 1 / -1;
@@ -281,7 +316,7 @@ a.price-ticker:hover {
   font-weight: var(--font-weight-medium);
   color: var(--color-text-secondary);
   overflow: hidden;
-  border-top: 1px solid color-mix(in srgb, var(--module-dashboard) 35%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--module-accent) 35%, transparent);
   padding-top: var(--space-2);
   margin-top: var(--space-2);
 }
@@ -812,20 +847,28 @@ a.price-ticker:hover {
 /* --------------------------------------------------------
  * Tasks-Widget
  * -------------------------------------------------------- */
-#tasks-widget .widget__body,
-#shopping-widget .widget__body {
-  max-height: 320px;
-  min-height: 180px;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
-  scrollbar-width: none;
-}
-#tasks-widget .widget__body::-webkit-scrollbar,
-#shopping-widget .widget__body::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+/* On mobile, the tasks widget grows with its content so the page scrolls
+ * naturally when dragging over it. Allow horizontal pan so the widget body
+ * can act as a swipe target for switching tabs. */
+@media (max-width: 1023px) {
+  #tasks-widget .widget__body {
+    touch-action: pan-y;
+  }
+
+  #shopping-widget .widget__body {
+    max-height: 320px;
+    min-height: 180px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-width: none;
+  }
+
+  #shopping-widget .widget__body::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
 }
 
 .shopping-widget__list {
@@ -1008,7 +1051,7 @@ a.price-ticker:hover {
  * -------------------------------------------------------- */
 .weather-widget {
   position: relative;
-  background: linear-gradient(135deg, var(--color-accent) 0%, #1E5CB3 100%);
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-active) 100%);
   color: #ffffff;
 }
 

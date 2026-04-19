@@ -1091,6 +1091,62 @@ function wireTasksWidget(container, dashData, refreshWidget) {
       tabsEl.scrollBy({ left: dir * Math.max(120, tabsEl.clientWidth * 0.7), behavior: 'smooth' });
     });
   });
+
+  // Horizontal swipe on the widget body switches tabs (mobile)
+  if (bodyEl && widgetEl) {
+    const SWIPE_THRESHOLD = 50;
+    const LOCK_DELTA      = 10;
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    let locked = null; // 'h' | 'v' | null
+
+    bodyEl.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      if (e.target.closest('button, a, input, textarea, label, [contenteditable="true"]')) {
+        tracking = false; return;
+      }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = true;
+      locked = null;
+    }, { passive: true });
+
+    bodyEl.addEventListener('touchmove', (e) => {
+      if (!tracking) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (locked === null) {
+        if (Math.abs(dx) > LOCK_DELTA && Math.abs(dx) > Math.abs(dy)) locked = 'h';
+        else if (Math.abs(dy) > LOCK_DELTA) locked = 'v';
+      }
+    }, { passive: true });
+
+    bodyEl.addEventListener('touchend', (e) => {
+      if (!tracking) return;
+      tracking = false;
+      if (locked !== 'h') return;
+      const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
+      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+      const tabBtns = Array.from(widgetEl.querySelectorAll('.tasks-widget__tab'));
+      if (tabBtns.length < 2) return;
+      const activeIdx = tabBtns.findIndex((b) => b.classList.contains('tasks-widget__tab--active'));
+      if (activeIdx === -1) return;
+      const nextIdx = dx < 0
+        ? Math.min(tabBtns.length - 1, activeIdx + 1)
+        : Math.max(0, activeIdx - 1);
+      if (nextIdx === activeIdx) return;
+      const nextTab = tabBtns[nextIdx].dataset.tab;
+      if (!nextTab) return;
+      localStorage.setItem('dashboard-tasks-tab', nextTab);
+      softSwitchTab(nextTab);
+    });
+
+    bodyEl.addEventListener('touchcancel', () => {
+      tracking = false;
+      locked = null;
+    });
+  }
 }
 
 function wireGreetingLink(container) {
