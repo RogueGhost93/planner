@@ -149,7 +149,7 @@
  * Quick-Add Eingabe
  * -------------------------------------------------------- */
 .quick-add {
-  padding: var(--space-2) var(--space-4) var(--space-3);
+  padding: var(--space-1) var(--space-3) var(--space-2);
   flex-shrink: 0;
   position: relative;
 }
@@ -167,15 +167,15 @@
 
 .quick-add__input {
   width: 100%;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   padding-right: var(--space-20, 80px);
   border-radius: var(--radius-sm);
   border: 1.5px solid var(--color-border);
   background-color: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   transition: border-color var(--transition-fast);
-  min-height: 44px;
+  min-height: 38px;
 }
 
 .quick-add__input:focus {
@@ -225,14 +225,14 @@
 }
 
 @media (min-width: 1024px) {
-  .quick-add__input { font-size: var(--text-base); }
-  .quick-add__qty   { font-size: var(--text-sm); }
+  .quick-add__input { font-size: var(--text-sm); }
+  .quick-add__qty   { font-size: var(--text-xs); }
   .quick-add__cat   { font-size: var(--text-sm); }
 }
 
 .quick-add__btn {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-sm);
   background-color: var(--module-accent, var(--color-accent));
   color: #ffffff;
@@ -319,12 +319,12 @@
 .shopping-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-1);
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1);
   border-bottom: 1px solid var(--color-border-subtle);
   border-left: 3px solid var(--module-accent);
   transition: opacity var(--transition-fast);
-  min-height: 44px;
+  min-height: 36px;
 }
 
 .shopping-item:last-child { border-bottom: none; }
@@ -335,8 +335,8 @@
 
 /* Checkbox */
 .item-check {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: var(--radius-sm);
   border: 2px solid var(--color-border);
   background: none;
@@ -383,7 +383,7 @@
 }
 
 .item-name {
-  font-size: var(--text-base);
+  font-size: var(--text-sm);
   color: var(--color-text-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -415,8 +415,8 @@
 
 /* Löschen-Button */
 .item-delete {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--radius-sm);
   background: none;
   color: var(--color-text-disabled);
