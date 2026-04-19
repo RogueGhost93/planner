@@ -1574,6 +1574,61 @@ function wireShoppingWidget(container, data) {
     });
   });
 
+  // Horizontal swipe on the widget body switches heads (mobile)
+  if (body && widget) {
+    const SWIPE_THRESHOLD = 50;
+    const LOCK_DELTA      = 10;
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+    let locked = null;
+
+    body.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) { tracking = false; return; }
+      if (e.target.closest('button, a, input, textarea, label, [contenteditable="true"]')) {
+        tracking = false; return;
+      }
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = true;
+      locked = null;
+    }, { passive: true });
+
+    body.addEventListener('touchmove', (e) => {
+      if (!tracking) return;
+      const dx = e.touches[0].clientX - startX;
+      const dy = e.touches[0].clientY - startY;
+      if (locked === null) {
+        if (Math.abs(dx) > LOCK_DELTA && Math.abs(dx) > Math.abs(dy)) locked = 'h';
+        else if (Math.abs(dy) > LOCK_DELTA) locked = 'v';
+      }
+    }, { passive: true });
+
+    body.addEventListener('touchend', (e) => {
+      if (!tracking) return;
+      tracking = false;
+      if (locked !== 'h') return;
+      const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
+      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+      const headBtns = Array.from(widget.querySelectorAll('[data-action="widget-switch-head"]'));
+      if (headBtns.length < 2) return;
+      const activeIdx = headBtns.findIndex((b) => b.classList.contains('shopping-widget__head-tab--active'));
+      if (activeIdx === -1) return;
+      const nextIdx = dx < 0
+        ? Math.min(headBtns.length - 1, activeIdx + 1)
+        : Math.max(0, activeIdx - 1);
+      if (nextIdx === activeIdx) return;
+      const nextId = Number(headBtns[nextIdx].dataset.id);
+      if (!nextId) return;
+      softSwitchHead(nextId);
+    });
+
+    body.addEventListener('touchcancel', () => {
+      tracking = false;
+      locked = null;
+    });
+  }
+
   wireShoppingWidgetLinks(widget);
 
   body.addEventListener('click', async (e) => {

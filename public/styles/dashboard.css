@@ -1462,6 +1462,8 @@ a.price-ticker:hover {
   scroll-behavior: smooth;
   flex: 1;
   min-width: 0;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
 .shopping-widget__head-tabs::-webkit-scrollbar { display: none; }
