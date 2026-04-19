@@ -6,7 +6,7 @@
 
 import { api } from '/api.js';
 import { t, formatDate, formatTime, getLocale } from '/i18n.js';
-import { esc } from '/utils/html.js';
+import { esc, linkify } from '/utils/html.js';
 import { openItemEditDialog } from '/pages/tasks.js';
 import { renderPriceTickers, wirePriceTickers } from '/components/price-tickers.js';
 
@@ -270,7 +270,7 @@ function renderHouseholdTaskItems(tasks) {
           <i data-lucide="circle" style="width:16px;height:16px" aria-hidden="true"></i>
         </button>
         <div class="task-item__content">
-          <div class="task-item__title">${esc(tk.title)}</div>
+          <div class="task-item__title">${linkify(tk.title)}</div>
           ${due ? `<div class="task-item__meta ${due.overdue ? 'task-item__meta--overdue' : ''}">${due.html}</div>` : ''}
         </div>
         ${tk.assigned_color ? `
@@ -311,7 +311,7 @@ function renderPersonalListBody(list, items) {
                   data-list-id="${list.id}" data-item-id="${it.id}"
                   aria-label="Mark as done"></button>
           <div class="personal-widget-item__body">
-            <span class="personal-widget-item__title">${esc(it.title)}</span>
+            <span class="personal-widget-item__title">${linkify(it.title)}</span>
             ${meta}
           </div>
           <button class="personal-widget-item__edit"
@@ -652,9 +652,7 @@ async function wireQuickNotes(container) {
   const widget = container.querySelector('#quick-notes-widget');
   if (!widget) return;
 
-  const mode = getQNMode();
-
-  if (mode === 'public') {
+  if (getQNMode() === 'public') {
     try {
       const res = await api.get('/dashboard/quick-note');
       const editor = widget.querySelector('#quick-notes-editor');
@@ -669,7 +667,7 @@ async function wireQuickNotes(container) {
   editor.addEventListener('input', () => {
     clearTimeout(_saveTimer);
     _saveTimer = setTimeout(() => {
-      if (mode === 'private') {
+      if (getQNMode() === 'private') {
         localStorage.setItem(QN_KEY, editor.value);
       } else {
         api.put('/dashboard/quick-note', { text: editor.value }).catch(console.error);
@@ -680,24 +678,41 @@ async function wireQuickNotes(container) {
   const toggleBtn = widget.querySelector('.qn-mode-btn');
   if (toggleBtn) {
     toggleBtn.addEventListener('click', async () => {
-      const newMode = mode === 'private' ? 'public' : 'private';
+      const newMode = getQNMode() === 'private' ? 'public' : 'private';
       localStorage.setItem(QN_MODE_KEY, newMode);
+      const isPublic = newMode === 'public';
 
-      let newText = '';
-      if (newMode === 'public') {
-        try {
-          const res = await api.get('/dashboard/quick-note');
-          newText = res.data?.text ?? '';
-        } catch { }
-      } else {
-        newText = loadPrivateQNText();
+      // In-place updates — no outerHTML swap, no layout jerk
+      toggleBtn.classList.toggle('qn-mode-btn--active', isPublic);
+      toggleBtn.title = isPublic ? 'Switch to private note' : 'Switch to shared note (visible to all)';
+      const icon = toggleBtn.querySelector('[data-lucide]');
+      if (icon) {
+        icon.setAttribute('data-lucide', isPublic ? 'globe' : 'lock');
+        if (window.lucide) window.lucide.createIcons({ el: toggleBtn });
       }
 
-      const widgetEl = container.querySelector('#quick-notes-widget');
-      if (widgetEl) {
-        widgetEl.outerHTML = renderQuickNotes(newText, newMode);
-        if (window.lucide) window.lucide.createIcons();
-        wireQuickNotes(container);
+      editor.placeholder = isPublic
+        ? 'Shared note — visible to all household members…'
+        : t('dashboard.quickNotePlaceholder');
+
+      let hint = widget.querySelector('.qn-mode-hint');
+      if (isPublic && !hint) {
+        hint = document.createElement('div');
+        hint.className = 'qn-mode-hint';
+        hint.innerHTML = `<i data-lucide="globe" style="width:11px;height:11px;" aria-hidden="true"></i> Shared with all household members`;
+        widget.appendChild(hint);
+        if (window.lucide) window.lucide.createIcons({ el: hint });
+      } else if (!isPublic && hint) {
+        hint.remove();
+      }
+
+      if (isPublic) {
+        try {
+          const res = await api.get('/dashboard/quick-note');
+          editor.value = res.data?.text ?? '';
+        } catch { editor.value = ''; }
+      } else {
+        editor.value = loadPrivateQNText();
       }
     });
   }
@@ -879,7 +894,7 @@ function wireLinks(container) {
     if (el.tagName === 'A') {
       el.addEventListener('click', (e) => { e.preventDefault(); go(); });
     } else {
-      el.addEventListener('click', go);
+      el.addEventListener('click', (e) => { if (e.target.closest('a[href]')) return; go(); });
       el.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
       });

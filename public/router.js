@@ -552,15 +552,20 @@ if (window.visualViewport) {
 // --------------------------------------------------------
 function applyBackground() {
   const bg  = localStorage.getItem('planner-bg');
-  const dim = localStorage.getItem('planner-bg-dim') ?? '0.2';
+  const dim = parseFloat(localStorage.getItem('planner-bg-dim') ?? '0.2');
+
+  let layer = document.getElementById('bg-layer');
+
   if (bg) {
-    document.body.classList.add('has-bg');
-    document.body.style.setProperty('--bg-image', `url("${bg}")`);
-    document.body.style.setProperty('--bg-dim', dim);
-  } else {
-    document.body.classList.remove('has-bg');
-    document.body.style.removeProperty('--bg-image');
-    document.body.style.removeProperty('--bg-dim');
+    if (!layer) {
+      layer = document.createElement('div');
+      layer.id = 'bg-layer';
+      document.body.insertBefore(layer, document.body.firstChild);
+    }
+    layer.style.backgroundImage =
+      `linear-gradient(rgba(0,0,0,${dim}),rgba(0,0,0,${dim})),url("${bg}")`;
+  } else if (layer) {
+    layer.remove();
   }
 }
 
