@@ -9,7 +9,7 @@ import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js
 import { openModal as openSharedModal, closeModal, wireBlurValidation, btnSuccess, btnError, showConfirm, showPrompt } from '/components/modal.js';
 import { stagger, vibrate } from '/utils/ux.js';
 import { t, formatDate } from '/i18n.js';
-import { esc } from '/utils/html.js';
+import { esc, linkify } from '/utils/html.js';
 
 // --------------------------------------------------------
 // Konstanten
@@ -157,7 +157,7 @@ function renderTaskCard(task, opts = {}) {
 
         <div class="task-card__body">
           <div class="task-card__title" data-action="open-task" data-id="${task.id}">
-            ${esc(task.title)}
+            ${linkify(task.title)}
           </div>
           <div class="task-card__meta">
             ${renderPriorityBadge(task.priority)}
@@ -1223,6 +1223,7 @@ function wireTaskList(container) {
   });
 
   listEl.addEventListener('click', async (e) => {
+    if (e.target.closest('a[href]')) return;
     const target = e.target.closest('[data-action]');
     if (!target) return;
     const action = target.dataset.action;
@@ -1388,7 +1389,7 @@ function renderPersonalItemRow(item) {
       </button>
       <div class="personal-item__body" data-action="edit-personal-item"
            role="button" tabindex="0">
-        <span class="personal-item__title">${esc(item.title)}</span>
+        <span class="personal-item__title">${linkify(item.title)}</span>
         ${metaHtml}
       </div>
       <button class="personal-item__edit" data-action="edit-personal-item"
@@ -1541,6 +1542,7 @@ function wirePersonalView(container) {
 
   // Delegated clicks for items + header actions
   view.addEventListener('click', async (e) => {
+    if (e.target.closest('a[href]')) return;
     const target = e.target.closest('[data-action]');
     if (!target) return;
     const action = target.dataset.action;

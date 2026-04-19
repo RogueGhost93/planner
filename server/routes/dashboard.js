@@ -101,8 +101,9 @@ router.get('/', (req, res) => {
       SELECT n.*, u.display_name AS author_name, u.avatar_color AS author_color
       FROM notes n
       LEFT JOIN users u ON n.created_by = u.id
-      WHERE n.created_by = ? OR n.shared = 1
-      ORDER BY n.pinned DESC, n.updated_at DESC
+      WHERE (n.created_by = ? OR n.shared = 1)
+        AND n.pinned = 1
+      ORDER BY n.updated_at DESC
     `).all(req.session.userId);
   } catch (err) {
     log.error('pinnedNotes-Fehler:', err.message);

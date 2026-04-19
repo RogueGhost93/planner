@@ -34,8 +34,7 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-surface);
+  border-top: 3px solid var(--module-accent);
   overflow-x: auto;
   scrollbar-width: none;
   flex-shrink: 0;
@@ -120,7 +119,6 @@
   justify-content: space-between;
   padding: var(--space-3) var(--space-4) var(--space-2);
   flex-shrink: 0;
-  border-top: 3px solid var(--module-accent);
 }
 
 .list-header__name {
@@ -396,7 +394,7 @@
 }
 
 .item-link {
-  color: var(--module-accent, var(--color-accent));
+  color: var(--color-accent);
   text-decoration: underline;
   word-break: break-all;
 }

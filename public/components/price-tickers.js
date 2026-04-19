@@ -46,6 +46,16 @@ async function fetchPrices() {
   return res.json();
 }
 
+const PRICE_CACHE_KEY = 'planner-ticker-price-cache';
+
+function savePriceCache(data) {
+  try { localStorage.setItem(PRICE_CACHE_KEY, JSON.stringify(data)); } catch (_) {}
+}
+
+function loadPriceCache() {
+  try { return JSON.parse(localStorage.getItem(PRICE_CACHE_KEY) || 'null'); } catch (_) { return null; }
+}
+
 async function fetchWithRetry(attempts = 3) {
   for (let i = 0; i < attempts; i++) {
     try {
@@ -92,10 +102,11 @@ export function wirePriceTickers(container, signal) {
     try {
       const data = await fetchWithRetry(3);
       if (signal?.aborted) return;
+      savePriceCache(data);
       applyPrices(tickerContainer, data);
     } catch (err) {
-      console.warn('[PriceTickers] fetch failed:', err.message);
-      if (!signal?.aborted) applyPrices(tickerContainer, {});
+      console.warn('[PriceTickers] fetch failed, using cached price:', err.message);
+      if (!signal?.aborted) applyPrices(tickerContainer, loadPriceCache() ?? {});
     }
   }
 
