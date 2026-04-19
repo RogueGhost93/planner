@@ -832,8 +832,10 @@ function showEventPopup(ev, anchor) {
 
   // Use capture phase so this fires BEFORE calendar day-click handlers,
   // and stopPropagation prevents the calendar from opening a create-modal.
+  // Skip clicks inside confirm/prompt dialogs so their OK button fires normally.
   function closeOnOutsideClick(e) {
     if (popup.contains(e.target)) return;
+    if (e.target.closest('#dialog-confirm-overlay, #dialog-prompt-overlay')) return;
     e.stopPropagation();
     removePopup();
     // If we stopped propagation, popstate state is now stale — clean it up
@@ -1069,13 +1071,18 @@ async function saveEvent(overlay, mode, eventId) {
     };
 
     if (mode === 'create') {
-      const res = await api.post('/calendar', body);
-      state.events.push(res.data);
+      await api.post('/calendar', body);
     } else {
-      const res = await api.put(`/calendar/${eventId}`, body);
-      const idx = state.events.findIndex((e) => e.id === eventId);
-      if (idx !== -1) state.events[idx] = res.data;
+      await api.put(`/calendar/${eventId}`, body);
     }
+
+    // Always reload from DB after a mutation so the view is guaranteed to be in sync.
+    let from, to;
+    if (state.view === 'month')       ({ from, to } = getMonthRange(state.cursor));
+    else if (state.view === 'week')   ({ from, to } = getWeekRange(state.cursor));
+    else if (state.view === 'day')    { from = state.cursor; to = state.cursor; }
+    else                              ({ from, to } = getAgendaRange(state.cursor));
+    await loadRange(from, to);
 
     closeModal();
     renderView();
