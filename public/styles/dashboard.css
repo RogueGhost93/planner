@@ -1781,3 +1781,43 @@ a.price-ticker:hover {
   color: var(--color-warning);
   font-weight: var(--font-weight-semibold);
 }
+
+/* --------------------------------------------------------
+ * Widget item delete button (X) — visible on hover of parent row/card
+ * -------------------------------------------------------- */
+.widget-delete-btn {
+  flex-shrink: 0;
+  align-self: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  padding: 2px;
+  margin-left: auto;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast), color var(--transition-fast),
+              background-color var(--transition-fast);
+}
+
+.task-item:hover > .widget-delete-btn,
+.event-item:hover > .widget-delete-btn,
+.personal-widget-item:hover > .widget-delete-btn,
+.shopping-widget__item:hover > .widget-delete-btn,
+.shopping-widget__list:hover > .shopping-widget__list-header > .widget-delete-btn,
+.widget-delete-btn:focus-visible {
+  opacity: 1;
+}
+
+.widget-delete-btn:hover {
+  color: var(--color-danger);
+  background: var(--color-glass);
+}
+
+/* Touch devices have no hover — keep the X visible (dimmed) so delete stays reachable */
+@media (hover: none) {
+  .widget-delete-btn { opacity: 0.55; }
+}

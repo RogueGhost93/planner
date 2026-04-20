@@ -232,6 +232,7 @@
     "newListButton": "Create new list",
     "renameListPrompt": "New list name:",
     "deleteListConfirm": "Delete list \"{{name}}\" and all items?",
+    "deleteItemConfirm": "Delete this item?",
     "deletedListToast": "List deleted.",
     "itemsRemovedToast": "{{count}} items removed.",
     "clearChecked": "Remove checked ({{count}})",

@@ -9,6 +9,14 @@ import { t, formatDate, formatTime, getLocale } from '/i18n.js';
 import { esc, linkify } from '/utils/html.js';
 import { openItemEditDialog } from '/pages/tasks.js';
 import { renderPriceTickers, wirePriceTickers } from '/components/price-tickers.js';
+import { showConfirm } from '/components/modal.js';
+
+function deleteBtnHtml(action, dataAttrs = '', label = 'Delete') {
+  return `<button class="widget-delete-btn" data-action="${action}" ${dataAttrs}
+            aria-label="${label}" title="${label}">
+    <i data-lucide="x" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+  </button>`;
+}
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
@@ -276,6 +284,7 @@ function renderHouseholdTaskItems(tasks) {
         ${tk.assigned_color ? `
           <div class="task-item__avatar" style="background-color:${esc(tk.assigned_color)}"
                title="${esc(tk.assigned_name)}">${esc(initials(tk.assigned_name || ''))}</div>` : ''}
+        ${deleteBtnHtml('delete-task', `data-id="${tk.id}"`, t('common.delete'))}
       </div>
     `;
   }).join('');
@@ -321,6 +330,7 @@ function renderPersonalListBody(list, items) {
                   title="${t('tasks.editPersonalItemTitle') ?? 'Edit'}">
             <i data-lucide="pencil" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
           </button>
+          ${deleteBtnHtml('delete-personal-widget-item', `data-list-id="${list.id}" data-item-id="${it.id}"`, t('common.delete'))}
         </div>`;
       }).join('')
     : `<div class="widget__empty" style="padding:var(--space-4)">
@@ -430,6 +440,7 @@ function renderUpcomingEvents(events) {
             ${e.location ? ` · ${esc(e.location)}` : ''}
           </div>
         </div>
+        ${deleteBtnHtml('delete-event', `data-id="${e.id}" data-title="${esc(e.title)}"`, t('common.delete'))}
       </div>
     `;
   }).join('');
@@ -524,6 +535,7 @@ function renderShoppingWidget(heads, sublists, allItems) {
         </button>
         <span class="shopping-widget__item-name">${esc(i.name)}${i.quantity
           ? ` <span class="shopping-widget__qty">${esc(i.quantity)}</span>` : ''}</span>
+        ${deleteBtnHtml('delete-shopping-item', `data-id="${i.id}"`, t('common.delete'))}
       </div>`;
 
     return `
@@ -534,6 +546,7 @@ function renderShoppingWidget(heads, sublists, allItems) {
             ${esc(sub.name)}
             <span data-badge="${sub.id}" hidden>${sub.unchecked_count}</span>
           </div>
+          ${deleteBtnHtml('delete-shopping-sublist', `data-id="${sub.id}" data-name="${esc(sub.name)}"`, t('common.delete'))}
         </div>
         <div class="shopping-widget__items">
           ${visible.map(renderItem).join('')}
@@ -610,16 +623,15 @@ function renderWeatherWidget(weather) {
 }
 
 // --------------------------------------------------------
-// Quick Notes Widget (private = localStorage, public = server-synced)
+// Quick Notes Widget (both modes server-synced; private is per-user)
 // --------------------------------------------------------
 
-const QN_KEY      = 'planner-quick-note-text';
-const QN_MODE_KEY = 'planner-quick-note-mode';
+const QN_MODE_KEY   = 'planner-quick-note-mode';
+const QN_LEGACY_KEY = 'planner-quick-note-text';
 
-function getQNMode()        { return localStorage.getItem(QN_MODE_KEY) === 'public' ? 'public' : 'private'; }
-function loadPrivateQNText() { return localStorage.getItem(QN_KEY) ?? ''; }
+function getQNMode() { return localStorage.getItem(QN_MODE_KEY) === 'public' ? 'public' : 'private'; }
 
-function renderQuickNotes(text = '', mode = 'private') {
+function renderQuickNotes(mode = 'private') {
   const isPublic = mode === 'public';
   return `
     <div class="widget" id="quick-notes-widget">
@@ -638,7 +650,7 @@ function renderQuickNotes(text = '', mode = 'private') {
       <div class="quick-notes__editor-wrap">
         <textarea class="quick-notes__editor" id="quick-notes-editor"
                   placeholder="${isPublic ? 'Shared note — visible to all household members…' : t('dashboard.quickNotePlaceholder')}"
-                  spellcheck="true">${esc(text)}</textarea>
+                  spellcheck="true"></textarea>
       </div>
       ${isPublic ? `<div class="qn-mode-hint">
         <i data-lucide="globe" style="width:11px;height:11px;" aria-hidden="true"></i>
@@ -648,30 +660,38 @@ function renderQuickNotes(text = '', mode = 'private') {
   `;
 }
 
+async function fetchQuickNote(mode) {
+  try {
+    const res = await api.get(`/dashboard/quick-note?scope=${mode}`);
+    return res.data?.text ?? '';
+  } catch { return ''; }
+}
+
 async function wireQuickNotes(container) {
   const widget = container.querySelector('#quick-notes-widget');
   if (!widget) return;
-
-  if (getQNMode() === 'public') {
-    try {
-      const res = await api.get('/dashboard/quick-note');
-      const editor = widget.querySelector('#quick-notes-editor');
-      if (editor) editor.value = res.data?.text ?? '';
-    } catch { /* silently keep empty */ }
-  }
-
   const editor = widget.querySelector('#quick-notes-editor');
   if (!editor) return;
+
+  const mode = getQNMode();
+  let text = await fetchQuickNote(mode);
+
+  // One-shot migration: upload any leftover browser-local private note so
+  // users upgrading from the localStorage-only version don't lose content.
+  const legacy = localStorage.getItem(QN_LEGACY_KEY);
+  if (mode === 'private' && !text && legacy) {
+    await api.put('/dashboard/quick-note?scope=private', { text: legacy }).catch(() => {});
+    text = legacy;
+  }
+  if (legacy != null) localStorage.removeItem(QN_LEGACY_KEY);
+  editor.value = text;
 
   let _saveTimer = null;
   editor.addEventListener('input', () => {
     clearTimeout(_saveTimer);
+    const scope = getQNMode();
     _saveTimer = setTimeout(() => {
-      if (getQNMode() === 'private') {
-        localStorage.setItem(QN_KEY, editor.value);
-      } else {
-        api.put('/dashboard/quick-note', { text: editor.value }).catch(console.error);
-      }
+      api.put(`/dashboard/quick-note?scope=${scope}`, { text: editor.value }).catch(console.error);
     }, 400);
   });
 
@@ -706,14 +726,7 @@ async function wireQuickNotes(container) {
         hint.remove();
       }
 
-      if (isPublic) {
-        try {
-          const res = await api.get('/dashboard/quick-note');
-          editor.value = res.data?.text ?? '';
-        } catch { editor.value = ''; }
-      } else {
-        editor.value = loadPrivateQNText();
-      }
+      editor.value = await fetchQuickNote(newMode);
     });
   }
 }
@@ -915,6 +928,49 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
         await api.patch(`/tasks/${id}/status`, { status: 'done' });
       } catch {
         window.planner?.showToast('Could not update task', 'danger');
+      }
+    });
+  });
+
+  // Household task delete
+  root.querySelectorAll('[data-action="delete-task"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!await showConfirm(t('tasks.deleteConfirm'), { danger: true })) return;
+      const id = Number(btn.dataset.id);
+      const itemEl = btn.closest('.task-item');
+      itemEl.classList.add('task-widget-item--checking');
+      setTimeout(() => itemEl.remove(), 250);
+      try {
+        await api.delete(`/tasks/${id}`);
+        if (Array.isArray(dashData.widgetTasks)) {
+          dashData.widgetTasks = dashData.widgetTasks.filter((tk) => tk.id !== id);
+        }
+      } catch {
+        window.planner?.showToast('Could not delete task', 'danger');
+        refreshWidget();
+      }
+    });
+  });
+
+  // Personal item delete
+  root.querySelectorAll('[data-action="delete-personal-widget-item"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const ok = await showConfirm(t('tasks.deleteItemConfirm') ?? 'Delete this item?',
+        { danger: true });
+      if (!ok) return;
+      const listId = Number(btn.dataset.listId);
+      const itemId = Number(btn.dataset.itemId);
+      const itemEl = btn.closest('.personal-widget-item');
+      itemEl.classList.add('personal-widget-item--checking');
+      setTimeout(() => itemEl.remove(), 250);
+      try {
+        await api.delete(`/personal-lists/${listId}/items/${itemId}`);
+        dashData.personalItems = (dashData.personalItems || []).filter((i) => i.id !== itemId);
+      } catch {
+        window.planner?.showToast('Could not delete item', 'danger');
+        refreshWidget();
       }
     });
   });
@@ -1149,6 +1205,28 @@ function wireTasksWidget(container, dashData, refreshWidget) {
   }
 }
 
+function wireEventsWidget(container, data) {
+  const widget = container.querySelector('#events-widget');
+  if (!widget) return;
+  widget.querySelectorAll('[data-action="delete-event"]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const title = btn.dataset.title || '';
+      if (!await showConfirm(t('calendar.deleteConfirm', { title }), { danger: true })) return;
+      const id = Number(btn.dataset.id);
+      const itemEl = btn.closest('.event-item');
+      itemEl.classList.add('task-widget-item--checking');
+      setTimeout(() => itemEl.remove(), 250);
+      try {
+        await api.delete(`/calendar/${id}`);
+        data.upcomingEvents = (data.upcomingEvents ?? []).filter((ev) => ev.id !== id);
+      } catch (err) {
+        window.planner?.showToast(err?.data?.error ?? 'Could not delete event', 'danger');
+      }
+    });
+  });
+}
+
 function wireGreetingLink(container) {
   const btn = container.querySelector('.greeting-home-btn[data-quick-link]');
   if (!btn) return;
@@ -1270,7 +1348,7 @@ export async function render(container, { user }) {
         ${renderTasksWidget(widgetTasks, data.personalLists ?? [], data.personalItems ?? [])}
         ${renderUpcomingEvents(data.upcomingEvents ?? [])}
         ${renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? [])}
-        ${renderQuickNotes(getQNMode() === 'private' ? loadPrivateQNText() : '', getQNMode())}
+        ${renderQuickNotes(getQNMode())}
         ${renderBoardNotes(data.pinnedNotes ?? [])}
       </div>
     </div>
@@ -1295,6 +1373,7 @@ export async function render(container, { user }) {
   }
   wireTasksWidget(container, data, refreshTasksWidget);
   wireShoppingWidget(container, data);
+  wireEventsWidget(container, data);
   wireQuickNotes(container);
   if (window.lucide) window.lucide.createIcons();
 
@@ -1527,6 +1606,7 @@ function wireShoppingWidget(container, data) {
         </button>
         <span class="shopping-widget__item-name">${esc(i.name)}${i.quantity
           ? ` <span class="shopping-widget__qty">${esc(i.quantity)}</span>` : ''}</span>
+        ${deleteBtnHtml('delete-shopping-item', `data-id="${i.id}"`, t('common.delete'))}
       </div>`;
     const renderSub = (sub) => {
       const subItems = listItems.filter((i) => i.list_id === sub.id);
@@ -1540,6 +1620,7 @@ function wireShoppingWidget(container, data) {
               ${esc(sub.name)}
               <span data-badge="${sub.id}" hidden>${sub.unchecked_count}</span>
             </div>
+            ${deleteBtnHtml('delete-shopping-sublist', `data-id="${sub.id}" data-name="${esc(sub.name)}"`, t('common.delete'))}
           </div>
           <div class="shopping-widget__items">
             ${visible.map(renderItem).join('')}
@@ -1642,6 +1723,65 @@ function wireShoppingWidget(container, data) {
         overflow.hidden = false;
         moreBtn.remove();
         if (window.lucide) window.lucide.createIcons({ el: overflow });
+      }
+      return;
+    }
+
+    // Delete shopping item
+    const deleteItemBtn = e.target.closest('[data-action="delete-shopping-item"]');
+    if (deleteItemBtn) {
+      e.stopPropagation();
+      const ok = await showConfirm(t('shopping.deleteItemConfirm'), { danger: true });
+      if (!ok) return;
+      const id      = Number(deleteItemBtn.dataset.id);
+      const itemEl  = deleteItemBtn.closest('.shopping-widget__item');
+      const listEl  = deleteItemBtn.closest('.shopping-widget__list');
+      const listId  = Number(listEl?.dataset.listId);
+      const badge   = body.querySelector(`[data-badge="${listId}"]`);
+
+      itemEl.classList.add('shopping-widget__item--checking');
+      setTimeout(() => itemEl.remove(), 250);
+
+      if (badge) {
+        const cur = parseInt(badge.textContent, 10) - 1;
+        if (cur <= 0) {
+          listEl.remove();
+        } else {
+          badge.textContent = cur;
+        }
+      }
+
+      const totalBadge = container.querySelector('#shopping-widget .widget__badge');
+      if (totalBadge) {
+        const total = parseInt(totalBadge.textContent, 10) - 1;
+        totalBadge.textContent = total > 0 ? total : 0;
+      }
+
+      data.listItems = (data.listItems ?? []).filter((i) => i.id !== id);
+      try {
+        await api.delete(`/lists/items/${id}`);
+      } catch {
+        window.planner?.showToast('Could not delete item', 'danger');
+      }
+      return;
+    }
+
+    // Delete shopping sublist (entire sub-list card)
+    const deleteSubBtn = e.target.closest('[data-action="delete-shopping-sublist"]');
+    if (deleteSubBtn) {
+      e.stopPropagation();
+      const id    = Number(deleteSubBtn.dataset.id);
+      const name  = deleteSubBtn.dataset.name || '';
+      const ok = await showConfirm(t('shopping.deleteListConfirm', { name }), { danger: true });
+      if (!ok) return;
+      const listEl = deleteSubBtn.closest('.shopping-widget__list');
+      listEl?.remove();
+      data.sublists = (data.sublists ?? []).filter((s) => s.id !== id);
+      data.listItems = (data.listItems ?? []).filter((i) => i.list_id !== id);
+      try {
+        await api.delete(`/lists/${id}`);
+      } catch {
+        window.planner?.showToast('Could not delete list', 'danger');
       }
       return;
     }

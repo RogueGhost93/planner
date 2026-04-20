@@ -638,6 +638,18 @@ const MIGRATIONS = [
     description: 'Add shared column to notes (1=visible to all, 0=private/creator-only)',
     up: `ALTER TABLE notes ADD COLUMN shared INTEGER NOT NULL DEFAULT 1;`,
   },
+  {
+    version: 20,
+    description: 'Per-user key/value settings (private quick note etc.)',
+    up: `
+      CREATE TABLE user_settings (
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        key     TEXT    NOT NULL,
+        value   TEXT    NOT NULL,
+        PRIMARY KEY (user_id, key)
+      );
+    `,
+  },
 ];
 
 /**
