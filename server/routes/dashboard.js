@@ -199,15 +199,25 @@ router.get('/', (req, res) => {
 });
 
 /**
- * GET /api/v1/dashboard/quick-note
- * Returns the shared (public) quick note text.
+ * GET /api/v1/dashboard/quick-note?scope=public|private
+ * Returns the shared (public) quick note, or the caller's private note.
  */
 router.get('/quick-note', (req, res) => {
   try {
-    const row = db.get()
-      .prepare("SELECT value FROM app_settings WHERE key = 'quick_note_public'")
-      .get();
-    res.json({ data: { text: row?.value ?? '' } });
+    const scope = req.query.scope === 'private' ? 'private' : 'public';
+    let text = '';
+    if (scope === 'public') {
+      const row = db.get()
+        .prepare("SELECT value FROM app_settings WHERE key = 'quick_note_public'")
+        .get();
+      text = row?.value ?? '';
+    } else {
+      const row = db.get()
+        .prepare("SELECT value FROM user_settings WHERE user_id = ? AND key = 'quick_note'")
+        .get(req.session.userId);
+      text = row?.value ?? '';
+    }
+    res.json({ data: { text } });
   } catch (err) {
     log.error('quick-note GET:', err.message);
     res.status(500).json({ error: 'Server error.', code: 500 });
@@ -215,17 +225,25 @@ router.get('/quick-note', (req, res) => {
 });
 
 /**
- * PUT /api/v1/dashboard/quick-note
- * Saves the shared (public) quick note text.
+ * PUT /api/v1/dashboard/quick-note?scope=public|private
+ * Saves the shared (public) quick note, or the caller's private note.
  * Body: { text }
  */
 router.put('/quick-note', (req, res) => {
   try {
+    const scope = req.query.scope === 'private' ? 'private' : 'public';
     const text = String(req.body.text ?? '').slice(0, 10000);
-    db.get().prepare(`
-      INSERT INTO app_settings (key, value) VALUES ('quick_note_public', ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(text);
+    if (scope === 'public') {
+      db.get().prepare(`
+        INSERT INTO app_settings (key, value) VALUES ('quick_note_public', ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+      `).run(text);
+    } else {
+      db.get().prepare(`
+        INSERT INTO user_settings (user_id, key, value) VALUES (?, 'quick_note', ?)
+        ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+      `).run(req.session.userId, text);
+    }
     res.json({ ok: true });
   } catch (err) {
     log.error('quick-note PUT:', err.message);
