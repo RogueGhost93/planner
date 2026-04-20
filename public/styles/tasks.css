@@ -1323,6 +1323,13 @@
 }
 
 /* --------------------------------------------------------
+ * Personal list — task-card override (use list color for accent)
+ * -------------------------------------------------------- */
+.personal-list .task-card {
+  border-left-color: var(--list-color, var(--module-tasks));
+}
+
+/* --------------------------------------------------------
  * Personal-Item meta (priority dot + due date) on tasks page
  * -------------------------------------------------------- */
 .personal-item__body {
