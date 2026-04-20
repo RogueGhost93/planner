@@ -68,19 +68,21 @@ function formatDueDate(dateStr) {
   return { label: formatDate(due), cls: '' };
 }
 
-// Sort tasks like personal lists do: pending first (urgent → soonest due),
-// then by due date / id. Done items are listed separately after.
+const PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
+
+// Urgent always first (overrides date). Everything else sorted by due date,
+// with priority as tiebreaker for same date (or both undated).
 function sortTasksForList(tasks) {
-  const today = new Date().setHours(0, 0, 0, 0);
   return tasks.slice().sort((a, b) => {
-    if ((a.priority === 'urgent') !== (b.priority === 'urgent')) {
-      return a.priority === 'urgent' ? -1 : 1;
-    }
+    const aUrgent = a.priority === 'urgent';
+    const bUrgent = b.priority === 'urgent';
+    if (aUrgent !== bUrgent) return aUrgent ? -1 : 1;
     const ad = a.due_date ? new Date(a.due_date).setHours(0, 0, 0, 0) : Infinity;
     const bd = b.due_date ? new Date(b.due_date).setHours(0, 0, 0, 0) : Infinity;
     if (ad !== bd) return ad - bd;
-    // Stable-ish: overdue ahead of future when same date is impossible here, so fall back to id
-    if (ad === today && bd === today) return 0;
+    const ap = PRIORITY_RANK[a.priority] ?? 4;
+    const bp = PRIORITY_RANK[b.priority] ?? 4;
+    if (ap !== bp) return ap - bp;
     return a.id - b.id;
   });
 }
@@ -400,18 +402,19 @@ function renderModalContent({ task = null, users = [] } = {}) {
 // --------------------------------------------------------
 
 let state = {
-  tasks:         [],
-  users:         [],
-  filters:       { status: '', priority: '', assigned_to: '' },
-  viewMode:      localStorage.getItem('tasks-view') || 'list',  // 'list' | 'kanban'
-  expandedTasks: new Set(),
-  dragTaskId:    null,
-  selectMode:    false,
-  selectedIds:   new Set(),
-  // Personal lists (solo todos, scoped to current user)
-  taskLists:     [],            // [{ id, name, color, pending_count, total_count }]
-  activeTab:     'household',   // 'household' | <list_id:number>
-  personalItems: [],            // items for the currently active personal list
+  tasks:            [],
+  users:            [],
+  filters:          { status: '', priority: '', assigned_to: '' },
+  viewMode:         localStorage.getItem('tasks-view') || 'list',
+  expandedTasks:    new Set(),
+  dragTaskId:       null,
+  selectMode:       false,
+  selectedIds:      new Set(),
+  taskLists:        [],
+  activeTab:        'household',
+  personalItems:    [],
+  personalViewMode: localStorage.getItem('personal-view') || 'list',
+  personalFilters:  { status: '', priority: '' },
 };
 
 // Preset palette for personal-list color picker (8 swatches)
@@ -1366,68 +1369,266 @@ function formatPersonalDueDate(iso) {
 function renderPersonalItemRow(item) {
   const isUrgent = item.priority === 'urgent';
   const due = formatPersonalDueDate(item.due_date);
-  const hasMeta = isUrgent || due;
-  const metaHtml = hasMeta ? `
-    <div class="personal-item__meta">
-      ${isUrgent ? `<span class="personal-item__priority" title="${t('tasks.priorityUrgent')}">
-                      <span class="priority-dot priority-dot--urgent" aria-hidden="true"></span>
-                      ${t('tasks.priorityUrgent')}
-                    </span>` : ''}
-      ${due ? `<span class="personal-item__due ${due.cls}">
-                 <i data-lucide="calendar" style="width:11px;height:11px" aria-hidden="true"></i>
-                 ${esc(due.label)}
-               </span>` : ''}
-    </div>` : '';
-
   return `
-    <div class="personal-item ${item.done ? 'personal-item--done' : ''} ${isUrgent && !item.done ? 'personal-item--urgent' : ''}"
-         data-item-id="${item.id}">
-      <button class="personal-item__check ${item.done ? 'personal-item__check--checked' : ''}"
-              data-action="toggle-personal-item"
-              aria-label="${item.done ? 'Mark as not done' : 'Mark as done'}">
-        ${item.done ? '<i data-lucide="check" style="width:12px;height:12px;color:#fff;pointer-events:none" aria-hidden="true"></i>' : ''}
-      </button>
-      <div class="personal-item__body" data-action="edit-personal-item"
-           role="button" tabindex="0">
-        <span class="personal-item__title">${linkify(item.title)}</span>
-        ${metaHtml}
+    <div class="task-card ${item.done ? 'task-card--done' : ''}" data-item-id="${item.id}">
+      <div class="task-card__main">
+        <button class="task-status-btn task-status-btn--${item.done ? 'done' : 'open'}"
+                data-action="toggle-personal-item"
+                aria-label="${item.done ? 'Mark as not done' : 'Mark as done'}">
+          <i data-lucide="check" class="task-status-btn__check" aria-hidden="true"></i>
+        </button>
+        <div class="task-card__body">
+          <div class="task-card__title" data-action="edit-personal-item">
+            ${linkify(item.title)}
+          </div>
+          <div class="task-card__meta">
+            ${isUrgent ? renderPriorityBadge('urgent') : ''}
+            ${due ? `<span class="due-date ${due.cls}">
+              <i data-lucide="clock" style="width:11px;height:11px" aria-hidden="true"></i> ${esc(due.label)}
+            </span>` : ''}
+          </div>
+        </div>
+        <button class="btn btn--ghost btn--icon" data-action="edit-personal-item"
+                aria-label="${t('tasks.editPersonalItemTitle') ?? 'Edit'}"
+                style="min-height:unset;width:36px;height:36px">
+          <i data-lucide="pencil" style="width:16px;height:16px" aria-hidden="true"></i>
+        </button>
+        <button class="btn btn--ghost btn--icon" data-action="delete-personal-item"
+                aria-label="Delete"
+                style="min-height:unset;width:36px;height:36px;color:var(--color-text-secondary)">
+          <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
+        </button>
       </div>
-      <button class="personal-item__edit" data-action="edit-personal-item"
-              aria-label="${t('tasks.editPersonalItemTitle') ?? 'Edit'}"
-              title="${t('tasks.editPersonalItemTitle') ?? 'Edit'}">
-        <i data-lucide="pencil" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-      </button>
-      <button class="personal-item__delete" data-action="delete-personal-item"
-              aria-label="Delete">
-        <i data-lucide="x" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-      </button>
     </div>`;
 }
 
 function renderPersonalItems() {
-  const pending = state.personalItems.filter((i) => !i.done);
-  const done    = state.personalItems.filter((i) =>  i.done);
+  const filtered = getFilteredPersonalItems();
 
-  if (!pending.length && !done.length) {
+  if (!filtered.length) {
     return `<div class="personal-list__empty">${t('tasks.personalListEmpty')}</div>`;
   }
 
-  let html = `<div class="personal-list__items">${pending.map(renderPersonalItemRow).join('')}</div>`;
+  if (state.personalFilters.status === 'open') {
+    return `<div class="task-group">${sortTasksForList(filtered).map(renderPersonalItemRow).join('')}</div>`;
+  }
+  if (state.personalFilters.status === 'done') {
+    return `<div class="task-group">${sortTasksForList(filtered).map(renderPersonalItemRow).join('')}</div>`;
+  }
 
+  const pending = sortTasksForList(filtered.filter((i) => !i.done));
+  const done    = sortTasksForList(filtered.filter((i) =>  i.done));
+  let html = '';
+
+  if (pending.length) {
+    html += `<div class="task-group">${pending.map(renderPersonalItemRow).join('')}</div>`;
+  }
   if (done.length) {
     html += `
-      <div class="personal-list__divider">
-        <span>${t('tasks.personalListDoneSection')} (${done.length})</span>
-        <button class="btn btn--ghost personal-list__clear-btn" data-action="clear-done-items">
-          <i data-lucide="trash-2" style="width:14px;height:14px" aria-hidden="true"></i>
-          ${t('tasks.personalListClearDone')}
-        </button>
-      </div>
-      <div class="personal-list__items personal-list__items--done">
+      <div class="task-group task-group--done">
+        <div class="task-group__divider">
+          <span>${t('tasks.personalListDoneSection')} (${done.length})</span>
+          <button class="btn btn--ghost personal-list__clear-btn" data-action="clear-done-items">
+            <i data-lucide="trash-2" style="width:14px;height:14px" aria-hidden="true"></i>
+            ${t('tasks.personalListClearDone')}
+          </button>
+        </div>
         ${done.map(renderPersonalItemRow).join('')}
       </div>`;
   }
   return html;
+}
+
+// --------------------------------------------------------
+// Personal List — filters + kanban
+// --------------------------------------------------------
+
+function getFilteredPersonalItems() {
+  let items = state.personalItems;
+  if (state.personalFilters.status === 'open') items = items.filter((i) => !i.done);
+  else if (state.personalFilters.status === 'done') items = items.filter((i) =>  i.done);
+  if (state.personalFilters.priority === 'urgent') items = items.filter((i) => i.priority === 'urgent');
+  return items;
+}
+
+function renderPersonalFilters(container) {
+  const bar = container.querySelector('#personal-filter-bar');
+  if (!bar) return;
+
+  const chips = [];
+  const statusLabels   = STATUS_LABELS();
+  const priorityLabels = PRIORITY_LABELS();
+
+  if (state.personalFilters.status) {
+    chips.push(`<span class="filter-chip filter-chip--active" data-personal-filter="status">
+      ${statusLabels[state.personalFilters.status]}
+      <span class="filter-chip__remove" aria-hidden="true">×</span>
+    </span>`);
+  }
+  if (state.personalFilters.priority) {
+    chips.push(`<span class="filter-chip filter-chip--active" data-personal-filter="priority">
+      ${priorityLabels[state.personalFilters.priority]}
+      <span class="filter-chip__remove" aria-hidden="true">×</span>
+    </span>`);
+  }
+  if (!state.personalFilters.status) {
+    STATUSES().forEach((s) => {
+      chips.push(`<span class="filter-chip" data-personal-filter="status" data-value="${s.value}">${s.label}</span>`);
+    });
+  }
+  if (!state.personalFilters.priority) {
+    ['urgent', 'high', 'medium', 'low'].forEach((p) => {
+      chips.push(`<span class="filter-chip" data-personal-filter="priority" data-value="${p}">${priorityLabels[p]}</span>`);
+    });
+  }
+
+  bar.innerHTML = chips.join('');
+  wirePersonalFilterChips(container);
+}
+
+function wirePersonalFilterChips(container) {
+  container.querySelectorAll('[data-personal-filter]').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      const filter = chip.dataset.personalFilter;
+      if (chip.classList.contains('filter-chip--active')) {
+        state.personalFilters[filter] = '';
+      } else {
+        state.personalFilters[filter] = chip.dataset.value;
+      }
+      renderPersonalFilters(container);
+      refreshPersonalItems(container);
+    });
+  });
+}
+
+function renderPersonalKanbanCard(item) {
+  const due  = formatPersonalDueDate(item.due_date);
+  const icon = item.done ? 'check-circle' : 'circle';
+  return `
+    <div class="kanban-card ${item.done ? 'kanban-card--done' : ''}"
+         data-item-id="${item.id}" draggable="true">
+      <div class="kanban-card__header">
+        <div class="kanban-card__title">${esc(item.title)}</div>
+        <button class="kanban-card__status-btn" data-action="toggle-personal-item"
+                aria-label="Toggle status">
+          <i data-lucide="${icon}" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+        </button>
+      </div>
+      <div class="kanban-card__meta">
+        ${renderPriorityBadge(item.priority ?? 'none')}
+        ${due ? `<span class="due-date ${due.cls}">
+          <i data-lucide="clock" style="width:10px;height:10px" aria-hidden="true"></i> ${esc(due.label)}
+        </span>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderPersonalKanban(container) {
+  const wrap = container.querySelector('#personal-items-container');
+  if (!wrap) return;
+
+  const filtered = getFilteredPersonalItems();
+  const open = sortTasksForList(filtered.filter((i) => !i.done));
+  const done = sortTasksForList(filtered.filter((i) =>  i.done));
+
+  wrap.innerHTML = `
+    <div class="kanban-board">
+      <div class="kanban-col" data-status="open">
+        <div class="kanban-col__header">
+          <span class="kanban-col__title" style="color:var(--color-text-secondary)">
+            ${t('tasks.kanbanOpen')}
+          </span>
+          <span class="kanban-col__count">${open.length}</span>
+        </div>
+        <div class="kanban-col__body" data-personal-drop="open">
+          ${open.map(renderPersonalKanbanCard).join('')}
+          <div class="kanban-drop-placeholder" hidden></div>
+        </div>
+      </div>
+      <div class="kanban-col" data-status="done">
+        <div class="kanban-col__header">
+          <span class="kanban-col__title" style="color:var(--color-success)">
+            ${t('tasks.kanbanDone')}
+          </span>
+          <span class="kanban-col__count">${done.length}</span>
+        </div>
+        <div class="kanban-col__body" data-personal-drop="done">
+          ${done.map(renderPersonalKanbanCard).join('')}
+          <div class="kanban-drop-placeholder" hidden></div>
+        </div>
+      </div>
+    </div>`;
+
+  if (window.lucide) window.lucide.createIcons();
+  wirePersonalKanbanDrag(container);
+}
+
+let _personalDragItemId = null;
+
+function wirePersonalKanbanDrag(container) {
+  const wrap = container.querySelector('#personal-items-container');
+  if (!wrap) return;
+  const board = wrap.querySelector('.kanban-board');
+  if (!board) return;
+
+  board.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('.kanban-card[data-item-id]');
+    if (!card) return;
+    _personalDragItemId = parseInt(card.dataset.itemId, 10);
+    card.classList.add('kanban-card--dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+
+  board.addEventListener('dragend', (e) => {
+    const card = e.target.closest('.kanban-card[data-item-id]');
+    if (card) card.classList.remove('kanban-card--dragging');
+    board.querySelectorAll('.kanban-col__body--over').forEach((el) =>
+      el.classList.remove('kanban-col__body--over')
+    );
+    _personalDragItemId = null;
+  });
+
+  board.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const zone = e.target.closest('[data-personal-drop]');
+    if (!zone) return;
+    board.querySelectorAll('.kanban-col__body--over').forEach((el) =>
+      el.classList.remove('kanban-col__body--over')
+    );
+    zone.classList.add('kanban-col__body--over');
+  });
+
+  board.addEventListener('dragleave', (e) => {
+    const zone = e.target.closest('[data-personal-drop]');
+    if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('kanban-col__body--over');
+  });
+
+  board.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const zone = e.target.closest('[data-personal-drop]');
+    if (!zone || !_personalDragItemId) return;
+    zone.classList.remove('kanban-col__body--over');
+
+    const newDone = zone.dataset.personalDrop === 'done';
+    const itemId  = _personalDragItemId;
+    const item    = state.personalItems.find((i) => i.id === itemId);
+    if (!item || item.done === newDone) return;
+
+    item.done = newDone;
+    const list = state.taskLists.find((l) => l.id === state.activeTab);
+    if (list) { list.pending_count += newDone ? -1 : 1; renderTaskTabsBar(container); }
+    renderPersonalKanban(container);
+
+    try {
+      await api.patch(`/personal-lists/${state.activeTab}/items/${itemId}`, { done: newDone });
+    } catch (err) {
+      item.done = !newDone;
+      if (list) { list.pending_count += newDone ? 1 : -1; renderTaskTabsBar(container); }
+      renderPersonalKanban(container);
+      window.planner.showToast(err.message, 'danger');
+    }
+  });
 }
 
 function renderPersonalView(container) {
@@ -1443,15 +1644,13 @@ function renderPersonalView(container) {
   }
 
   const isOwner = !!list.is_owner;
-  const titleHtml = isOwner
-    ? `<h1 class="personal-list__title" data-action="edit-list" role="button" tabindex="0"
-           title="${t('tasks.renamePersonalList')}">
+
+  const titleEl = isOwner
+    ? `<h1 class="tasks-toolbar__title" data-action="edit-list" role="button" tabindex="0"
+           style="cursor:pointer" title="${t('tasks.renamePersonalList')}">
          ${esc(list.name)}
-         <i data-lucide="pencil" class="personal-list__title-icon" aria-hidden="true"></i>
        </h1>`
-    : `<h1 class="personal-list__title personal-list__title--readonly">
-         ${esc(list.name)}
-       </h1>`;
+    : `<h1 class="tasks-toolbar__title">${esc(list.name)}</h1>`;
 
   const sharedByBadge = !isOwner && list.owner_name
     ? `<span class="personal-list__shared-by">
@@ -1473,17 +1672,31 @@ function renderPersonalView(container) {
     </button>` : '';
 
   content.innerHTML = `
-    <div class="personal-list" style="--list-color: ${esc(list.color)}">
-      <div class="personal-list__header">
-        <div class="personal-list__title-wrap">
+    <div class="personal-list" style="--list-color:${esc(list.color)};--module-accent:${esc(list.color)}">
+      <div class="tasks-toolbar">
+        <div style="display:flex;align-items:center;gap:var(--space-2);flex:1;min-width:0">
           <span class="personal-list__color-dot" aria-hidden="true"></span>
-          ${titleHtml}
+          ${titleEl}
           ${sharedByBadge}
         </div>
-        <div class="personal-list__header-actions">
+        <div class="tasks-toolbar__actions">
+          <div class="group-toggle" id="personal-view-toggle">
+            <button class="group-toggle__btn ${state.personalViewMode === 'list' ? 'group-toggle__btn--active' : ''}"
+                    data-personal-view="list"
+                    title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}">
+              <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+            </button>
+            <button class="group-toggle__btn ${state.personalViewMode === 'kanban' ? 'group-toggle__btn--active' : ''}"
+                    data-personal-view="kanban"
+                    title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}">
+              <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+            </button>
+          </div>
           ${ownerActions}
         </div>
       </div>
+
+      <div class="tasks-filters" id="personal-filter-bar"></div>
 
       <form class="personal-list__add" data-action="add-personal-item" novalidate autocomplete="off">
         <input class="personal-list__add-input" type="text" name="title"
@@ -1495,29 +1708,46 @@ function renderPersonalView(container) {
         </button>
       </form>
 
-      <div id="personal-items-container">
-        ${renderPersonalItems()}
-      </div>
+      <div id="personal-items-container"></div>
     </div>
   `;
+
   if (window.lucide) window.lucide.createIcons();
+  renderPersonalFilters(container);
+  refreshPersonalItems(container);
   wirePersonalView(container);
 
-  // Auto-focus add input on desktop only (avoids mobile keyboard popping up unexpectedly)
   if (window.matchMedia('(min-width: 1024px)').matches) {
     content.querySelector('.personal-list__add-input')?.focus();
   }
 }
 
 function refreshPersonalItems(container) {
-  const wrap = container.querySelector('#personal-items-container');
-  if (wrap) wrap.innerHTML = renderPersonalItems();
-  if (window.lucide) window.lucide.createIcons();
+  if (state.personalViewMode === 'kanban') {
+    renderPersonalKanban(container);
+  } else {
+    const wrap = container.querySelector('#personal-items-container');
+    if (wrap) wrap.innerHTML = renderPersonalItems();
+    if (window.lucide) window.lucide.createIcons();
+  }
 }
 
 function wirePersonalView(container) {
   const view = container.querySelector('.personal-list');
   if (!view) return;
+
+  // View toggle
+  const toggle = view.querySelector('#personal-view-toggle');
+  toggle?.querySelectorAll('[data-personal-view]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.personalViewMode = btn.dataset.personalView;
+      localStorage.setItem('personal-view', state.personalViewMode);
+      toggle.querySelectorAll('[data-personal-view]').forEach((b) => {
+        b.classList.toggle('group-toggle__btn--active', b.dataset.personalView === state.personalViewMode);
+      });
+      refreshPersonalItems(container);
+    });
+  });
 
   // Quick-add form
   view.querySelector('.personal-list__add')?.addEventListener('submit', async (e) => {
@@ -1531,7 +1761,6 @@ function wirePersonalView(container) {
       const res = await api.post(`/personal-lists/${listId}/items`, { title });
       state.personalItems.push(res.data);
       refreshPersonalItems(container);
-      // Update tab badge count
       const list = state.taskLists.find((l) => l.id === listId);
       if (list) { list.pending_count++; list.total_count++; renderTaskTabsBar(container); }
       input.focus();
@@ -1540,25 +1769,34 @@ function wirePersonalView(container) {
     }
   });
 
-  // Delegated clicks for items + header actions
+  // Delegated click handler
   view.addEventListener('click', async (e) => {
     if (e.target.closest('a[href]')) return;
+
     const target = e.target.closest('[data-action]');
-    if (!target) return;
-    const action = target.dataset.action;
+    const action = target?.dataset.action;
+
+    // Kanban card body click (no action button) → open edit dialog
+    if (!action) {
+      const kanbanCard = e.target.closest('.kanban-card[data-item-id]');
+      if (kanbanCard) {
+        const itemId = parseInt(kanbanCard.dataset.itemId, 10);
+        const item = state.personalItems.find((i) => i.id === itemId);
+        if (item) openItemEditDialog({ item, container });
+      }
+      return;
+    }
 
     if (action === 'edit-list') {
       const list = state.taskLists.find((l) => l.id === state.activeTab);
       if (list && list.is_owner) openListDialog({ list, container });
       return;
     }
-
     if (action === 'share-list') {
       const list = state.taskLists.find((l) => l.id === state.activeTab);
       if (list && list.is_owner) openShareDialog({ list, container });
       return;
     }
-
     if (action === 'delete-list') {
       const ok = await showConfirm(t('tasks.deletePersonalListConfirm'), { danger: true });
       if (!ok) return;
@@ -1576,7 +1814,6 @@ function wirePersonalView(container) {
       }
       return;
     }
-
     if (action === 'clear-done-items') {
       const ok = await showConfirm(t('tasks.personalListClearDoneConfirm'), { danger: true });
       if (!ok) return;
@@ -1590,25 +1827,22 @@ function wirePersonalView(container) {
       return;
     }
 
-    const row = target.closest('.personal-item');
+    // Item-level actions — find item ID from closest [data-item-id] container
+    const row = target.closest('[data-item-id]');
     const itemId = row ? parseInt(row.dataset.itemId, 10) : null;
+    if (!itemId) return;
 
-    if (action === 'toggle-personal-item' && itemId) {
+    if (action === 'toggle-personal-item') {
       const item = state.personalItems.find((i) => i.id === itemId);
       if (!item) return;
       const newDone = !item.done;
-      // Optimistic update
       item.done = newDone;
       refreshPersonalItems(container);
       const list = state.taskLists.find((l) => l.id === state.activeTab);
-      if (list) {
-        list.pending_count += newDone ? -1 : 1;
-        renderTaskTabsBar(container);
-      }
+      if (list) { list.pending_count += newDone ? -1 : 1; renderTaskTabsBar(container); }
       try {
         await api.patch(`/personal-lists/${state.activeTab}/items/${itemId}`, { done: newDone });
       } catch (err) {
-        // Rollback
         item.done = !newDone;
         if (list) { list.pending_count += newDone ? 1 : -1; renderTaskTabsBar(container); }
         refreshPersonalItems(container);
@@ -1616,8 +1850,7 @@ function wirePersonalView(container) {
       }
       return;
     }
-
-    if (action === 'delete-personal-item' && itemId) {
+    if (action === 'delete-personal-item') {
       try {
         await api.delete(`/personal-lists/${state.activeTab}/items/${itemId}`);
         const removed = state.personalItems.find((i) => i.id === itemId);
@@ -1634,8 +1867,7 @@ function wirePersonalView(container) {
       }
       return;
     }
-
-    if (action === 'edit-personal-item' && itemId) {
+    if (action === 'edit-personal-item') {
       const item = state.personalItems.find((i) => i.id === itemId);
       if (item) openItemEditDialog({ item, container });
       return;
@@ -1751,7 +1983,10 @@ function openListDialog({ list = null, container } = {}) {
 
 export function openItemEditDialog({ item, container, listId = null, onSaved = null, onDeleted = null }) {
   const targetListId = listId ?? state.activeTab;
-  const isUrgent = item.priority === 'urgent';
+  const priorityOptions = PRIORITIES().map((p) =>
+    `<option value="${p.value}" ${(item.priority ?? 'none') === p.value ? 'selected' : ''}>${p.label}</option>`
+  ).join('');
+
   openSharedModal({
     title: t('tasks.editPersonalItemTitle'),
     size: 'sm',
@@ -1764,18 +1999,10 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         </div>
 
         <div class="form-group">
-          <label class="label">${t('tasks.priorityLabel')}</label>
-          <div class="priority-toggle">
-            <label class="priority-toggle__opt ${!isUrgent ? 'priority-toggle__opt--active' : ''}">
-              <input type="radio" name="priority" value="none" ${!isUrgent ? 'checked' : ''}>
-              <span>${t('tasks.priorityNone')}</span>
-            </label>
-            <label class="priority-toggle__opt priority-toggle__opt--urgent ${isUrgent ? 'priority-toggle__opt--active' : ''}">
-              <input type="radio" name="priority" value="urgent" ${isUrgent ? 'checked' : ''}>
-              <span class="priority-dot priority-dot--urgent" aria-hidden="true"></span>
-              <span>${t('tasks.priorityUrgent')}</span>
-            </label>
-          </div>
+          <label class="label" for="pi-priority">${t('tasks.priorityLabel')}</label>
+          <select class="input" id="pi-priority" name="priority" style="min-height:44px">
+            ${priorityOptions}
+          </select>
         </div>
 
         <div class="form-group">
@@ -1804,16 +2031,6 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
       </form>
     `,
     onSave(panel) {
-      // Visual radio selection (highlight active option)
-      panel.querySelectorAll('input[name="priority"]').forEach((rb) => {
-        rb.addEventListener('change', () => {
-          panel.querySelectorAll('.priority-toggle__opt').forEach((el) => {
-            el.classList.toggle('priority-toggle__opt--active',
-              el.querySelector('input').checked);
-          });
-        });
-      });
-
       // Date clear button
       const dueInput = panel.querySelector('#pi-due');
       const dueClear = panel.querySelector('#pi-due-clear');
@@ -1861,7 +2078,7 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         btn.disabled = true;
 
         const title = panel.querySelector('#pi-title').value.trim();
-        const priority = panel.querySelector('input[name="priority"]:checked')?.value ?? 'none';
+        const priority = panel.querySelector('#pi-priority')?.value ?? 'none';
         const due = dueInput.value || null;
         if (!title) {
           errEl.textContent = t('common.required');
@@ -1980,6 +2197,7 @@ function wireTaskTabsBar(container) {
       const tab = target.dataset.tab === 'household' ? 'household' : parseInt(target.dataset.tab, 10);
       if (tab === state.activeTab) return;
       state.activeTab = tab;
+      state.personalFilters = { status: '', priority: '' };
       localStorage.setItem('tasks-active-tab', String(tab));
       renderTaskTabsBar(container);
       if (tab === 'household') {
