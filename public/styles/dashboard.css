@@ -584,13 +584,15 @@ a.price-ticker:hover {
   flex-shrink: 0;
   cursor: pointer;
   color: var(--color-text-tertiary);
+  opacity: 0.55;
   display: flex;
   align-items: center;
-  transition: color 0.15s;
+  transition: color 0.15s, opacity 0.15s;
 }
 
 .task-widget-check:hover {
   color: var(--color-success);
+  opacity: 1;
 }
 
 .task-widget-item--checking {
@@ -1699,12 +1701,13 @@ a.price-ticker:hover {
   height: 18px;
   min-width: 18px;
   border-radius: var(--radius-full);
-  border: 2px solid var(--color-border);
+  border: 2px solid var(--color-text-tertiary);
   background: none;
   cursor: pointer;
   flex-shrink: 0;
   position: relative;
-  transition: border-color var(--transition-fast);
+  opacity: 0.55;
+  transition: border-color var(--transition-fast), opacity var(--transition-fast);
 }
 
 .personal-widget-item__check::before {
@@ -1715,6 +1718,7 @@ a.price-ticker:hover {
 
 .personal-widget-item__check:hover {
   border-color: var(--color-accent);
+  opacity: 1;
 }
 
 .personal-widget-item__body {
@@ -1757,14 +1761,23 @@ a.price-ticker:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.6;
+  opacity: 0;
   transition: all var(--transition-fast);
+}
+
+.personal-widget-item:hover > .personal-widget-item__edit,
+.personal-widget-item__edit:focus-visible {
+  opacity: 0.6;
 }
 
 .personal-widget-item__edit:hover {
   color: var(--color-accent);
   background: var(--color-glass);
   opacity: 1;
+}
+
+@media (hover: none) {
+  .personal-widget-item__edit { opacity: 0.6; }
 }
 
 .personal-widget-item__due {
