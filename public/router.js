@@ -19,6 +19,7 @@ const ROUTES = [
   { path: '/lists',    page: '/pages/lists.js',     requiresAuth: true, module: 'lists'     },
   { path: '/meals',    page: '/pages/meals.js',     requiresAuth: true, module: 'meals'     },
   { path: '/calendar', page: '/pages/calendar.js',  requiresAuth: true, module: 'calendar'  },
+  { path: '/news',     page: '/pages/news.js',      requiresAuth: true, module: 'news'      },
   { path: '/notes',    page: '/pages/notes.js',     requiresAuth: true, module: 'notes'     },
   { path: '/contacts', page: '/pages/contacts.js',  requiresAuth: true, module: 'contacts'  },
   { path: '/budget',   page: '/pages/budget.js',    requiresAuth: true, module: 'budget'    },
@@ -169,8 +170,8 @@ let isNavigating = false;
 // Router
 // --------------------------------------------------------
 
-const ROUTE_ORDER = ['/', '/tasks', '/lists', '/calendar', '/meals',
-                     '/notes', '/contacts', '/settings'];
+const ROUTE_ORDER = ['/', '/tasks', '/lists', '/calendar', '/notes', '/news',
+                     '/meals', '/contacts', '/settings'];
 
 function getDirection(fromPath, toPath) {
   const fromIdx = ROUTE_ORDER.indexOf(fromPath ?? '/');
@@ -271,13 +272,7 @@ async function renderPage(route, previousPath = null) {
     // works in page modules.
     if (!document.querySelector('.nav-bottom') && currentUser) {
       renderAppShell(app);
-      api.get('/mealie/status').then(res => {
-        if (!res.configured) {
-          document.querySelectorAll('a.nav-item[data-route="/meals"]').forEach(el => { el.hidden = true; });
-        }
-      }).catch(() => {
-        document.querySelectorAll('a.nav-item[data-route="/meals"]').forEach(el => { el.hidden = true; });
-      });
+      refreshOptionalNavItems();
     }
 
     const content = document.getElementById('main-content') || app;
@@ -405,6 +400,25 @@ function scrollNavToActive() {
   }
 }
 
+function setNavRouteHidden(path, hidden) {
+  document.querySelectorAll(`a.nav-item[data-route="${path}"]`).forEach(el => {
+    el.hidden = hidden;
+  });
+}
+
+async function refreshOptionalNavItems() {
+  const [mealieStatus, freshrssStatus] = await Promise.allSettled([
+    api.get('/mealie/status'),
+    api.get('/freshrss/status'),
+  ]);
+
+  const mealieConfigured = mealieStatus.status === 'fulfilled' && mealieStatus.value?.configured;
+  const freshrssConfigured = freshrssStatus.status === 'fulfilled' && freshrssStatus.value?.configured;
+
+  setNavRouteHidden('/meals', !mealieConfigured);
+  setNavRouteHidden('/news', !freshrssConfigured);
+}
+
 function navItems() {
   return [
     { path: '/',         label: t('nav.dashboard'), icon: 'layout-dashboard' },
@@ -412,15 +426,16 @@ function navItems() {
     { path: '/lists',    label: t('nav.lists'),     icon: 'list-checks'      },
     { path: '/calendar', label: t('nav.calendar'),  icon: 'calendar'         },
     { path: '/notes',    label: t('nav.notes'),     icon: 'sticky-note'      },
+    { path: '/news',     label: t('nav.news'),      icon: 'newspaper', optional: true },
     { path: '/meals',    label: t('nav.meals'),     icon: 'utensils'         },
     { path: '/contacts', label: t('nav.contacts'),  icon: 'book-user'        },
     { path: '/settings', label: t('nav.settings'),  icon: 'settings'         },
   ];
 }
 
-function navItemHtml({ path, label, icon }) {
+function navItemHtml({ path, label, icon, optional }) {
   return `
-    <a href="${path}" data-route="${path}" class="nav-item" role="listitem" aria-label="${label}">
+    <a href="${path}" data-route="${path}" class="nav-item" role="listitem" aria-label="${label}" ${optional ? 'hidden' : ''}>
       <i data-lucide="${icon}" class="nav-item__icon" aria-hidden="true"></i>
       <span class="nav-item__label">${label}</span>
     </a>
@@ -595,6 +610,7 @@ window.planium = {
   showToast,
   setThemeColor,
   applyBackground,
+  refreshOptionalNavItems,
   restoreThemeColor: () => {
     const route = ROUTES.find((r) => r.path === currentPath);
     updateThemeColorForRoute(route);

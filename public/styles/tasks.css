@@ -687,39 +687,95 @@
    identically (same icon size, same spacing, same row height).
 -------------------------------------------------------- */
 @media (max-width: 480px) {
+  .tasks-toolbar {
+    align-items: flex-start;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .tasks-toolbar__heading {
+    flex: 0 0 100%;
+    width: 100%;
+    order: 1;
+  }
+
   .tasks-toolbar__title {
     font-size: var(--text-xl);
   }
 
+  .tasks-toolbar__actions {
+    flex: 1 1 100%;
+    width: 100%;
+    order: 2;
+    margin-left: 0;
+    flex-wrap: nowrap;
+    gap: 3px;
+  }
+
+  .tasks-toolbar__actions .toolbar-search {
+    flex: 1 1 96px;
+    min-width: 0;
+  }
+
+  .tasks-toolbar__actions .toolbar-search__toggle {
+    display: none;
+  }
+
+  .tasks-toolbar__actions .toolbar-search__input {
+    width: 100%;
+    min-width: 0;
+    opacity: 1;
+    pointer-events: auto;
+    padding: var(--space-0h) var(--space-1);
+    border: 1.5px solid var(--color-border);
+    min-height: 30px;
+  }
+
+  .tasks-toolbar__actions .toolbar-search__clear {
+    width: 26px;
+    height: 30px;
+    min-width: 26px;
+    min-height: 30px;
+  }
+
+  .tasks-toolbar__actions .toolbar-search__clear[hidden] {
+    display: none;
+  }
+
   .tasks-toolbar__actions .group-toggle {
-    padding: 2px;
-    min-height: 32px;
+    flex-shrink: 0;
+    padding: 1px;
+    min-height: 30px;
   }
 
   .tasks-toolbar__actions .group-toggle__btn {
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-0h) var(--space-1);
     font-size: var(--text-xs);
     min-height: 28px;
   }
 
   .tasks-toolbar__new-btn {
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--text-xs);
-    min-height: 32px;
+    flex-shrink: 0;
+    width: 30px;
+    padding: 0;
+    font-size: 0;
+    gap: 0;
+    min-height: 30px;
   }
 
   .tasks-toolbar__actions .btn--icon {
-    width: 32px;
-    height: 32px;
-    min-height: 32px;
-    min-width: 32px;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    min-width: 30px;
     padding: 0;
   }
 
   .tasks-toolbar__bulk-btn {
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-0h) var(--space-1);
     font-size: var(--text-xs);
-    min-height: 32px;
+    min-height: 30px;
   }
 }
 
@@ -1501,5 +1557,4 @@
 }
 
 .pi-due-row .input { flex: 1; }
-
 

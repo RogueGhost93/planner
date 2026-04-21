@@ -36,6 +36,7 @@
     "dashboard": "Overview",
     "tasks": "Tasks",
     "calendar": "Calendar",
+    "news": "News",
     "meals": "Meals",
     "lists": "Lists",
     "notes": "Board",
@@ -89,6 +90,16 @@
     "quickNotePlaceholder": "Write a quick note…",
     "quickNotesEmpty": "No quick notes yet",
     "quoteOfTheDay": "Quote of the Day"
+  },
+
+  "news": {
+    "title": "News",
+    "limitLabel": "Headline limit",
+    "refresh": "Refresh news",
+    "emptyTitle": "No headlines",
+    "emptyDescription": "FreshRSS did not return any articles.",
+    "notConnectedTitle": "FreshRSS is not connected",
+    "notConnectedDescription": "Connect FreshRSS in Settings to show this tab."
   },
 
   "tasks": {

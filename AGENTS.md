@@ -1,37 +1,18 @@
 <claude-mem-context>
 # Memory Context
 
-# [planium] recent context, 2026-04-21 8:01pm GMT+2
+# [planium] recent context, 2026-04-21 9:12pm GMT+2
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 31 obs (9,310t read) | 221,160t work | 96% savings
+Stats: 50 obs (18,026t read) | 1,327,282t work | 99% savings
 
 ### Apr 21, 2026
-1 3:05p ✅ Skill Installation via npx skills add
-2 " 🔵 npx skills add CLI — Multi-Agent Installation Flow
 S2 Fixed Mobile Icon Stacking: .tasks-toolbar Now Uses Row Layout on All Screen Sizes (Apr 21, 3:05 PM)
 S1 npx skills add CLI — Multi-Agent Installation Flow (Apr 21, 3:05 PM)
-3 3:08p 🔵 Planium Project Structure: CSS-Based Lists UI, No Vue Components
-4 " 🔵 list-header CSS Uses Correct Flex Layout But Mobile Bug Exists
-5 " 🔵 Tasks Module personal-list__header Also Uses Correct Flex Layout
-6 " 🔵 Planium Has No .html Template Files — HTML Must Be in JS Template Literals
-7 " 🔵 Planium Is a Vanilla JS SPA — HTML Generated Inside Page JS Modules
-8 3:09p 🔵 CSS Class personal-list__header Not Used in tasks.js HTML Templates
-9 " 🔵 Root Cause Found: List Header Uses .tasks-toolbar, Not .personal-list__header
-10 " 🔴 Quick Notes Resize Handle Removed; Calendar Widget Event Count Fixed to 6
-13 " 🔵 Calendar Widget Event Limit Is a Hard-Coded SQL LIMIT 5 in Server Route
-11 " 🔵 Confirmed Root Cause: .tasks-toolbar Uses flex-direction:column on Mobile
-12 " 🔴 Fixed Mobile Icon Stacking: .tasks-toolbar Now Uses Row Layout on All Screen Sizes
 S3 Diverged Commits Identified on planium main vs origin/main (Apr 21, 3:09 PM)
-14 " 🔵 Quick Notes Resize Handle Is CSS `resize: vertical` on Textarea
-15 3:10p 🟣 Weather Widget Merged Into Greetings Widget as Compact Inline Display
-16 3:11p 🔵 Planium Dashboard: Weather Widget Is Standalone Full-Width Card With Gradient
-17 3:12p 🟣 renderGreeting() Signature Extended to Accept Weather Data
-18 " 🟣 Compact Weather Chip HTML Added Inside renderGreeting()
-19 " 🟣 Weather Chip Injected Into Greeting Date Row
 20 3:17p 🔵 Git Push Blocked by Diverged Branch
 21 3:18p 🔵 Diverged Commits Identified on planium main vs origin/main
 22 3:19p 🔵 Git Rebase Blocked by Uncommitted Changes
@@ -45,6 +26,44 @@ S4 Resolve stuck git rebase and sync planium local main with origin/main (Apr 21
 29 " 🟣 Search Icon + Note Text Limit Increase Requested for Tasks Tab
 30 " 🔵 Tasks Page Architecture in Planium
 31 3:23p 🔵 Note Text Limit Not Enforced in Server Routes
+32 8:01p 🔵 Planium Project — Full-Stack Family Planner Architecture
+33 " 🔵 Planium SQLite Schema — 9-Table Versioned Migration System
+34 " 🔵 Frontend API Layer — CSRF-Protected Fetch Wrapper in public/api.js
+35 " 🔵 Tasks Page Module — Client-Side Sort, Swipe UI, Subtask Progress Rendering
+36 " 🔵 Server Auto-Sync — Google and Apple Calendar Sync on 10s Delay After Boot
+37 8:02p 🔵 Demo Seed Script Has Schema Incompatibilities with Current Database
+38 " 🔵 Database Schema Has Evolved to 18+ Migrations with 3-Tier Lists and Personal Task Lists
+39 " 🔵 Centralized Validation Module — server/middleware/validate.js
+40 8:33p 🔵 Web Project Folder Structure Exploration
+41 " 🔵 Planium Project Lives on CIFS Network Share — npm Symlink EIO Root Cause
+42 8:53p 🔵 Planium Dev Server Startup Blocked by Missing SESSION_SECRET
+43 " 🟣 Compact Expandable Toolbar Search Added to Tasks and Calendar
+44 " 🔴 Personal List Toolbar Heading Refactored to Prevent Title Overflow
+45 " 🔴 Calendar Month Grid Event Labels Too Small on Phones
+46 8:59p 🔵 bwrap sandbox blocking all shell commands in planium project
+47 " 🔵 Planium project state: main branch with two unstaged changes
+48 " ✅ Tasks toolbar mobile CSS overhauled for ≤480px breakpoint
+49 9:03p 🔵 Planium Project Architecture and Feature Map
+50 " 🔵 Planium Router: SPA Navigation, Auth Guard, and Theme System
+51 " 🔵 FreshRSS Integration: Server-Side Proxy with In-Memory Caching
+52 9:04p 🔵 Planium Project Setup: Stack, Dependencies, and Test Infrastructure
+53 " 🔵 Planium Design System: CSS Custom Property Token Architecture
+54 " 🔵 Planium Dark Mode: Dual CSS Token Override Strategy
+55 9:05p ⚖️ New Feature Planned: Dedicated News Page Module for FreshRSS
+56 " 🟣 FreshRSS Headlines API Enhanced: Parameterized Limits, Per-Limit Caching, and richer item data
+57 9:06p 🟣 New News Page Module Created: public/pages/news.js and public/styles/news.css
+58 9:07p 🟣 News Route Registered and Optional Nav Items Refactored in Router
+59 " 🔴 News Nav Item Positioned After Notes; Optional Nav Items Start Hidden
+60 " 🟣 --module-news CSS Token Added to Design System
+61 " ✅ Service Worker Bumped to v107 with News Module Cache Entries
+62 9:08p 🟣 News Module i18n Strings Added to en.json
+63 " 🟣 Settings Page Triggers Nav Refresh on FreshRSS Connect/Disconnect
+64 " 🔴 plainText() Helper Hardened Against Non-String Input
+65 9:09p 🟣 News Feature Complete: All Files Pass Syntax Validation
+66 " 🔵 npm test Fails: Node Version Doesn't Support --experimental-sqlite
+67 " 🔵 Environment Runs Node v18.19.1, Below Project's Required v22
+68 " 🔵 Git Status Reveals Unrelated tasks.css Changes in Working Tree
+69 9:10p 🔵 Planium Server Architecture: Security, Routing, and Calendar Sync
 
-Access 221k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1327k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

@@ -13,10 +13,11 @@ const router = express.Router();
 
 // Cache: Auth-Token (1h) und Headlines (15 min)
 let tokenCache    = { token: null, ts: 0 };
-let headlineCache = { data: null, ts: 0 };
+let headlineCache = new Map();
 const TOKEN_TTL_MS    = 60 * 60 * 1000;
 const HEADLINE_TTL_MS = 15 * 60 * 1000;
-const HEADLINE_COUNT  = 20;
+const DEFAULT_HEADLINE_COUNT = 20;
+const MAX_HEADLINE_COUNT     = 200;
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -31,6 +32,40 @@ function getConfig() {
     username: map.freshrss_username || null,
     password: map.freshrss_password || null,
   };
+}
+
+function parseHeadlineLimit(value) {
+  const requested = Number.parseInt(value, 10);
+  if (!Number.isFinite(requested)) return DEFAULT_HEADLINE_COUNT;
+  return Math.min(MAX_HEADLINE_COUNT, Math.max(1, requested));
+}
+
+function plainText(value) {
+  return String(value ?? '').replace(/<[^>]*>/g, '').trim();
+}
+
+function normalizeUrl(value) {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeTimestamp(item) {
+  const seconds = Number(item.published ?? item.updated);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return new Date(seconds * 1000).toISOString();
+  }
+
+  const msec = Number(item.crawlTimeMsec);
+  if (Number.isFinite(msec) && msec > 0) {
+    return new Date(msec).toISOString();
+  }
+
+  return null;
 }
 
 /**
@@ -129,7 +164,7 @@ router.post('/config', (req, res) => {
 
     // Invalidate caches on config change
     tokenCache    = { token: null, ts: 0 };
-    headlineCache = { data: null, ts: 0 };
+    headlineCache = new Map();
 
     res.json({ ok: true });
   } catch (err) {
@@ -152,7 +187,7 @@ router.delete('/config', (req, res) => {
     ).run();
 
     tokenCache    = { token: null, ts: 0 };
-    headlineCache = { data: null, ts: 0 };
+    headlineCache = new Map();
 
     res.json({ ok: true });
   } catch (err) {
@@ -208,28 +243,30 @@ router.get('/test', async (req, res) => {
 });
 
 // --------------------------------------------------------
-// GET /api/v1/freshrss/headlines
+// GET /api/v1/freshrss/headlines?limit=20
 // Returns latest headlines from all feeds.
-// Response: { data: [{ title, url, source }] } | { data: null }
+// Response: { data: [{ title, url, source, publishedAt }] } | { data: null }
 // --------------------------------------------------------
 router.get('/headlines', async (req, res) => {
   try {
     const { url, username, password } = getConfig();
+    const limit = parseHeadlineLimit(req.query.limit);
 
     if (!url || !username || !password) {
       return res.json({ data: null });
     }
 
     // Serve from cache if fresh
-    if (headlineCache.data && Date.now() - headlineCache.ts < HEADLINE_TTL_MS) {
-      return res.json({ data: headlineCache.data });
+    const cached = headlineCache.get(limit);
+    if (cached?.data && Date.now() - cached.ts < HEADLINE_TTL_MS) {
+      return res.json({ data: cached.data });
     }
 
     const { default: fetch } = await import('node-fetch');
     const token = await getAuthToken(url, username, password);
 
     const streamUrl = `${url}/api/greader.php/reader/api/0/stream/contents/user/-/state/com.google/reading-list`
-      + `?n=${HEADLINE_COUNT}&output=json`;
+      + `?n=${limit}&output=json`;
 
     const streamRes = await fetch(streamUrl, {
       headers: { Authorization: `GoogleLogin auth=${token}` },
@@ -245,12 +282,13 @@ router.get('/headlines', async (req, res) => {
 
     const json = await streamRes.json();
     const items = (json.items ?? []).map((item) => ({
-      title:  (item.title ?? '').replace(/<[^>]*>/g, '').trim(),
-      url:    item.canonical?.[0]?.href ?? null,
-      source: (item.origin?.title ?? '').replace(/<[^>]*>/g, '').trim(),
+      title:       plainText(item.title),
+      url:         normalizeUrl(item.canonical?.[0]?.href ?? item.alternate?.[0]?.href),
+      source:      plainText(item.origin?.title) || 'FreshRSS',
+      publishedAt: normalizeTimestamp(item),
     })).filter((h) => h.title);
 
-    headlineCache = { data: items, ts: Date.now() };
+    headlineCache.set(limit, { data: items, ts: Date.now() });
     res.json({ data: items });
   } catch (err) {
     log.warn('headlines GET:', err.message);
