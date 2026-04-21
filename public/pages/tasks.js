@@ -264,7 +264,6 @@ function renderModalContent({ task = null, users = [] } = {}) {
 
   const current = task?.priority ?? 'none';
   const priorityOptions = PRIORITIES()
-    .filter((p) => p.value === 'none' || p.value === 'urgent')
     .map((p) =>
       `<option value="${p.value}" ${current === p.value ? 'selected' : ''}>${p.label}</option>`
     ).join('');

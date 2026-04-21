@@ -18,7 +18,7 @@ const router = express.Router();
 // Konstanten
 // --------------------------------------------------------
 
-const VALID_PRIORITIES = ['none', 'urgent'];
+const VALID_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 const VALID_STATUSES   = ['open', 'done'];
 const VALID_CATEGORIES = ['Household', 'School', 'Shopping', 'Repairs',
                           'Health', 'Finance', 'Leisure', 'Other'];
@@ -95,10 +95,11 @@ router.get('/', (req, res) => {
     sql += `
       ORDER BY
         CASE t.status WHEN 'done' THEN 1 ELSE 0 END,
+        CASE t.priority WHEN 'urgent' THEN 0 ELSE 1 END,
         CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
         t.due_date ASC,
-        CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1
-                        WHEN 'medium' THEN 2 ELSE 3 END,
+        CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1
+                        WHEN 'low' THEN 2 ELSE 3 END,
         t.created_at DESC
     `;
 
@@ -128,7 +129,7 @@ router.get('/due-notifications', (req, res) => {
       WHERE t.due_date = ? AND t.status != 'done' AND t.parent_task_id IS NULL
       ORDER BY
         CASE t.priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1
-                        WHEN 'medium' THEN 2 ELSE 3 END,
+                        WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END,
         t.due_time ASC
     `;
 
