@@ -285,6 +285,7 @@ router.get('/headlines', async (req, res) => {
       title:       plainText(item.title),
       url:         normalizeUrl(item.canonical?.[0]?.href ?? item.alternate?.[0]?.href),
       source:      plainText(item.origin?.title) || 'FreshRSS',
+      sourceUrl:   normalizeUrl(item.origin?.htmlUrl),
       publishedAt: normalizeTimestamp(item),
     })).filter((h) => h.title);
 
