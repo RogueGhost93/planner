@@ -160,31 +160,31 @@ export async function render(container, { user }) {
 
   await checkStatus();
 
+  document.querySelectorAll('a.nav-item[data-route="/meals"]').forEach(el => {
+    el.hidden = !state.configured;
+  });
+
   if (!state.configured) {
-    renderNotConfigured();
+    const grid = _container.querySelector('#recipes-grid');
+    if (grid) grid.innerHTML = '';
     return;
+  }
+
+  const toolbar = _container.querySelector('.recipes-toolbar');
+  if (toolbar && state.mealieUrl) {
+    toolbar.insertAdjacentHTML('beforeend', `
+      <a class="btn btn--icon" href="${esc(state.mealieUrl)}" target="_blank" rel="noopener noreferrer"
+         title="${t('mealie.openInMealie')}" aria-label="${t('mealie.openInMealie')}">
+        <i data-lucide="external-link" style="width:16px;height:16px;pointer-events:none" aria-hidden="true"></i>
+      </a>
+    `);
+    if (window.lucide) lucide.createIcons();
   }
 
   await loadAllRecipes();
   wireSearch();
 }
 
-function renderNotConfigured() {
-  const grid = _container.querySelector('#recipes-grid');
-  if (!grid) return;
-  grid.innerHTML = `
-    <div class="recipes-empty-state">
-      <i data-lucide="chef-hat" class="recipes-empty-state__icon" aria-hidden="true"></i>
-      <h2 class="recipes-empty-state__title">${t('mealie.notConfiguredTitle')}</h2>
-      <p class="recipes-empty-state__desc">${t('mealie.notConfiguredDesc')}</p>
-      <button class="btn btn--primary" id="go-to-settings">${t('mealie.goToSettings')}</button>
-    </div>
-  `;
-  if (window.lucide) lucide.createIcons();
-  _container.querySelector('#go-to-settings')?.addEventListener('click', () => {
-    window.planner?.navigate('/settings');
-  });
-}
 
 function renderGrid() {
   const grid = _container.querySelector('#recipes-grid');
