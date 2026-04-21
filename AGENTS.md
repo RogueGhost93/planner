@@ -1,22 +1,19 @@
 <claude-mem-context>
 # Memory Context
 
-# [planium] recent context, 2026-04-21 9:12pm GMT+2
+# [planium] recent context, 2026-04-21 9:16pm GMT+2
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (18,026t read) | 1,327,282t work | 99% savings
+Stats: 50 obs (18,302t read) | 1,330,289t work | 99% savings
 
 ### Apr 21, 2026
 S2 Fixed Mobile Icon Stacking: .tasks-toolbar Now Uses Row Layout on All Screen Sizes (Apr 21, 3:05 PM)
 S1 npx skills add CLI — Multi-Agent Installation Flow (Apr 21, 3:05 PM)
 S3 Diverged Commits Identified on planium main vs origin/main (Apr 21, 3:09 PM)
-20 3:17p 🔵 Git Push Blocked by Diverged Branch
-21 3:18p 🔵 Diverged Commits Identified on planium main vs origin/main
-22 3:19p 🔵 Git Rebase Blocked by Uncommitted Changes
-23 " 🔵 Planium Repo Rebase State: Working Tree Clean, Rebase Paused
+23 3:19p 🔵 Planium Repo Rebase State: Working Tree Clean, Rebase Paused
 24 " 🔵 Planium main Branch Diverged from origin/main After Rebase Abort
 25 " ✅ Planium Remote Changes Merged into Local main
 S4 Resolve stuck git rebase and sync planium local main with origin/main (Apr 21, 3:20 PM)
@@ -64,6 +61,9 @@ S4 Resolve stuck git rebase and sync planium local main with origin/main (Apr 21
 67 " 🔵 Environment Runs Node v18.19.1, Below Project's Required v22
 68 " 🔵 Git Status Reveals Unrelated tasks.css Changes in Working Tree
 69 9:10p 🔵 Planium Server Architecture: Security, Routing, and Calendar Sync
+70 9:12p 🔵 node_modules deleted by rsync --delete flag breaks dev server
+71 " 🔵 Memory agent sandbox cannot execute commands in planium project directory
+72 " 🔵 rsync --delete removed node_modules and .env from planium project
 
-Access 1327k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1330k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
