@@ -1,6 +1,6 @@
-# Oikos - Product Specification
+# Planium - Product Specification
 
-Self-hosted family planner web app for a single household (2–6 people). No app store, no public access. Deployment via Docker on a private Linux server behind an Nginx reverse proxy with SSL.
+Self-hosted family planium web app for a single household (2–6 people). No app store, no public access. Deployment via Docker on a private Linux server behind an Nginx reverse proxy with SSL.
 
 ---
 
@@ -232,7 +232,7 @@ User management and app configuration. Logged-in users only.
 - **User management (admin):** create new users, edit/delete existing users, assign roles (admin/member)
 - **Calendar integration:** connect/disconnect Google Calendar OAuth, store Apple Calendar (CalDAV) credentials, configure sync interval
 - **Weather:** configure OpenWeatherMap location
-- **Language:** System (follows `navigator.language`), German, English - via `oikos-locale-picker` web component; switch without page reload
+- **Language:** System (follows `navigator.language`), German, English - via `planium-locale-picker` web component; switch without page reload
 - **App info:** version, license
 
 ### Budget (`/budget`)
@@ -331,7 +331,7 @@ All UI strings are managed via `public/i18n.js`. No hardcoded text in JS files o
 
 ### Language Detection
 
-1. `localStorage` entry `oikos-locale` (manual selection)
+1. `localStorage` entry `planium-locale` (manual selection)
 2. `navigator.languages[0]` (browser language)
 3. Fallback: `de`
 
@@ -347,7 +347,7 @@ All UI strings are managed via `public/i18n.js`. No hardcoded text in JS files o
 
 1. Create `public/locales/xx.json` (copy of `de.json`, translate)
 2. Add `'xx'` to `SUPPORTED_LOCALES` in `public/i18n.js`
-3. Add label in `oikos-locale-picker` (`LOCALE_LABELS['xx'] = 'Name'`)
+3. Add label in `planium-locale-picker` (`LOCALE_LABELS['xx'] = 'Name'`)
 
 ### Locale Switching
 

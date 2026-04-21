@@ -1,6 +1,6 @@
 # Installation Guide
 
-Complete setup instructions for Oikos - from Docker installation to your first login.
+Complete setup instructions for Planium - from Docker installation to your first login.
 
 ## Table of Contents
 
@@ -18,16 +18,16 @@ Complete setup instructions for Oikos - from Docker installation to your first l
 
 ## Architecture Overview
 
-Oikos is a self-hosted family planner that runs as a single Docker container. The Express.js backend serves both the API and the static frontend files. All data is stored in a SQLCipher-encrypted SQLite database inside a Docker volume.
+Planium is a self-hosted family planium that runs as a single Docker container. The Express.js backend serves both the API and the static frontend files. All data is stored in a SQLCipher-encrypted SQLite database inside a Docker volume.
 
 ```
-Browser ──HTTP──▶ Docker Container (Express.js :3000) ──▶ SQLite/SQLCipher (/data/oikos.db)
+Browser ──HTTP──▶ Docker Container (Express.js :3000) ──▶ SQLite/SQLCipher (/data/planium.db)
 
 With HTTPS (recommended for network access):
 Browser ──HTTPS──▶ Nginx (Reverse Proxy) ──HTTP──▶ Docker Container (Express.js :3000) ──▶ SQLite/SQLCipher
 ```
 
-For local-only access, the Docker container is all you need. If you want to access Oikos from other devices on your network or the internet, add Nginx as a reverse proxy with SSL.
+For local-only access, the Docker container is all you need. If you want to access Planium from other devices on your network or the internet, add Nginx as a reverse proxy with SSL.
 
 ---
 
@@ -71,11 +71,11 @@ git --version              # git version 2.x.x
 
 ### 1. Clone the Repository
 
-Download the Oikos source code to your machine:
+Download the Planium source code to your machine:
 
 ```bash
-git clone https://github.com/ulsklyc/oikos.git
-cd oikos
+git clone https://github.com/rogueghost93/planium.git
+cd planium
 ```
 
 ### 2. Configure Environment Variables
@@ -124,9 +124,9 @@ docker compose logs -f
 You should see output like:
 
 ```
-oikos  | [Oikos] Server läuft auf Port 3000
-oikos  | [Oikos] Umgebung: production
-oikos  | [Sync] Auto-Sync alle 15 Minuten aktiv.
+planium  | [Planium] Server läuft auf Port 3000
+planium  | [Planium] Umgebung: production
+planium  | [Sync] Auto-Sync alle 15 Minuten aktiv.
 ```
 
 Press `Ctrl+C` to stop following the logs (the container keeps running).
@@ -136,7 +136,7 @@ Press `Ctrl+C` to stop following the logs (the container keeps running).
 Create the first admin account:
 
 ```bash
-docker compose exec oikos node setup.js
+docker compose exec planium node setup.js
 ```
 
 The interactive setup asks you for:
@@ -144,7 +144,7 @@ The interactive setup asks you for:
 - **Display name** (e.g. "Jane Doe")
 - **Password** (minimum 8 characters, entered with masked input)
 
-### 6. Open Oikos
+### 6. Open Planium
 
 Open your browser and navigate to:
 
@@ -187,7 +187,7 @@ openssl rand -hex 32
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `DB_PATH` | Path to the SQLite database file inside the container | `/data/oikos.db` | No |
+| `DB_PATH` | Path to the SQLite database file inside the container | `/data/planium.db` | No |
 | `DB_ENCRYPTION_KEY` | Encryption key for SQLCipher AES-256. **Change this!** | - | **Yes** |
 
 Generate a secure `DB_ENCRYPTION_KEY`:
@@ -233,9 +233,9 @@ openssl rand -hex 32
 
 ## HTTPS / Reverse Proxy (Nginx)
 
-> **Optional for local access, required for network/internet access.** If you only access Oikos on the same machine (localhost), you can skip this section.
+> **Optional for local access, required for network/internet access.** If you only access Planium on the same machine (localhost), you can skip this section.
 
-When exposing Oikos to your local network or the internet, you need HTTPS for security. Nginx acts as a reverse proxy that handles SSL termination and forwards requests to the Docker container.
+When exposing Planium to your local network or the internet, you need HTTPS for security. Nginx acts as a reverse proxy that handles SSL termination and forwards requests to the Docker container.
 
 ### Install Nginx
 
@@ -247,17 +247,17 @@ sudo apt install nginx
 
 ### Configure Nginx
 
-Oikos ships with an example configuration. Copy it to Nginx:
+Planium ships with an example configuration. Copy it to Nginx:
 
 ```bash
-sudo cp nginx.conf.example /etc/nginx/sites-available/oikos
-sudo ln -s /etc/nginx/sites-available/oikos /etc/nginx/sites-enabled/
+sudo cp nginx.conf.example /etc/nginx/sites-available/planium
+sudo ln -s /etc/nginx/sites-available/planium /etc/nginx/sites-enabled/
 ```
 
 Edit the file and replace `deine-domain.de` with your actual domain:
 
 ```bash
-sudo nano /etc/nginx/sites-available/oikos
+sudo nano /etc/nginx/sites-available/planium
 ```
 
 The configuration includes:
@@ -284,14 +284,14 @@ Verify auto-renewal is active:
 sudo certbot renew --dry-run
 ```
 
-### Update Oikos for HTTPS
+### Update Planium for HTTPS
 
 When using HTTPS through a reverse proxy, remove or comment out the `SESSION_SECURE=false` line in `docker-compose.yml`:
 
 ```yaml
 environment:
   - NODE_ENV=production
-  - DB_PATH=/data/oikos.db
+  - DB_PATH=/data/planium.db
   # - SESSION_SECURE=false   # Remove this for HTTPS
 ```
 
@@ -308,7 +308,7 @@ docker compose up -d
 ### Standard Update
 
 ```bash
-cd oikos
+cd planium
 git pull
 docker compose up -d --build
 ```
@@ -333,16 +333,16 @@ docker compose up -d --build
 
 ### Where is the Data?
 
-The SQLite database lives in a Docker named volume called `oikos_data`, mounted at `/data` inside the container. The database file is `/data/oikos.db`.
+The SQLite database lives in a Docker named volume called `planium_data`, mounted at `/data` inside the container. The database file is `/data/planium.db`.
 
 ### Backup
 
 Copy the database from the running container to your host:
 
 ```bash
-docker compose exec oikos cp /data/oikos.db /data/oikos-backup.db
-docker cp oikos:/data/oikos-backup.db ./oikos-backup-$(date +%Y%m%d).db
-docker compose exec oikos rm /data/oikos-backup.db
+docker compose exec planium cp /data/planium.db /data/planium-backup.db
+docker cp planium:/data/planium-backup.db ./planium-backup-$(date +%Y%m%d).db
+docker compose exec planium rm /data/planium-backup.db
 ```
 
 ### Restore
@@ -350,7 +350,7 @@ docker compose exec oikos rm /data/oikos-backup.db
 Copy a backup file back into the container and restart:
 
 ```bash
-docker cp ./oikos-backup-20260401.db oikos:/data/oikos.db
+docker cp ./planium-backup-20260401.db planium:/data/planium.db
 docker compose restart
 ```
 
@@ -365,7 +365,7 @@ crontab -e
 Add this line:
 
 ```
-0 3 * * * docker cp oikos:/data/oikos.db /path/to/backups/oikos-$(date +\%Y\%m\%d).db
+0 3 * * * docker cp planium:/data/planium.db /path/to/backups/planium-$(date +\%Y\%m\%d).db
 ```
 
 This creates a backup at 3:00 AM every day.
@@ -421,7 +421,7 @@ Log out and back in (or reboot) for the group change to take effect.
 
 3. Verify the port mapping:
    ```bash
-   docker port oikos
+   docker port planium
    ```
 
 4. Check your firewall rules if accessing from another device.
@@ -485,7 +485,7 @@ docker compose down -v
 Remove the repository:
 
 ```bash
-cd .. && rm -rf oikos
+cd .. && rm -rf planium
 ```
 
 > **Warning**: `docker compose down -v` permanently deletes all data including the database. Create a backup first if needed.

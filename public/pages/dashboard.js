@@ -626,8 +626,8 @@ function renderWeatherWidget(weather) {
 // Quick Notes Widget (both modes server-synced; private is per-user)
 // --------------------------------------------------------
 
-const QN_MODE_KEY   = 'planner-quick-note-mode';
-const QN_LEGACY_KEY = 'planner-quick-note-text';
+const QN_MODE_KEY   = 'planium-quick-note-mode';
+const QN_LEGACY_KEY = 'planium-quick-note-text';
 
 function getQNMode() { return localStorage.getItem(QN_MODE_KEY) === 'public' ? 'public' : 'private'; }
 
@@ -735,9 +735,9 @@ async function wireQuickNotes(container) {
 // Quote of the Day Widget
 // --------------------------------------------------------
 
-const QUOTE_LS_KEY   = 'planner-show-quotes';
-const NEWS_LS_KEY    = 'planner-show-news';
-const TICKERS_LS_KEY = 'planner-show-tickers';
+const QUOTE_LS_KEY   = 'planium-show-quotes';
+const NEWS_LS_KEY    = 'planium-show-news';
+const TICKERS_LS_KEY = 'planium-show-tickers';
 
 function isQuoteEnabled() {
   return localStorage.getItem(QUOTE_LS_KEY) !== 'false';
@@ -854,7 +854,7 @@ function initFab(container, signal) {
       toggleFab(false);
       const flag = FAB_CREATE_FLAGS[el.dataset.route];
       if (flag) localStorage.setItem(flag, '1');
-      window.planner.navigate(el.dataset.route);
+      window.planium.navigate(el.dataset.route);
     };
     el.addEventListener('click', go);
     el.addEventListener('keydown', (e) => {
@@ -876,7 +876,7 @@ function wireLinks(container) {
       // Widget + button → set create flag then navigate
       if (el.dataset.createFlag) {
         localStorage.setItem(el.dataset.createFlag, '1');
-        window.planner.navigate(el.dataset.route);
+        window.planium.navigate(el.dataset.route);
         return;
       }
       // Tasks "All" link → open kanban view
@@ -902,7 +902,7 @@ function wireLinks(container) {
       if (el.dataset.listId) {
         localStorage.setItem('lists-open-list', el.dataset.listId);
       }
-      window.planner.navigate(el.dataset.route);
+      window.planium.navigate(el.dataset.route);
     };
     if (el.tagName === 'A') {
       el.addEventListener('click', (e) => { e.preventDefault(); go(); });
@@ -927,7 +927,7 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
       try {
         await api.patch(`/tasks/${id}/status`, { status: 'done' });
       } catch {
-        window.planner?.showToast('Could not update task', 'danger');
+        window.planium?.showToast('Could not update task', 'danger');
       }
     });
   });
@@ -947,7 +947,7 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
           dashData.widgetTasks = dashData.widgetTasks.filter((tk) => tk.id !== id);
         }
       } catch {
-        window.planner?.showToast('Could not delete task', 'danger');
+        window.planium?.showToast('Could not delete task', 'danger');
         refreshWidget();
       }
     });
@@ -969,7 +969,7 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
         await api.delete(`/personal-lists/${listId}/items/${itemId}`);
         dashData.personalItems = (dashData.personalItems || []).filter((i) => i.id !== itemId);
       } catch {
-        window.planner?.showToast('Could not delete item', 'danger');
+        window.planium?.showToast('Could not delete item', 'danger');
         refreshWidget();
       }
     });
@@ -1014,7 +1014,7 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
         const idx = (dashData.personalItems || []).findIndex((i) => i.id === itemId);
         if (idx >= 0) dashData.personalItems[idx].done = 1;
       } catch {
-        window.planner?.showToast('Could not update item', 'danger');
+        window.planium?.showToast('Could not update item', 'danger');
         refreshWidget();
       }
     });
@@ -1043,7 +1043,7 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
         );
         fresh?.focus();
       } catch {
-        window.planner?.showToast('Could not add item', 'danger');
+        window.planium?.showToast('Could not add item', 'danger');
       } finally {
         if (submitBtn) submitBtn.disabled = false;
       }
@@ -1221,7 +1221,7 @@ function wireEventsWidget(container, data) {
         await api.delete(`/calendar/${id}`);
         data.upcomingEvents = (data.upcomingEvents ?? []).filter((ev) => ev.id !== id);
       } catch (err) {
-        window.planner?.showToast(err?.data?.error ?? 'Could not delete event', 'danger');
+        window.planium?.showToast(err?.data?.error ?? 'Could not delete event', 'danger');
       }
     });
   });
@@ -1307,7 +1307,7 @@ export async function render(container, { user }) {
     headlines = newsRes?.data ?? null;
   } catch (err) {
     console.error('[Dashboard] Ladefehler:', err.message);
-    window.planner?.showToast(t('dashboard.loadError'), 'warning');
+    window.planium?.showToast(t('dashboard.loadError'), 'warning');
   }
 
   // Greeting urgent chip: union of urgent household tasks + urgent personal items
@@ -1470,7 +1470,7 @@ function wireShoppingWidgetReorder(container, lists) {
     try {
       await api.patch('/lists/sublists/reorder', { ids: newOrder });
     } catch (err) {
-      window.planner?.showToast(err.message, 'danger');
+      window.planium?.showToast(err.message, 'danger');
       lists.sort((a, b) => oldOrder.indexOf(a.id) - oldOrder.indexOf(b.id));
     }
   }
@@ -1761,7 +1761,7 @@ function wireShoppingWidget(container, data) {
       try {
         await api.delete(`/lists/items/${id}`);
       } catch {
-        window.planner?.showToast('Could not delete item', 'danger');
+        window.planium?.showToast('Could not delete item', 'danger');
       }
       return;
     }
@@ -1781,7 +1781,7 @@ function wireShoppingWidget(container, data) {
       try {
         await api.delete(`/lists/${id}`);
       } catch {
-        window.planner?.showToast('Could not delete list', 'danger');
+        window.planium?.showToast('Could not delete list', 'danger');
       }
       return;
     }
@@ -1820,7 +1820,7 @@ function wireShoppingWidget(container, data) {
       try {
         await api.patch(`/lists/items/${id}`, { is_checked: 1 });
       } catch {
-        window.planner?.showToast('Could not update item', 'danger');
+        window.planium?.showToast('Could not update item', 'danger');
       }
       return;
     }

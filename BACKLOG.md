@@ -2,13 +2,13 @@
 
 Feature requests and planned extensions. Entries here will **not** be implemented until explicitly prioritized and moved into a release branch.
 
-New suggestion? → [Open an issue](https://github.com/ulsklyc/oikos/issues/new?template=feature_request.md) or add it here.
+New suggestion? → [Open an issue](https://github.com/rogueghost93/planium/issues/new?template=feature_request.md) or add it here.
 
 ## Open Entries
 
 | ID | Issue | Feature | Notes |
 |----|-------|---------|-------|
-| BL-11 | [#10](https://github.com/ulsklyc/oikos/issues/10) | Contacts: CardDAV (read-only) provider | Sync address book entries from phone/server; backend lib evaluation needed |
+| BL-11 | [#10](https://github.com/rogueghost93/planium/issues/10) | Contacts: CardDAV (read-only) provider | Sync address book entries from phone/server; backend lib evaluation needed |
 
 ---
 
@@ -29,7 +29,7 @@ New suggestion? → [Open an issue](https://github.com/ulsklyc/oikos/issues/new?
 | - | UX Polish (animations, bottom sheet, FAB, stagger, vibration) | v0.2.0 |
 | - | Event listener leaks, CSS gaps, modal tests | v0.2.1 |
 | - | Internationalisation system (de + en), locale picker, formatDate/Time | v0.5.0 |
-| - | PWA: Correct Oikos icons (192/512/maskable/apple-touch), service worker v22 | v0.5.1 |
+| - | PWA: Correct Planium icons (192/512/maskable/apple-touch), service worker v22 | v0.5.1 |
 | - | Calendar: Fix all-day RFC 5545 DTEND, DURATION support, birthday sync | v0.5.6 |
 | - | Calendar: RRULE expansion fix (strip RRULE: prefix), YEARLY support | v0.5.7 |
 | - | Italian (it) localization (497 keys) | v0.5.8 |

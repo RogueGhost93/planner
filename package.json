@@ -1,7 +1,7 @@
 {
-  "name": "planner",
+  "name": "planium",
   "version": "0.7.5",
-  "description": "Self-hosted family planner - calendar, tasks, shopping, meal planning, budget and more.",
+  "description": "Self-hosted family planium - calendar, tasks, shopping, meal planning, budget and more.",
   "main": "server/index.js",
   "type": "module",
   "engines": {

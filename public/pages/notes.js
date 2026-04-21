@@ -1,7 +1,7 @@
 /**
  * Modul: Pinnwand / Notizen (Notes)
  * Zweck: Masonry-Grid mit farbigen Sticky Notes, Pin-Toggle, CRUD
- * Abhängigkeiten: /api.js, /router.js (window.planner)
+ * Abhängigkeiten: /api.js, /router.js (window.planium)
  */
 
 import { api } from '/api.js';
@@ -77,7 +77,7 @@ export async function render(container, { user }) {
   } catch (err) {
     console.error('[Notes] Laden fehlgeschlagen:', err);
     state.notes = [];
-    window.planner?.showToast(t('notes.loadError'), 'danger');
+    window.planium?.showToast(t('notes.loadError'), 'danger');
   }
   const grid = container.querySelector('#notes-grid');
   grid.addEventListener('click', async (e) => {
@@ -447,7 +447,7 @@ function openNoteModal({ mode, note = null }) {
         const pinned  = panel.querySelector('#note-pinned').checked ? 1 : 0;
         const shared  = panel.querySelector('#note-shared').checked ? 1 : 0;
 
-        if (!cnt) { window.planner?.showToast(t('common.contentRequired'), 'error'); return; }
+        if (!cnt) { window.planium?.showToast(t('common.contentRequired'), 'error'); return; }
 
         saveBtn.disabled    = true;
         saveBtn.textContent = '…';
@@ -464,9 +464,9 @@ function openNoteModal({ mode, note = null }) {
           }
           closeModal();
           renderGrid();
-          window.planner?.showToast(mode === 'create' ? t('notes.createdToast') : t('notes.savedToast'), 'success');
+          window.planium?.showToast(mode === 'create' ? t('notes.createdToast') : t('notes.savedToast'), 'success');
         } catch (err) {
-          window.planner?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
+          window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
           btnError(saveBtn);
           saveBtn.disabled    = false;
           saveBtn.textContent = isEdit ? t('common.save') : t('common.create');
@@ -488,7 +488,7 @@ async function togglePin(id) {
     state.notes.sort((a, b) => b.pinned - a.pinned);
     renderGrid();
   } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
+    window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
   }
 }
 
@@ -499,9 +499,9 @@ async function deleteNote(id) {
     state.notes = state.notes.filter((n) => n.id !== id);
     renderGrid();
     vibrate([30, 50, 30]);
-    window.planner?.showToast(t('notes.deletedToast'), 'success');
+    window.planium?.showToast(t('notes.deletedToast'), 'success');
   } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
+    window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
   }
 }
 

@@ -1,17 +1,17 @@
 services:
-  planner:
+  planium:
     build: .
-    container_name: planner
+    container_name: planium
     restart: unless-stopped
     ports:
       - "0.0.0.0:3000:3000"
     volumes:
-      - planner_data:/data
+      - planium_data:/data
     env_file:
       - .env
     environment:
       - NODE_ENV=production
-      - DB_PATH=/data/planner.db
+      - DB_PATH=/data/planium.db
       # Auf false setzen wenn kein HTTPS/Reverse-Proxy (direkter HTTP-Zugriff)
       - SESSION_SECURE=false
     healthcheck:
@@ -22,5 +22,5 @@ services:
       start_period: 10s
 
 volumes:
-  planner_data:
+  planium_data:
     driver: local

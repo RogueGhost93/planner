@@ -2,7 +2,7 @@
  * Modul: Budget-Tracker (Budget)
  * Zweck: Monatsübersicht, Kategorie-Balkendiagramm (Canvas), Transaktionsliste,
  *        CRUD, CSV-Export
- * Abhängigkeiten: /api.js, /router.js (window.planner)
+ * Abhängigkeiten: /api.js, /router.js (window.planium)
  */
 
 import { api } from '/api.js';
@@ -97,7 +97,7 @@ async function loadMonth(month) {
     state.entries     = [];
     state.summary     = { income: 0, expenses: 0, balance: 0, byCategory: [] };
     state.prevSummary = null;
-    window.planner?.showToast(t('budget.loadError'), 'danger');
+    window.planium?.showToast(t('budget.loadError'), 'danger');
   }
 }
 
@@ -449,9 +449,9 @@ function openBudgetModal({ mode, entry = null }) {
         const date       = panel.querySelector('#bm-date').value;
         const recurring  = panel.querySelector('#bm-recurring').checked ? 1 : 0;
 
-        if (!title)           { window.planner?.showToast(t('common.titleRequired'), 'error'); return; }
-        if (isNaN(absVal) || absVal <= 0) { window.planner?.showToast(t('budget.validAmountRequired'), 'error'); return; }
-        if (!date)            { window.planner?.showToast(t('budget.dateRequired'), 'error'); return; }
+        if (!title)           { window.planium?.showToast(t('common.titleRequired'), 'error'); return; }
+        if (isNaN(absVal) || absVal <= 0) { window.planium?.showToast(t('budget.validAmountRequired'), 'error'); return; }
+        if (!date)            { window.planium?.showToast(t('budget.dateRequired'), 'error'); return; }
 
         const amount = currentType === 'expense' ? -absVal : absVal;
 
@@ -473,9 +473,9 @@ function openBudgetModal({ mode, entry = null }) {
 
           closeModal();
           renderBody();
-          window.planner?.showToast(mode === 'create' ? t('budget.addedToast') : t('budget.savedToast'), 'success');
+          window.planium?.showToast(mode === 'create' ? t('budget.addedToast') : t('budget.savedToast'), 'success');
         } catch (err) {
-          window.planner?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
+          window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
           saveBtn.disabled    = false;
           saveBtn.textContent = isEdit ? t('common.save') : t('common.add');
         }
@@ -497,9 +497,9 @@ async function deleteEntry(id) {
     state.summary = sumRes.data;
     renderBody();
     vibrate([30, 50, 30]);
-    window.planner?.showToast(t('budget.deletedToast'), 'success');
+    window.planium?.showToast(t('budget.deletedToast'), 'success');
   } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
+    window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
   }
 }
 

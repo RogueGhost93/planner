@@ -14,8 +14,8 @@ import { esc } from '/utils/html.js';
 // --------------------------------------------------------
 // localStorage keys
 // --------------------------------------------------------
-const LS_LAST_POPUP = 'planner-notify-last-popup';
-const LS_LAST_SOUND = 'planner-notify-last-sound';
+const LS_LAST_POPUP = 'planium-notify-last-popup';
+const LS_LAST_SOUND = 'planium-notify-last-sound';
 
 // --------------------------------------------------------
 // Sound generation via Web Audio API (no external file needed)

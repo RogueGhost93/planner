@@ -1,7 +1,7 @@
 {
-  "name": "Planner",
-  "short_name": "Planner",
-  "description": "Self-hosted family planner",
+  "name": "Planium",
+  "short_name": "Planium",
+  "description": "Self-hosted family planium",
   "id": "/",
   "start_url": "/",
   "scope": "/",

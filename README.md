@@ -1,14 +1,14 @@
 <div align="center">
-  <img src="docs/logo.svg" alt="Oikos" width="120" />
-  <h1>Oikos</h1>
-  <p><strong>Self-hosted family planner for small households</strong></p>
+  <img src="docs/logo.svg" alt="Planium" width="120" />
+  <h1>Planium</h1>
+  <p><strong>Self-hosted family planium for small households</strong></p>
   <p>Tasks · Shopping Lists · Meal Planning · Calendar Sync · Budget · Notes · Contacts</p>
 
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="MIT License"></a>
-  <a href="https://github.com/ulsklyc/oikos/releases"><img src="https://img.shields.io/github/v/release/ulsklyc/oikos?style=flat-square&color=007AFF&label=release" alt="Latest Release"></a>
+  <a href="https://github.com/rogueghost93/planium/releases"><img src="https://img.shields.io/github/v/release/rogueghost93/planium?style=flat-square&color=007AFF&label=release" alt="Latest Release"></a>
   <a href="https://www.docker.com"><img src="https://img.shields.io/badge/docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/badge/node-%E2%89%A522-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js"></a>
-  <a href="https://github.com/ulsklyc/oikos/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs Welcome"></a>
+  <a href="https://github.com/rogueghost93/planium/pulls"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen?style=flat-square" alt="PRs Welcome"></a>
 </div>
 
 <br>
@@ -47,7 +47,7 @@
 
 **Shopping Lists:** Collaborative lists with aisle categories and one-click import from meal plans
 
-**Meal Planning:** Weekly drag-and-drop planner with ingredient lists and shopping export
+**Meal Planning:** Weekly drag-and-drop planium with ingredient lists and shopping export
 
 **Calendar Sync:** Two-way sync with Google Calendar (OAuth) and Apple iCloud (CalDAV)
 
@@ -66,10 +66,10 @@
 ## Quick Start
 
 ```bash
-git clone https://github.com/ulsklyc/oikos.git && cd oikos
+git clone https://github.com/rogueghost93/planium.git && cd planium
 cp .env.example .env     # then edit .env - set SESSION_SECRET and DB_ENCRYPTION_KEY
 docker compose up -d --build
-docker compose exec oikos node setup.js
+docker compose exec planium node setup.js
 ```
 
 Then open `http://localhost:3000` and log in with the admin credentials you set in the previous step. Add family members from Settings.

@@ -92,7 +92,7 @@ export async function render(container, { user }) {
           <div class="settings-toggle-row" style="margin-top:var(--space-3)">
             <label class="settings-toggle-label" for="daily-accent">Rotate accent color daily <span class="form-hint" style="display:inline;margin:0">(this device only)</span></label>
             <label class="toggle-switch">
-              <input type="checkbox" id="daily-accent" ${localStorage.getItem('planner-daily-accent') !== 'false' ? 'checked' : ''} />
+              <input type="checkbox" id="daily-accent" ${localStorage.getItem('planium-daily-accent') !== 'false' ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
             </label>
           </div>
@@ -109,7 +109,7 @@ export async function render(container, { user }) {
           <div class="settings-toggle-row" style="margin-top:var(--space-4)">
             <label class="settings-toggle-label" for="show-quotes">${t('settings.showQuotesLabel')} <span class="form-hint" style="display:inline;margin:0">(this device only)</span></label>
             <label class="toggle-switch">
-              <input type="checkbox" id="show-quotes" ${localStorage.getItem('planner-show-quotes') !== 'false' ? 'checked' : ''} />
+              <input type="checkbox" id="show-quotes" ${localStorage.getItem('planium-show-quotes') !== 'false' ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
             </label>
           </div>
@@ -117,7 +117,7 @@ export async function render(container, { user }) {
           <div class="settings-toggle-row">
             <label class="settings-toggle-label" for="show-tickers">Show price tickers in greeting bar <span class="form-hint" style="display:inline;margin:0">(this device only)</span></label>
             <label class="toggle-switch">
-              <input type="checkbox" id="show-tickers" ${localStorage.getItem('planner-show-tickers') !== 'false' ? 'checked' : ''} />
+              <input type="checkbox" id="show-tickers" ${localStorage.getItem('planium-show-tickers') !== 'false' ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
             </label>
           </div>
@@ -125,30 +125,30 @@ export async function render(container, { user }) {
           <div class="settings-quick-link" style="display:flex;gap:var(--space-2)">
             <input class="form-input" type="url" id="ticker-link-input"
                    placeholder="https://bitbo.io/"
-                   value="${esc(localStorage.getItem('planner-ticker-btc-href') || '')}" />
+                   value="${esc(localStorage.getItem('planium-ticker-btc-href') || '')}" />
             <button class="btn btn--primary" id="ticker-link-save">Save</button>
           </div>
           <span class="form-hint">Leave empty to use the default (bitbo.io)</span>
 
           <p class="settings-card__label" style="margin-top:var(--space-4);margin-bottom:var(--space-2)">Background image <span class="form-hint" style="display:inline;margin:0">(this device only)</span></p>
           <div id="bg-upload-row" style="display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-2)">
-            <img id="bg-preview-img" src="${esc(localStorage.getItem('planner-bg') || '')}"
-                 style="width:80px;height:50px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--color-border);${localStorage.getItem('planner-bg') ? '' : 'display:none'}"
+            <img id="bg-preview-img" src="${esc(localStorage.getItem('planium-bg') || '')}"
+                 style="width:80px;height:50px;object-fit:cover;border-radius:var(--radius-sm);border:1px solid var(--color-border);${localStorage.getItem('planium-bg') ? '' : 'display:none'}"
                  alt="Background preview" />
             <div style="display:flex;gap:var(--space-2)">
               <label class="btn btn--secondary" style="cursor:pointer" aria-label="Upload background photo">
                 Upload photo
                 <input type="file" id="bg-upload" accept="image/*" style="display:none">
               </label>
-              <button class="btn btn--danger-outline" id="bg-remove" ${localStorage.getItem('planner-bg') ? '' : 'hidden'}>Remove</button>
+              <button class="btn btn--danger-outline" id="bg-remove" ${localStorage.getItem('planium-bg') ? '' : 'hidden'}>Remove</button>
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:var(--space-3)">
             <label class="settings-card__label" for="bg-dim" style="white-space:nowrap;margin:0">Dim</label>
             <input type="range" id="bg-dim" min="0" max="0.6" step="0.05"
-                   value="${localStorage.getItem('planner-bg-dim') ?? '0.2'}"
+                   value="${localStorage.getItem('planium-bg-dim') ?? '0.2'}"
                    style="flex:1">
-            <span id="bg-dim-val" style="font-size:var(--text-sm);color:var(--color-text-secondary);min-width:2.5em;text-align:right">${Math.round(parseFloat(localStorage.getItem('planner-bg-dim') ?? '0.2') * 100)}%</span>
+            <span id="bg-dim-val" style="font-size:var(--text-sm);color:var(--color-text-secondary);min-width:2.5em;text-align:right">${Math.round(parseFloat(localStorage.getItem('planium-bg-dim') ?? '0.2') * 100)}%</span>
           </div>
 
         </div>
@@ -381,7 +381,7 @@ export async function render(container, { user }) {
             <div class="settings-toggle-row" style="margin-top:var(--space-4)">
               <label class="settings-toggle-label" for="show-news">Show headlines in greeting bar <span class="form-hint" style="display:inline;margin:0">(this device only)</span></label>
               <label class="toggle-switch">
-                <input type="checkbox" id="show-news" ${localStorage.getItem('planner-show-news') === 'true' ? 'checked' : ''} />
+                <input type="checkbox" id="show-news" ${localStorage.getItem('planium-show-news') === 'true' ? 'checked' : ''} />
                 <span class="toggle-switch__slider"></span>
               </label>
             </div>
@@ -506,9 +506,9 @@ function bindEvents(container, user) {
   const dailyAccent = container.querySelector('#daily-accent');
   if (dailyAccent) {
     dailyAccent.addEventListener('change', () => {
-      localStorage.setItem('planner-daily-accent', dailyAccent.checked ? 'true' : 'false');
+      localStorage.setItem('planium-daily-accent', dailyAccent.checked ? 'true' : 'false');
       if (!dailyAccent.checked) {
-        localStorage.removeItem('planner-daily-accent-date');
+        localStorage.removeItem('planium-daily-accent-date');
       }
     });
   }
@@ -517,7 +517,7 @@ function bindEvents(container, user) {
   const showQuotes = container.querySelector('#show-quotes');
   if (showQuotes) {
     showQuotes.addEventListener('change', () => {
-      localStorage.setItem('planner-show-quotes', showQuotes.checked ? 'true' : 'false');
+      localStorage.setItem('planium-show-quotes', showQuotes.checked ? 'true' : 'false');
     });
   }
 
@@ -525,7 +525,7 @@ function bindEvents(container, user) {
   const showNews = container.querySelector('#show-news');
   if (showNews) {
     showNews.addEventListener('change', () => {
-      localStorage.setItem('planner-show-news', showNews.checked ? 'true' : 'false');
+      localStorage.setItem('planium-show-news', showNews.checked ? 'true' : 'false');
     });
   }
 
@@ -533,7 +533,7 @@ function bindEvents(container, user) {
   const showTickers = container.querySelector('#show-tickers');
   if (showTickers) {
     showTickers.addEventListener('change', () => {
-      localStorage.setItem('planner-show-tickers', showTickers.checked ? 'true' : 'false');
+      localStorage.setItem('planium-show-tickers', showTickers.checked ? 'true' : 'false');
     });
   }
 
@@ -546,9 +546,9 @@ function bindEvents(container, user) {
       quickLinkSave.disabled = true;
       try {
         await api.patch('/auth/me/preferences', { quick_link: url });
-        window.planner?.showToast('Quick link saved', 'success');
+        window.planium?.showToast('Quick link saved', 'success');
       } catch (err) {
-        window.planner?.showToast(err.message, 'danger');
+        window.planium?.showToast(err.message, 'danger');
       } finally {
         quickLinkSave.disabled = false;
       }
@@ -562,11 +562,11 @@ function bindEvents(container, user) {
       const input = container.querySelector('#ticker-link-input');
       const url = input.value.trim();
       if (url) {
-        localStorage.setItem('planner-ticker-btc-href', url);
+        localStorage.setItem('planium-ticker-btc-href', url);
       } else {
-        localStorage.removeItem('planner-ticker-btc-href');
+        localStorage.removeItem('planium-ticker-btc-href');
       }
-      window.planner?.showToast('Ticker link saved', 'success');
+      window.planium?.showToast('Ticker link saved', 'success');
     });
   }
 
@@ -593,17 +593,17 @@ function bindEvents(container, user) {
           canvas.getContext('2d').drawImage(img, 0, 0, width, height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
           try {
-            localStorage.setItem('planner-bg', dataUrl);
+            localStorage.setItem('planium-bg', dataUrl);
           } catch {
-            window.planner?.showToast('Image too large to store', 'danger');
+            window.planium?.showToast('Image too large to store', 'danger');
             return;
           }
           const preview = container.querySelector('#bg-preview-img');
           if (preview) { preview.src = dataUrl; preview.style.display = ''; }
           const removeBtn = container.querySelector('#bg-remove');
           if (removeBtn) removeBtn.hidden = false;
-          window.planner?.applyBackground();
-          window.planner?.showToast('Background saved', 'success');
+          window.planium?.applyBackground();
+          window.planium?.showToast('Background saved', 'success');
         };
         img.src = ev.target.result;
       };
@@ -614,12 +614,12 @@ function bindEvents(container, user) {
   const bgRemove = container.querySelector('#bg-remove');
   if (bgRemove) {
     bgRemove.addEventListener('click', () => {
-      localStorage.removeItem('planner-bg');
-      window.planner?.applyBackground();
+      localStorage.removeItem('planium-bg');
+      window.planium?.applyBackground();
       const preview = container.querySelector('#bg-preview-img');
       if (preview) { preview.src = ''; preview.style.display = 'none'; }
       bgRemove.hidden = true;
-      window.planner?.showToast('Background removed', 'default');
+      window.planium?.showToast('Background removed', 'default');
     });
   }
 
@@ -628,9 +628,9 @@ function bindEvents(container, user) {
   if (bgDim) {
     bgDim.addEventListener('input', () => {
       const v = bgDim.value;
-      localStorage.setItem('planner-bg-dim', v);
+      localStorage.setItem('planium-bg-dim', v);
       if (bgDimVal) bgDimVal.textContent = `${Math.round(parseFloat(v) * 100)}%`;
-      window.planner?.applyBackground();
+      window.planium?.applyBackground();
     });
   }
 
@@ -650,9 +650,9 @@ function bindEvents(container, user) {
       }
       try {
         await api.patch('/auth/me/preferences', payload);
-        window.planner?.showToast(t('settings.notifySavedToast'), 'success');
+        window.planium?.showToast(t('settings.notifySavedToast'), 'success');
       } catch (err) {
-        window.planner?.showToast(err.message, 'danger');
+        window.planium?.showToast(err.message, 'danger');
       }
     });
   }
@@ -686,7 +686,7 @@ function bindEvents(container, user) {
       try {
         await api.patch('/auth/me/password', { current_password: currentPw, new_password: newPw });
         passwordForm.reset();
-        window.planner?.showToast(t('settings.passwordSavedToast'), 'success');
+        window.planium?.showToast(t('settings.passwordSavedToast'), 'success');
       } catch (err) {
         showError(errorEl, err.message);
       } finally {
@@ -703,9 +703,9 @@ function bindEvents(container, user) {
       googleSyncBtn.textContent = t('settings.synchronizing');
       try {
         await api.post('/calendar/google/sync', {});
-        window.planner?.showToast(t('settings.syncSuccess', { provider: 'Google Calendar' }), 'success');
+        window.planium?.showToast(t('settings.syncSuccess', { provider: 'Google Calendar' }), 'success');
       } catch (err) {
-        window.planner?.showToast(err.message, 'danger');
+        window.planium?.showToast(err.message, 'danger');
       } finally {
         googleSyncBtn.disabled = false;
         googleSyncBtn.textContent = t('settings.syncNow');
@@ -720,10 +720,10 @@ function bindEvents(container, user) {
       if (!await showConfirm(t('settings.googleDisconnectConfirm'), { danger: true })) return;
       try {
         await api.delete('/calendar/google/disconnect');
-        window.planner?.showToast(t('settings.disconnectedToast', { provider: 'Google Calendar' }), 'default');
-        window.planner?.navigate('/settings');
+        window.planium?.showToast(t('settings.disconnectedToast', { provider: 'Google Calendar' }), 'default');
+        window.planium?.navigate('/settings');
       } catch (err) {
-        window.planner?.showToast(err.message, 'danger');
+        window.planium?.showToast(err.message, 'danger');
       }
     });
   }
@@ -736,9 +736,9 @@ function bindEvents(container, user) {
       appleSyncBtn.textContent = t('settings.synchronizing');
       try {
         await api.post('/calendar/apple/sync', {});
-        window.planner?.showToast(t('settings.syncSuccess', { provider: 'Apple Calendar' }), 'success');
+        window.planium?.showToast(t('settings.syncSuccess', { provider: 'Apple Calendar' }), 'success');
       } catch (err) {
-        window.planner?.showToast(err.message, 'danger');
+        window.planium?.showToast(err.message, 'danger');
       } finally {
         appleSyncBtn.disabled = false;
         appleSyncBtn.textContent = t('settings.syncNow');
@@ -753,10 +753,10 @@ function bindEvents(container, user) {
       if (!await showConfirm(t('settings.appleDisconnectConfirm'), { danger: true })) return;
       try {
         await api.delete('/calendar/apple/disconnect');
-        window.planner?.showToast(t('settings.disconnectedToast', { provider: 'Apple Calendar' }), 'default');
-        window.planner?.navigate('/settings');
+        window.planium?.showToast(t('settings.disconnectedToast', { provider: 'Apple Calendar' }), 'default');
+        window.planium?.navigate('/settings');
       } catch (err) {
-        window.planner?.showToast(err.message, 'danger');
+        window.planium?.showToast(err.message, 'danger');
       }
     });
   }
@@ -778,8 +778,8 @@ function bindEvents(container, user) {
       btn.textContent = t('settings.appleConnecting');
       try {
         await api.post('/calendar/apple/connect', { url, username, password });
-        window.planner?.showToast(t('settings.appleConnectedToast'), 'success');
-        window.planner?.navigate('/settings');
+        window.planium?.showToast(t('settings.appleConnectedToast'), 'success');
+        window.planium?.navigate('/settings');
       } catch (err) {
         showError(errorEl, err.message);
       } finally {
@@ -831,8 +831,8 @@ function bindEvents(container, user) {
       btn.textContent = '…';
       try {
         await api.post('/mealie/config', { url, token });
-        window.planner?.showToast(t('settings.mealieSavedToast'), 'success');
-        window.planner?.navigate('/settings');
+        window.planium?.showToast(t('settings.mealieSavedToast'), 'success');
+        window.planium?.navigate('/settings');
       } catch (err) {
         showError(errorEl, err.data?.error ?? err.message);
       } finally {
@@ -849,10 +849,10 @@ function bindEvents(container, user) {
       if (!await showConfirm(t('settings.mealieDisconnectConfirm'), { danger: true })) return;
       try {
         await api.delete('/mealie/config');
-        window.planner?.showToast(t('settings.mealieDisconnectedToast'), 'default');
-        window.planner?.navigate('/settings');
+        window.planium?.showToast(t('settings.mealieDisconnectedToast'), 'default');
+        window.planium?.navigate('/settings');
       } catch (err) {
-        window.planner?.showToast(err.data?.error ?? err.message, 'danger');
+        window.planium?.showToast(err.data?.error ?? err.message, 'danger');
       }
     });
   }
@@ -897,8 +897,8 @@ function bindEvents(container, user) {
       btn.disabled   = true;
       try {
         await api.post('/freshrss/config', { url, username, password });
-        window.planner?.showToast('FreshRSS connected', 'success');
-        window.planner?.navigate('/settings');
+        window.planium?.showToast('FreshRSS connected', 'success');
+        window.planium?.navigate('/settings');
       } catch (err) {
         errorEl.textContent = err.data?.error ?? err.message ?? 'Connection failed';
         errorEl.hidden = false;
@@ -914,10 +914,10 @@ function bindEvents(container, user) {
       if (!await showConfirm('Disconnect FreshRSS?', { danger: true })) return;
       try {
         await api.delete('/freshrss/config');
-        window.planner?.showToast('FreshRSS disconnected', 'default');
-        window.planner?.navigate('/settings');
+        window.planium?.showToast('FreshRSS disconnected', 'default');
+        window.planium?.navigate('/settings');
       } catch (err) {
-        window.planner?.showToast(err.data?.error ?? err.message, 'danger');
+        window.planium?.showToast(err.data?.error ?? err.message, 'danger');
       }
     });
   }
@@ -965,7 +965,7 @@ function bindEvents(container, user) {
         addMemberForm.reset();
         container.querySelector('#add-member-form-card').classList.add('settings-card--hidden');
         container.querySelector('#add-member-btn').hidden = false;
-        window.planner?.showToast(t('settings.memberAddedToast', { name: res.user.display_name }), 'success');
+        window.planium?.showToast(t('settings.memberAddedToast', { name: res.user.display_name }), 'success');
         bindDeleteButtons(container, user);
       } catch (err) {
         showError(errorEl, err.message);
@@ -1002,9 +1002,9 @@ function bindDeleteButtons(container, user) {
       try {
         await auth.deleteUser(id);
         btn.closest('.settings-member').remove();
-        window.planner?.showToast(t('settings.memberDeletedToast', { name }), 'default');
+        window.planium?.showToast(t('settings.memberDeletedToast', { name }), 'default');
       } catch (err) {
-        window.planner?.showToast(err.message, 'danger');
+        window.planium?.showToast(err.message, 'danger');
       }
     });
   });
@@ -1038,11 +1038,11 @@ function formatDateTime(iso) {
 }
 
 function currentTheme() {
-  return localStorage.getItem('planner-theme') || 'system';
+  return localStorage.getItem('planium-theme') || 'system';
 }
 
 function applyTheme(value) {
-  localStorage.setItem('planner-theme', value);
+  localStorage.setItem('planium-theme', value);
   if (value === 'light' || value === 'dark') {
     document.documentElement.setAttribute('data-theme', value);
   } else {
@@ -1071,11 +1071,11 @@ const ACCENT_COLORS = [
 ];
 
 function currentAccent() {
-  return localStorage.getItem('planner-accent') || 'blue';
+  return localStorage.getItem('planium-accent') || 'blue';
 }
 
 function applyAccent(id) {
-  localStorage.setItem('planner-accent', id);
+  localStorage.setItem('planium-accent', id);
   if (id === 'blue') {
     document.documentElement.removeAttribute('data-accent');
   } else {
