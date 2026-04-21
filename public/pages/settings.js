@@ -898,6 +898,7 @@ function bindEvents(container, user) {
       try {
         await api.post('/freshrss/config', { url, username, password });
         window.planium?.showToast('FreshRSS connected', 'success');
+        window.planium?.refreshOptionalNavItems?.();
         window.planium?.navigate('/settings');
       } catch (err) {
         errorEl.textContent = err.data?.error ?? err.message ?? 'Connection failed';
@@ -915,6 +916,7 @@ function bindEvents(container, user) {
       try {
         await api.delete('/freshrss/config');
         window.planium?.showToast('FreshRSS disconnected', 'default');
+        window.planium?.refreshOptionalNavItems?.();
         window.planium?.navigate('/settings');
       } catch (err) {
         window.planium?.showToast(err.data?.error ?? err.message, 'danger');
