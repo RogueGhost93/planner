@@ -188,7 +188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Meals: fixed crash when dragging a meal slot - `dragging` state is now destructured before `cleanup()` runs, preventing a null-reference error on drop
 - i18n: `t()` now resolves dot-notation keys against nested locale JSON objects (e.g. `t('nav.tasks')` correctly returns `"Aufgaben"` instead of the raw key string); affects all pages, components, and navigation
-- PWA: replaced placeholder "O" icons with the actual Oikos house logo across all icon variants (192, 512, maskable 192, maskable 512, apple-touch-icon, favicon); maskable variants use full-bleed background with logo within the 80% safe zone - fixes Android home screen showing only a blue circle
+- PWA: replaced placeholder "O" icons with the actual Planium house logo across all icon variants (192, 512, maskable 192, maskable 512, apple-touch-icon, favicon); maskable variants use full-bleed background with logo within the 80% safe zone - fixes Android home screen showing only a blue circle
 - PWA: weather widget icons (OpenWeatherMap) now render correctly in installed PWA on Android; service worker no longer intercepts cross-origin image requests (opaque responses caused silent rendering failures in standalone mode)
 - Settings: language selector replaced from cramped radio buttons to a native `<select>` dropdown using the standard `form-input` style
 
@@ -202,7 +202,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - i18n: full internationalisation system (`public/i18n.js`) with German (de) and English (en) support; language auto-detected from `navigator.language`, overridable via Settings
 - i18n: all user-facing strings moved to locale files (`public/locales/de.json`, `public/locales/en.json`); 489 translation keys covering all modules
 - i18n: locale switch without page reload - all pages, components and navigation re-render via `locale-changed` custom event
-- i18n: `oikos-locale-picker` Web Component in Settings - three options: System (follows browser language), Deutsch, English
+- i18n: `planium-locale-picker` Web Component in Settings - three options: System (follows browser language), Deutsch, English
 - i18n: dates and times formatted with `Intl.DateTimeFormat` using the active locale; `formatDate()` and `formatTime()` exported from `i18n.js`
 - i18n: fallback chain (active locale → German → key) ensures no untranslated keys are shown even if a future locale file is incomplete
 - i18n: adding a new language requires only one JSON file (`public/locales/xx.json`) and one line in `SUPPORTED_LOCALES`
@@ -267,14 +267,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0] - 2026-03-29
 
-Initial release of Oikos - a self-hosted family planner for 2–6 person households. Runs as a Docker container behind Nginx with SSL, no cloud dependency.
+Initial release of Planium - a self-hosted family planium for 2–6 person households. Runs as a Docker container behind Nginx with SSL, no cloud dependency.
 
 ### Added
 
 - **Dashboard** with time-of-day greeting, urgent tasks, upcoming events, today's meals, pinned notes, and weather widget (OpenWeatherMap integration with 3–5 day forecast scaling by screen size)
 - **Task management** with categories, priorities, due dates, subtasks (max 2 levels), list and Kanban views, swipe gestures on mobile (swipe left = toggle done, swipe right = edit), and recurring tasks via iCal RRULE
 - **Shopping lists** with multiple named lists, supermarket-aisle sorting, autocomplete from history, optimistic checkbox toggle, and bulk-clear of checked items
-- **Weekly meal planner** with breakfast/lunch/dinner/snack grid (Mon–Sun), ingredient tracking per meal, and one-click transfer of ingredients to shopping lists
+- **Weekly meal planium** with breakfast/lunch/dinner/snack grid (Mon–Sun), ingredient tracking per meal, and one-click transfer of ingredients to shopping lists
 - **Calendar** with month, week, day, and agenda views, multi-day event support, color-coded entries, and family member assignment
 - **Google Calendar sync** via OAuth 2.0 with incremental sync tokens and **Apple CalDAV sync** via tsdav, both bidirectional
 - **Pinboard** (notes) with color-coded sticky notes, pin-to-top, Markdown formatting toolbar (bold, italic, lists, headings, code, links), and automatic text contrast based on background color
@@ -301,21 +301,21 @@ Initial release of Oikos - a self-hosted family planner for 2–6 person househo
 - No user data cached by service worker (API requests are network-only)
 - Hardened `.gitignore` and `.dockerignore` to prevent accidental secret or binary leakage
 
-[Unreleased]: https://github.com/ulsklyc/oikos/compare/v0.7.0...HEAD
-[0.7.0]: https://github.com/ulsklyc/oikos/compare/v0.6.0...v0.7.0
-[0.6.0]: https://github.com/ulsklyc/oikos/compare/v0.5.9...v0.6.0
-[0.5.9]: https://github.com/ulsklyc/oikos/compare/v0.5.8...v0.5.9
-[0.5.8]: https://github.com/ulsklyc/oikos/compare/v0.5.7...v0.5.8
-[0.5.7]: https://github.com/ulsklyc/oikos/compare/v0.5.6...v0.5.7
-[0.5.6]: https://github.com/ulsklyc/oikos/compare/v0.5.5...v0.5.6
-[0.5.5]: https://github.com/ulsklyc/oikos/compare/v0.5.4...v0.5.5
-[0.5.4]: https://github.com/ulsklyc/oikos/compare/v0.5.3...v0.5.4
-[0.5.3]: https://github.com/ulsklyc/oikos/compare/v0.5.2...v0.5.3
-[0.5.2]: https://github.com/ulsklyc/oikos/compare/v0.5.1...v0.5.2
-[0.5.1]: https://github.com/ulsklyc/oikos/compare/v0.5.0...v0.5.1
-[0.5.0]: https://github.com/ulsklyc/oikos/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/ulsklyc/oikos/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/ulsklyc/oikos/compare/v0.2.1...v0.3.0
-[0.2.1]: https://github.com/ulsklyc/oikos/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/ulsklyc/oikos/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/ulsklyc/oikos/releases/tag/v0.1.0
+[Unreleased]: https://github.com/rogueghost93/planium/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/rogueghost93/planium/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/rogueghost93/planium/compare/v0.5.9...v0.6.0
+[0.5.9]: https://github.com/rogueghost93/planium/compare/v0.5.8...v0.5.9
+[0.5.8]: https://github.com/rogueghost93/planium/compare/v0.5.7...v0.5.8
+[0.5.7]: https://github.com/rogueghost93/planium/compare/v0.5.6...v0.5.7
+[0.5.6]: https://github.com/rogueghost93/planium/compare/v0.5.5...v0.5.6
+[0.5.5]: https://github.com/rogueghost93/planium/compare/v0.5.4...v0.5.5
+[0.5.4]: https://github.com/rogueghost93/planium/compare/v0.5.3...v0.5.4
+[0.5.3]: https://github.com/rogueghost93/planium/compare/v0.5.2...v0.5.3
+[0.5.2]: https://github.com/rogueghost93/planium/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/rogueghost93/planium/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/rogueghost93/planium/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/rogueghost93/planium/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/rogueghost93/planium/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/rogueghost93/planium/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/rogueghost93/planium/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/rogueghost93/planium/releases/tag/v0.1.0

@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Planium - The Self-Hosted Family Planner</title>
-  <meta name="description" content="A privacy-first, self-hosted family planner with tasks, shopping lists, meal planning, calendar sync, budget tracking, and more. No cloud, no tracking, your data.">
+  <title>Planium - The Self-Hosted Family Planium</title>
+  <meta name="description" content="A privacy-first, self-hosted family planium with tasks, shopping lists, meal planning, calendar sync, budget tracking, and more. No cloud, no tracking, your data.">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Planium - The Self-Hosted Family Planner">
-  <meta property="og:description" content="A privacy-first, self-hosted family planner. Tasks, shopping, meals, calendar sync, budget - all self-hosted, no cloud dependency.">
+  <meta property="og:title" content="Planium - The Self-Hosted Family Planium">
+  <meta property="og:description" content="A privacy-first, self-hosted family planium. Tasks, shopping, meals, calendar sync, budget - all self-hosted, no cloud dependency.">
   <meta property="og:image" content="https://rogueghost93.github.io/planium/og-image.png">
   <meta property="og:url" content="https://rogueghost93.github.io/planium/">
   <meta property="og:site_name" content="Planium">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Planium - The Self-Hosted Family Planner">
-  <meta name="twitter:description" content="A privacy-first, self-hosted family planner. Tasks, shopping, meals, calendar sync, budget - all self-hosted.">
+  <meta name="twitter:title" content="Planium - The Self-Hosted Family Planium">
+  <meta name="twitter:description" content="A privacy-first, self-hosted family planium. Tasks, shopping, meals, calendar sync, budget - all self-hosted.">
   <meta name="twitter:image" content="https://rogueghost93.github.io/planium/twitter-image.png">
 
   <link rel="canonical" href="https://rogueghost93.github.io/planium/">
@@ -564,7 +564,7 @@
   <header class="hero">
     <img src="logo.svg" alt="Planium Logo" class="hero-logo" width="80" height="80">
     <h1>Planium</h1>
-    <p class="hero-tagline">The self-hosted family planner</p>
+    <p class="hero-tagline">The self-hosted family planium</p>
     <p class="hero-desc">Manage your household together. Tasks, shopping, meals, calendar, budget - all in one place. Self-hosted, private, yours.</p>
     <a href="https://github.com/rogueghost93/planium" class="hero-cta" target="_blank" rel="noopener">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
@@ -600,7 +600,7 @@
         <div class="feature-card reveal reveal-delay-2">
           <div class="feature-icon" aria-hidden="true">&#x1F37D;&#xFE0F;</div>
           <h3>Meal Planning</h3>
-          <p>Weekly drag-and-drop planner with ingredient lists and automatic shopping list export.</p>
+          <p>Weekly drag-and-drop planium with ingredient lists and automatic shopping list export.</p>
         </div>
         <div class="feature-card reveal reveal-delay-3">
           <div class="feature-icon" aria-hidden="true">&#x1F4C5;</div>
@@ -762,8 +762,68 @@ cp .env.example .env     <span class="comment"># set SESSION_SECRET and DB_ENCRY
   <script>
     (function() {
       'use strict';
+      var THEME_KEY = 'planium-docs-theme'; // 'light' | 'dark' | null (= system)
 
-      });
+      function getStoredTheme() {
+        try { return localStorage.getItem(THEME_KEY); } catch { return null; }
+      }
+
+      function setStoredTheme(value) {
+        try {
+          if (!value) localStorage.removeItem(THEME_KEY);
+          else localStorage.setItem(THEME_KEY, value);
+        } catch { /* ignore */ }
+      }
+
+      function preferredTheme() {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+      }
+
+      function currentTheme() {
+        return getStoredTheme() || preferredTheme();
+      }
+
+      function applyTheme() {
+        var theme = currentTheme();
+        document.documentElement.setAttribute('data-theme', theme);
+
+        var sun = document.getElementById('themeIconSun');
+        var moon = document.getElementById('themeIconMoon');
+        if (sun && moon) {
+          sun.style.display = theme === 'dark' ? 'none' : '';
+          moon.style.display = theme === 'dark' ? '' : 'none';
+        }
+
+        // Swap screenshot sources based on theme
+        var imgs = document.querySelectorAll('img.screenshot-img[data-light][data-dark]');
+        for (var i = 0; i < imgs.length; i++) {
+          var el = imgs[i];
+          var next = theme === 'dark' ? el.getAttribute('data-dark') : el.getAttribute('data-light');
+          if (next && el.getAttribute('src') !== next) el.setAttribute('src', next);
+        }
+      }
+
+      function toggleTheme() {
+        var next = currentTheme() === 'dark' ? 'light' : 'dark';
+        setStoredTheme(next);
+        applyTheme();
+      }
+
+      // Wire theme toggle button
+      var btn = document.getElementById('themeToggle');
+      if (btn) btn.addEventListener('click', toggleTheme);
+
+      // Update if user changes OS theme (only when no manual override)
+      if (window.matchMedia) {
+        var mq = window.matchMedia('(prefers-color-scheme: dark)');
+        var onChange = function() {
+          if (!getStoredTheme()) applyTheme();
+        };
+        try { mq.addEventListener('change', onChange); }
+        catch { mq.addListener(onChange); } // Safari fallback
+      }
 
       /* ===== Scroll Reveal ===== */
       document.documentElement.classList.add('js');
@@ -786,7 +846,6 @@ cp .env.example .env     <span class="comment"># set SESSION_SECRET and DB_ENCRY
 
       /* ===== Init ===== */
       applyTheme();
-      applyLang();
     })();
   </script>
 </body>

@@ -1,7 +1,7 @@
 /**
- * Demo Seed Script - Oikos
+ * Demo Seed Script - Planium
  * Fills the database with realistic English demo content for screenshots/mockups.
- * Usage: node scripts/seed-demo.js [--db /path/to/oikos.db]
+ * Usage: node scripts/seed-demo.js [--db /path/to/planium.db]
  *
  * Creates:
  *   - 2 users (admin: alex / member: sam)
@@ -23,7 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const args = process.argv.slice(2);
 const dbIdx = args.indexOf('--db');
-const DB_PATH = dbIdx !== -1 ? args[dbIdx + 1] : resolve(__dirname, '..', 'data', 'oikos.db');
+const DB_PATH = dbIdx !== -1 ? args[dbIdx + 1] : resolve(__dirname, '..', 'data', 'planium.db');
 
 const db = new Database(DB_PATH);
 db.pragma('foreign_keys = ON');
@@ -266,7 +266,7 @@ const insertNote = db.prepare(`
    '#0EA5E9', 1, alexId],
 
   ['WiFi & Smart Home',
-   'WiFi: Oikos_Home_5G\nPassword: sunshine2024!\nPhilips Hue app: bridge IP 192.168.1.42\nNest thermostat: eco mode 18°C',
+   'WiFi: Planium_Home_5G\nPassword: sunshine2024!\nPhilips Hue app: bridge IP 192.168.1.42\nNest thermostat: eco mode 18°C',
    '#F59E0B', 1, alexId],
 
   ["Emma's School Info",

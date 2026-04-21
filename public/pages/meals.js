@@ -1,7 +1,7 @@
 /**
  * Modul: Recipes (Mealie Integration)
  * Zweck: Browse recipes from a self-hosted Mealie instance via proxy API
- * Abhängigkeiten: /api.js, /router.js (window.planner)
+ * Abhängigkeiten: /api.js, /router.js (window.planium)
  */
 
 import { api } from '/api.js';
@@ -100,7 +100,7 @@ async function loadAllRecipes() {
     const msg  = (code === 401 || code === 502)
       ? t('mealie.connectionError')
       : t('mealie.loadError');
-    window.planner?.showToast(msg, 'danger');
+    window.planium?.showToast(msg, 'danger');
   } finally {
     state.loading = false;
     renderGrid();
@@ -112,7 +112,7 @@ async function loadRecipeDetail(slug) {
   try {
     return await api.get(`/mealie/recipes/${encodeURIComponent(slug)}`);
   } catch {
-    window.planner?.showToast(t('mealie.loadError'), 'danger');
+    window.planium?.showToast(t('mealie.loadError'), 'danger');
     return null;
   }
 }
@@ -301,7 +301,7 @@ function recipeCardHTML(recipe) {
 // --------------------------------------------------------
 
 const RECIPE_FONT_SIZES = [0.95, 1.1, 1.25, 1.4, 1.6]; // rem steps
-const RECIPE_FONT_KEY   = 'planner-recipe-font-size';
+const RECIPE_FONT_KEY   = 'planium-recipe-font-size';
 
 function getRecipeFontIdx() {
   const v = parseInt(localStorage.getItem(RECIPE_FONT_KEY) ?? '1', 10);

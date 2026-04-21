@@ -21,7 +21,7 @@ export function renderPriceTickers() {
   if (TICKERS.length === 0) return '';
   const mode = TICKERS.length <= MAX_SIDE_BY_SIDE ? 'static' : 'rotate';
   const items = TICKERS.map((ticker) => {
-    const href = localStorage.getItem('planner-ticker-btc-href') || ticker.defaultHref;
+    const href = localStorage.getItem('planium-ticker-btc-href') || ticker.defaultHref;
     const inner = `<span class="price-ticker__label">${esc(ticker.label)}</span><span class="price-ticker__value">…</span><span class="price-ticker__change"></span>`;
     return href
       ? `<a class="price-ticker" data-ticker-id="${esc(ticker.id)}" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${inner}</a>`
@@ -46,7 +46,7 @@ async function fetchPrices() {
   return res.json();
 }
 
-const PRICE_CACHE_KEY = 'planner-ticker-price-cache';
+const PRICE_CACHE_KEY = 'planium-ticker-price-cache';
 
 function savePriceCache(data) {
   try { localStorage.setItem(PRICE_CACHE_KEY, JSON.stringify(data)); } catch (_) {}

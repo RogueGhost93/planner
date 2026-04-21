@@ -82,16 +82,16 @@ function applyUserPreferences(user) {
   let accent  = user.accent || 'blue';
 
   // Daily accent rotation
-  const rotationEnabled = localStorage.getItem('planner-daily-accent') !== 'false';
+  const rotationEnabled = localStorage.getItem('planium-daily-accent') !== 'false';
   if (rotationEnabled) {
     const today    = new Date().toISOString().slice(0, 10);
-    const lastDate = localStorage.getItem('planner-daily-accent-date');
+    const lastDate = localStorage.getItem('planium-daily-accent-date');
     if (lastDate !== today) {
       const pool = ALL_ACCENTS.filter(a => a !== accent);
       accent = pool[Math.floor(Math.random() * pool.length)];
       try {
-        localStorage.setItem('planner-daily-accent-date', today);
-        localStorage.setItem('planner-accent', accent);
+        localStorage.setItem('planium-daily-accent-date', today);
+        localStorage.setItem('planium-accent', accent);
       } catch { /* ignore */ }
       api.patch('/auth/me/preferences', { accent }).catch(() => {});
     }
@@ -104,14 +104,14 @@ function applyUserPreferences(user) {
     document.documentElement.removeAttribute('data-theme');
   }
   // Sync to localStorage for flash-prevention on next load
-  try { localStorage.setItem('planner-theme', theme); } catch { /* ignore */ }
+  try { localStorage.setItem('planium-theme', theme); } catch { /* ignore */ }
   // Apply accent
   if (accent && accent !== 'blue') {
     document.documentElement.setAttribute('data-accent', accent);
   } else {
     document.documentElement.removeAttribute('data-accent');
   }
-  try { localStorage.setItem('planner-accent', accent); } catch { /* ignore */ }
+  try { localStorage.setItem('planium-accent', accent); } catch { /* ignore */ }
 }
 
 // --------------------------------------------------------
@@ -339,7 +339,7 @@ function renderAppShell(container) {
   container.innerHTML = `
     <a href="#main-content" class="sr-only">${t('common.skipToContent')}</a>
     <nav class="nav-sidebar" aria-label="${t('nav.main')}">
-      <a href="/" data-route="/" class="nav-sidebar__logo" aria-label="${t('nav.dashboard')}"><img src="/icons/logo-p.svg" alt="" class="nav-sidebar__logo-img" aria-hidden="true"><span>Planner</span></a>
+      <a href="/" data-route="/" class="nav-sidebar__logo" aria-label="${t('nav.dashboard')}"><img src="/icons/logo-p.svg" alt="" class="nav-sidebar__logo-img" aria-hidden="true"><span>Planium</span></a>
       <div class="nav-sidebar__items" role="list">
         ${navItems().map(navItemHtml).join('')}
       </div>
@@ -509,14 +509,14 @@ function showToast(message, type = 'default', duration = 3000) {
 window.addEventListener('error', (e) => {
   // Resource load errors (e.g. failed image): ignore
   if (e.target && e.target !== window) return;
-  console.error('[Planner] Unhandled error:', e.error ?? e.message);
+  console.error('[Planium] Unhandled error:', e.error ?? e.message);
   showToast(t('common.unexpectedError'), 'danger');
 });
 
 window.addEventListener('unhandledrejection', (e) => {
   // Auth errors are already handled by auth:expired
   if (e.reason?.status === 401) return;
-  console.error('[Planner] Unhandled Promise rejection:', e.reason);
+  console.error('[Planium] Unhandled Promise rejection:', e.reason);
   const msg = e.reason?.message || t('common.errorGeneric');
   showToast(msg, 'danger');
   e.preventDefault(); // Suppress console error (already logged)
@@ -562,8 +562,8 @@ if (window.visualViewport) {
 // Background image
 // --------------------------------------------------------
 function applyBackground() {
-  const bg  = localStorage.getItem('planner-bg');
-  const dim = parseFloat(localStorage.getItem('planner-bg-dim') ?? '0.2');
+  const bg  = localStorage.getItem('planium-bg');
+  const dim = parseFloat(localStorage.getItem('planium-bg-dim') ?? '0.2');
 
   let layer = document.getElementById('bg-layer');
 
@@ -590,7 +590,7 @@ function applyBackground() {
 })();
 
 // Global exports
-window.planner = {
+window.planium = {
   navigate,
   showToast,
   setThemeColor,

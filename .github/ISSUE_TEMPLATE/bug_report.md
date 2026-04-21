@@ -31,7 +31,7 @@ What actually happened. Include error messages, console output, or screenshots i
 - **Device:** (e.g. Desktop, iPhone 15, Pixel 8)
 - **OS:** (e.g. Ubuntu 24.04, macOS 15, iOS 18)
 - **Docker version:** (run `docker --version`)
-- **Oikos version/commit:** (run `git rev-parse --short HEAD`)
+- **Planium version/commit:** (run `git rev-parse --short HEAD`)
 
 ## Logs
 
@@ -39,7 +39,7 @@ What actually happened. Include error messages, console output, or screenshots i
 <summary>Docker logs (if relevant)</summary>
 
 ```
-docker compose logs oikos --tail=50
+docker compose logs planium --tail=50
 ```
 
 Paste output here.

@@ -12,9 +12,9 @@
  *   API: Always network (no caching of user data)
  */
 
-const SHELL_CACHE   = 'planner-shell-v106';
-const PAGES_CACHE   = 'planner-pages-v106';
-const ASSETS_CACHE  = 'planner-assets-v106';
+const SHELL_CACHE   = 'planium-shell-v106';
+const PAGES_CACHE   = 'planium-pages-v106';
+const ASSETS_CACHE  = 'planium-assets-v106';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App shell: needed immediately for first render
@@ -43,7 +43,7 @@ const APP_SHELL = [
   '/styles/budget.css',
   '/styles/settings.css',
   '/styles/notifications.css',
-  '/components/planner-install-prompt.js',
+  '/components/planium-install-prompt.js',
   '/components/task-notifications.js',
   '/offline.html',
   '/manifest.json',

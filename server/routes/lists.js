@@ -232,7 +232,7 @@ router.delete('/items/:itemId', (req, res) => {
 // --------------------------------------------------------
 // Sublist operations
 // --------------------------------------------------------
-// Flat list of all sublists (for meal planner pickers etc.)
+// Flat list of all sublists (for meal planium pickers etc.)
 router.get('/sublists', (req, res) => {
   try {
     const rows = db.get().prepare(`

@@ -329,7 +329,7 @@ function wireSwipeGestures(container) {
             rerenderCurrentHead(container);
           } catch (err) {
             if (item) item.is_checked = checked;
-            window.planner.showToast(err.message, 'danger');
+            window.planium.showToast(err.message, 'danger');
           }
         }, 200);
       } else if (dx > SWIPE_THRESHOLD) {
@@ -343,7 +343,7 @@ function wireSwipeGestures(container) {
             rerenderCurrentHead(container);
           } catch (err) {
             resetCard(true);
-            window.planner.showToast(err.message, 'danger');
+            window.planium.showToast(err.message, 'danger');
           }
         }, 200);
       } else {
@@ -381,7 +381,7 @@ async function switchHead(headId, container) {
   } catch (err) {
     console.error('[Lists] loadHead:', err);
     state.head = null; state.sublists = []; state.items = [];
-    window.planner?.showToast(t('shopping.listsLoadError'), 'danger');
+    window.planium?.showToast(t('shopping.listsLoadError'), 'danger');
   }
   rerenderCurrentHead(container);
 }
@@ -409,7 +409,7 @@ function wireContentEvents(container) {
         const res = await api.post('/lists/heads', { name: name.trim() });
         state.heads.push(res.data);
         await switchHead(res.data.id, container);
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
 
@@ -421,7 +421,7 @@ function wireContentEvents(container) {
         state.head.name = res.data.name;
         const h = state.heads.find((x) => x.id === state.head.id); if (h) h.name = res.data.name;
         rerenderCurrentHead(container);
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
 
@@ -433,7 +433,7 @@ function wireContentEvents(container) {
         const next = state.heads[0];
         if (next) await switchHead(next.id, container);
         else { state.head = null; state.sublists = []; state.items = []; rerenderCurrentHead(container); }
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
 
@@ -444,7 +444,7 @@ function wireContentEvents(container) {
         const res = await api.post(`/lists/heads/${state.head.id}/sublists`, { name: name.trim() });
         state.sublists.push(res.data);
         rerenderCurrentHead(container);
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
 
@@ -457,7 +457,7 @@ function wireContentEvents(container) {
         const res = await api.put(`/lists/${id}`, { name: name.trim() });
         sub.name = res.data.name;
         rerenderCurrentHead(container);
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
 
@@ -470,7 +470,7 @@ function wireContentEvents(container) {
         state.sublists = state.sublists.filter((s) => s.id !== id);
         state.items = state.items.filter((i) => i.list_id !== id);
         rerenderCurrentHead(container);
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
 
@@ -487,7 +487,7 @@ function wireContentEvents(container) {
       } catch (err) {
         item.is_checked = checked;
         rerenderCurrentHead(container);
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
       }
       return;
     }
@@ -498,7 +498,7 @@ function wireContentEvents(container) {
         await api.delete(`/lists/items/${id}`);
         state.items = state.items.filter((i) => i.id !== id);
         rerenderCurrentHead(container);
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
 
@@ -510,8 +510,8 @@ function wireContentEvents(container) {
         await api.delete(`/lists/${id}/items/checked`);
         state.items = state.items.filter((i) => !(i.list_id === id && i.is_checked));
         rerenderCurrentHead(container);
-        window.planner.showToast(t('shopping.itemsRemovedToast', { count }));
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+        window.planium.showToast(t('shopping.itemsRemovedToast', { count }));
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
       return;
     }
   });
@@ -533,7 +533,7 @@ function wireContentEvents(container) {
       const refocus = container.querySelector(`[data-quick-add-form][data-sublist-id="${sublistId}"] [data-field="name"]`);
       if (refocus) refocus.focus();
     } catch (err) {
-      window.planner.showToast(err.message, 'danger');
+      window.planium.showToast(err.message, 'danger');
     }
   });
 }
@@ -648,7 +648,7 @@ function wireHeadTabDragReorder(container) {
       await api.patch('/lists/heads/reorder', { ids: newOrder });
       vibrate(15);
     } catch (err) {
-      window.planner?.showToast(err.message, 'danger');
+      window.planium?.showToast(err.message, 'danger');
       state.heads.sort((a, b) => oldOrder.indexOf(a.id) - oldOrder.indexOf(b.id));
       renderHeadTabs(container);
     }
@@ -690,7 +690,7 @@ export async function render(container, { user }) {
     if (chosenId) await loadHead(chosenId);
   } catch (err) {
     console.error('[Lists] init:', err);
-    window.planner?.showToast(t('shopping.listsLoadError'), 'danger');
+    window.planium?.showToast(t('shopping.listsLoadError'), 'danger');
   }
 
   container.innerHTML = `
@@ -769,7 +769,7 @@ function wireFabMenu(container) {
         const res = await api.post('/lists/heads', { name: name.trim() });
         state.heads.push(res.data);
         await switchHead(res.data.id, container);
-      } catch (err) { window.planner.showToast(err.message, 'danger'); }
+      } catch (err) { window.planium.showToast(err.message, 'danger'); }
     } else if (btn.dataset.fabAction === 'add-item') {
       openAddItemDialog(container);
     }
@@ -789,7 +789,7 @@ async function openAddItemDialog(container) {
 
 async function _openAddItemDialogInner(container) {
   if (!state.heads.length) {
-    window.planner.showToast(t('shopping.noHeadLists'), 'danger');
+    window.planium.showToast(t('shopping.noHeadLists'), 'danger');
     return;
   }
 
@@ -799,11 +799,11 @@ async function _openAddItemDialogInner(container) {
     const res = await api.get('/lists/sublists');
     allSublists = res.data || [];
   } catch (err) {
-    window.planner.showToast(err.message, 'danger');
+    window.planium.showToast(err.message, 'danger');
     return;
   }
   if (!allSublists.length) {
-    window.planner.showToast(t('shopping.noSublistsHint'), 'danger');
+    window.planium.showToast(t('shopping.noSublistsHint'), 'danger');
     return;
   }
 
@@ -904,9 +904,9 @@ async function _openAddItemDialogInner(container) {
             wireContentEvents(container);
             wireHeadTabDragReorder(container);
           }
-          window.planner.showToast(t('shopping.itemAddedToast'));
+          window.planium.showToast(t('shopping.itemAddedToast'));
         } catch (err) {
-          window.planner.showToast(err.message, 'danger');
+          window.planium.showToast(err.message, 'danger');
         }
       });
     },

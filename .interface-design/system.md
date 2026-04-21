@@ -6,7 +6,7 @@
 
 **What they do:** Plan the week's meals. Check what to buy. See what's due today. Track the family budget. Coordinate schedules. Quick in, quick out.
 
-**Feel:** Like a well-organized family kitchen - warm, practical, never sterile. Things have their place. Not a corporate dashboard, not a developer tool. Closer to a handwritten planner than a spreadsheet.
+**Feel:** Like a well-organized family kitchen - warm, practical, never sterile. Things have their place. Not a corporate dashboard, not a developer tool. Closer to a handwritten planium than a spreadsheet.
 
 ## Domain
 
@@ -83,7 +83,7 @@ Dark mode: stronger shadow opacity to compensate for reduced contrast against da
 
 ## Typography
 
-System font stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto...`). Familiar to each platform, zero load time, never feels foreign. A family planner should feel native to the device - not branded.
+System font stack (`-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto...`). Familiar to each platform, zero load time, never feels foreign. A family planium should feel native to the device - not branded.
 
 | Level | Size | Weight | Use |
 |-------|------|--------|-----|

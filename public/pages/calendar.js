@@ -1,7 +1,7 @@
 /**
  * Modul: Kalender (Calendar)
  * Zweck: Monats-/Wochen-/Tages-/Agenda-Ansicht mit vollem Termin-CRUD
- * Abhängigkeiten: /api.js, /router.js (window.planner)
+ * Abhängigkeiten: /api.js, /router.js (window.planium)
  */
 
 import { api } from '/api.js';
@@ -146,7 +146,7 @@ async function loadRange(from, to) {
   } catch (err) {
     console.error('[Calendar] loadRange Fehler:', err);
     state.events = [];
-    window.planner?.showToast(t('calendar.loadError'), 'danger');
+    window.planium?.showToast(t('calendar.loadError'), 'danger');
   }
   state.rangeFrom = from;
   state.rangeTo   = to;
@@ -296,12 +296,12 @@ function renderToolbar() {
       const msg = skipped > 0
         ? `${imported} imported, ${skipped} already existed`
         : `${imported} event(s) imported`;
-      window.planner?.showToast(msg, 'success');
+      window.planium?.showToast(msg, 'success');
       const { from, to } = getMonthRange(state.cursor);
       await loadRange(from, to);
       renderView();
     } catch (err) {
-      window.planner?.showToast(err.data?.error ?? 'Import failed', 'danger');
+      window.planium?.showToast(err.data?.error ?? 'Import failed', 'danger');
     }
   });
 
@@ -326,12 +326,12 @@ function renderToolbar() {
     if (!await showConfirm('Delete all imported events? Manually created events will be kept.', { danger: true })) return;
     try {
       const res = await api.delete('/calendar/clear?scope=imported');
-      window.planner?.showToast(`${res.data.deleted} imported event(s) deleted`, 'success');
+      window.planium?.showToast(`${res.data.deleted} imported event(s) deleted`, 'success');
       const { from, to } = getMonthRange(state.cursor);
       await loadRange(from, to);
       renderView();
     } catch (err) {
-      window.planner?.showToast(err.data?.error ?? 'Failed to clear events', 'danger');
+      window.planium?.showToast(err.data?.error ?? 'Failed to clear events', 'danger');
     }
   });
 
@@ -340,12 +340,12 @@ function renderToolbar() {
     if (!await showConfirm('Delete ALL events? This cannot be undone.', { danger: true })) return;
     try {
       const res = await api.delete('/calendar/clear?scope=all');
-      window.planner?.showToast(`${res.data.deleted} event(s) deleted`, 'success');
+      window.planium?.showToast(`${res.data.deleted} event(s) deleted`, 'success');
       const { from, to } = getMonthRange(state.cursor);
       await loadRange(from, to);
       renderView();
     } catch (err) {
-      window.planner?.showToast(err.data?.error ?? 'Failed to clear events', 'danger');
+      window.planium?.showToast(err.data?.error ?? 'Failed to clear events', 'danger');
     }
   });
 
@@ -1031,7 +1031,7 @@ async function saveEvent(overlay, mode, eventId) {
   const title   = overlay.querySelector('#modal-title').value.trim();
 
   if (!title) {
-    window.planner?.showToast(t('calendar.titleRequired'), 'error');
+    window.planium?.showToast(t('calendar.titleRequired'), 'error');
     return;
   }
 
@@ -1059,7 +1059,7 @@ async function saveEvent(overlay, mode, eventId) {
   }
 
   if (end_datetime && start_datetime && end_datetime < start_datetime) {
-    window.planner?.showToast(t('calendar.endBeforeStart') || 'End must be after start', 'error');
+    window.planium?.showToast(t('calendar.endBeforeStart') || 'End must be after start', 'error');
     return;
   }
 
@@ -1091,9 +1091,9 @@ async function saveEvent(overlay, mode, eventId) {
 
     closeModal();
     renderView();
-    window.planner?.showToast(mode === 'create' ? t('calendar.createdToast') : t('calendar.savedToast'), 'success');
+    window.planium?.showToast(mode === 'create' ? t('calendar.createdToast') : t('calendar.savedToast'), 'success');
   } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('calendar.saveError'), 'error');
+    window.planium?.showToast(err.data?.error ?? t('calendar.saveError'), 'error');
     saveBtn.disabled    = false;
     saveBtn.textContent = mode === 'edit' ? t('common.save') : t('common.create');
   }
@@ -1104,9 +1104,9 @@ async function deleteEvent(id) {
     await api.delete(`/calendar/${id}`);
     state.events = state.events.filter((e) => e.id !== id);
     renderView();
-    window.planner?.showToast(t('calendar.deletedToast'), 'success');
+    window.planium?.showToast(t('calendar.deletedToast'), 'success');
   } catch (err) {
-    window.planner?.showToast(err.data?.error ?? t('calendar.deleteError'), 'error');
+    window.planium?.showToast(err.data?.error ?? t('calendar.deleteError'), 'error');
   }
 }
 

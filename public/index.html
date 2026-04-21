@@ -13,9 +13,9 @@
   <!-- iOS-spezifisch -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Planner" />
-  <meta name="description" content="Planner - Family planner" />
-  <title>Planner</title>
+  <meta name="apple-mobile-web-app-title" content="Planium" />
+  <meta name="description" content="Planium - Family planning app" />
+  <title>Planium</title>
 
   <!-- PWA -->
   <link rel="manifest" href="/manifest.json" />
@@ -42,17 +42,9 @@
   <!-- Theme: Vor CSS-Rendering anwenden (Flash-Prevention) -->
   <script>
     (function() {
-      // Migrate old oikos-* keys to planner-* (one-time, safe to run each load)
-      ['theme', 'accent'].forEach(function(k) {
-        var old = localStorage.getItem('oikos-' + k);
-        if (old) {
-          if (!localStorage.getItem('planner-' + k)) localStorage.setItem('planner-' + k, old);
-          localStorage.removeItem('oikos-' + k);
-        }
-      });
-      var t = localStorage.getItem('planner-theme');
+      var t = localStorage.getItem('planium-theme');
       if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
-      var a = localStorage.getItem('planner-accent');
+      var a = localStorage.getItem('planium-accent');
       if (a && a !== 'blue') document.documentElement.setAttribute('data-accent', a);
     })();
   </script>
@@ -64,8 +56,8 @@
   <!-- App-Shell - wird durch JavaScript gefüllt -->
   <div id="app" class="app-shell">
     <!-- Skeleton-Loading während Initialisierung -->
-    <div id="app-loading" class="app-loading" aria-live="polite" aria-label="Loading Planner…">
-      <div class="app-loading__logo">Planner</div>
+    <div id="app-loading" class="app-loading" aria-live="polite" aria-label="Loading Planium…">
+      <div class="app-loading__logo">Planium</div>
     </div>
   </div>
 
@@ -74,8 +66,8 @@
   <script type="module" src="/router.js"></script>
 
   <!-- Install-Prompt (PWA) -->
-  <planner-install-prompt></planner-install-prompt>
-  <script type="module" src="/components/planner-install-prompt.js"></script>
+  <planium-install-prompt></planium-install-prompt>
+  <script type="module" src="/components/planium-install-prompt.js"></script>
 
   <!-- Service Worker registrieren -->
   <script src="/sw-register.js" defer></script>

@@ -99,7 +99,7 @@ const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  name: 'planner.sid',
+  name: 'planium.sid',
   cookie: {
     httpOnly: true,
     // secure=true by default; set SESSION_SECURE=false in .env to allow HTTP (local dev without reverse proxy)
@@ -224,7 +224,7 @@ router.post('/logout', requireAuth, csrfMiddleware, (req, res) => {
       log.error('Logout-Fehler:', err);
       return res.status(500).json({ error: 'Logout failed.', code: 500 });
     }
-    res.clearCookie('planner.sid');
+    res.clearCookie('planium.sid');
     res.json({ ok: true });
   });
 });

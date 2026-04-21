@@ -599,7 +599,7 @@ async function handleFormSubmit(e, container) {
       state.activeTab = newList.id;
       localStorage.setItem('tasks-active-tab', String(newList.id));
 
-      window.planner.showToast(t('tasks.personalListCreatedToast'), 'success');
+      window.planium.showToast(t('tasks.personalListCreatedToast'), 'success');
       btnSuccess(submitBtn, originalLabel);
       setTimeout(() => closeModal(), 700);
 
@@ -635,10 +635,10 @@ async function handleFormSubmit(e, container) {
   try {
     if (taskId) {
       await api.put(`/tasks/${taskId}`, body);
-      window.planner.showToast(t('tasks.savedToast'), 'success');
+      window.planium.showToast(t('tasks.savedToast'), 'success');
     } else {
       await api.post('/tasks', body);
-      window.planner.showToast(t('tasks.createdToast'), 'success');
+      window.planium.showToast(t('tasks.createdToast'), 'success');
     }
     btnSuccess(submitBtn, originalLabel);
     setTimeout(() => closeModal(), 700);
@@ -657,10 +657,10 @@ async function handleDeleteTask(id, container) {
   try {
     await api.delete(`/tasks/${id}`);
     closeModal();
-    window.planner.showToast(t('tasks.deletedToast'), 'default');
+    window.planium.showToast(t('tasks.deletedToast'), 'default');
     await loadTasks(container);
   } catch (err) {
-    window.planner.showToast(err.message, 'danger');
+    window.planium.showToast(err.message, 'danger');
   }
 }
 
@@ -671,7 +671,7 @@ async function handleAddSubtask(parentId, container) {
     await api.post('/tasks', { title: title.trim(), parent_task_id: parentId });
     await loadTasks(container);
   } catch (err) {
-    window.planner.showToast(err.message, 'danger');
+    window.planium.showToast(err.message, 'danger');
   }
 }
 
@@ -817,7 +817,7 @@ function wireKanbanDrag(container) {
       await api.patch(`/tasks/${taskId}/status`, { status: newStatus });
       await loadTasks(container); // sync
     } catch (err) {
-      window.planner.showToast(err.message, 'danger');
+      window.planium.showToast(err.message, 'danger');
       await loadTasks(container);
     }
   });
@@ -842,7 +842,7 @@ function wireKanbanDrag(container) {
           renderKanban(container);
         }
       } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
         await loadTasks(container);
       }
       return;
@@ -876,7 +876,7 @@ function wireKanbanDrag(container) {
       const task = await loadTaskForEdit(card.dataset.taskId);
       openTaskModal({ task, users: state.users }, container);
     } catch (err) {
-      window.planner.showToast(t('tasks.loadError'), 'danger');
+      window.planium.showToast(t('tasks.loadError'), 'danger');
     }
   });
 }
@@ -1070,7 +1070,7 @@ function wireSwipeGestures(container) {
             await toggleTaskStatus(taskId, status);
             await loadTasks(container);
           } catch (err) {
-            window.planner.showToast(err.message, 'danger');
+            window.planium.showToast(err.message, 'danger');
             await loadTasks(container);
           }
         }, 200);
@@ -1083,7 +1083,7 @@ function wireSwipeGestures(container) {
           const task = await loadTaskForEdit(taskId);
           openTaskModal({ task, users: state.users }, container);
         } catch (err) {
-          window.planner.showToast(t('tasks.loadError'), 'danger');
+          window.planium.showToast(t('tasks.loadError'), 'danger');
         }
 
       } else {
@@ -1164,10 +1164,10 @@ function wireSelectMode(container) {
       selectBtn.classList.remove('btn--primary');
       selectBtn.setAttribute('aria-pressed', 'false');
       updateBulkBar(container);
-      window.planner.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
+      window.planium.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
       await loadTasks(container);
     } catch (err) {
-      window.planner.showToast(err.message, 'danger');
+      window.planium.showToast(err.message, 'danger');
     }
   });
 }
@@ -1258,7 +1258,7 @@ function wireTaskList(container) {
         await toggleTaskStatus(id, status);
         await loadTasks(container);
       } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
         await loadTasks(container);
       }
     }
@@ -1273,7 +1273,7 @@ function wireTaskList(container) {
         await toggleSubtaskStatus(id, target.dataset.status);
         await loadTasks(container);
       } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
       }
     }
 
@@ -1282,7 +1282,7 @@ function wireTaskList(container) {
         const task = await loadTaskForEdit(id);
         openTaskModal({ task, users: state.users }, container);
       } catch (err) {
-        window.planner.showToast(t('tasks.loadError'), 'danger');
+        window.planium.showToast(t('tasks.loadError'), 'danger');
       }
     }
 
@@ -1297,10 +1297,10 @@ function wireTaskList(container) {
       if (!await showConfirm(t('tasks.personalListClearDoneConfirm'), { danger: true })) return;
       try {
         await Promise.all(doneTasks.map((tk) => api.delete(`/tasks/${tk.id}`)));
-        window.planner.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
+        window.planium.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
         await loadTasks(container);
       } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
       }
     }
 
@@ -1337,7 +1337,7 @@ async function loadPersonalItems(listId) {
     state.personalItems = data.data ?? [];
   } catch (err) {
     state.personalItems = [];
-    window.planner.showToast(t('tasks.personalListLoadError'), 'danger');
+    window.planium.showToast(t('tasks.personalListLoadError'), 'danger');
   }
 }
 
@@ -1657,7 +1657,7 @@ function wirePersonalKanbanDrag(container) {
       item.done = !newDone;
       if (list) { list.pending_count += newDone ? 1 : -1; renderTaskTabsBar(container); }
       renderPersonalKanban(container);
-      window.planner.showToast(err.message, 'danger');
+      window.planium.showToast(err.message, 'danger');
     }
   });
 }
@@ -1833,9 +1833,9 @@ function wirePersonalView(container) {
       }
       refreshPersonalItems(container);
       updatePersonalBulkBar(container);
-      window.planner.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
+      window.planium.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
     } catch (err) {
-      window.planner.showToast(err.message, 'danger');
+      window.planium.showToast(err.message, 'danger');
     }
   });
 
@@ -1855,7 +1855,7 @@ function wirePersonalView(container) {
       if (list) { list.pending_count++; list.total_count++; renderTaskTabsBar(container); }
       input.focus();
     } catch (err) {
-      window.planner.showToast(err.message, 'danger');
+      window.planium.showToast(err.message, 'danger');
     }
   });
 
@@ -1922,9 +1922,9 @@ function wirePersonalView(container) {
         renderTaskTabsBar(container);
         await loadTasks(container);
         renderHouseholdView(container);
-        window.planner.showToast(t('tasks.personalListDeletedToast'), 'default');
+        window.planium.showToast(t('tasks.personalListDeletedToast'), 'default');
       } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
       }
       return;
     }
@@ -1936,7 +1936,7 @@ function wirePersonalView(container) {
         state.personalItems = state.personalItems.filter((i) => !i.done);
         refreshPersonalItems(container);
       } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
       }
       return;
     }
@@ -1960,7 +1960,7 @@ function wirePersonalView(container) {
         item.done = !newDone;
         if (list) { list.pending_count += newDone ? 1 : -1; renderTaskTabsBar(container); }
         refreshPersonalItems(container);
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
       }
       return;
     }
@@ -1977,7 +1977,7 @@ function wirePersonalView(container) {
           renderTaskTabsBar(container);
         }
       } catch (err) {
-        window.planner.showToast(err.message, 'danger');
+        window.planium.showToast(err.message, 'danger');
       }
       return;
     }
@@ -2069,7 +2069,7 @@ function openListDialog({ list = null, container } = {}) {
               if (idx >= 0) state.taskLists[idx] = { ...state.taskLists[idx], ...res.data };
               renderTaskTabsBar(container);
               renderPersonalView(container);
-              window.planner.showToast(t('tasks.savedToast'), 'success');
+              window.planium.showToast(t('tasks.savedToast'), 'success');
             } else {
               const res = await api.post('/personal-lists', { name, color });
               state.taskLists.push(res.data);
@@ -2078,7 +2078,7 @@ function openListDialog({ list = null, container } = {}) {
               state.personalItems = [];
               renderTaskTabsBar(container);
               renderPersonalView(container);
-              window.planner.showToast(t('tasks.personalListCreatedToast'), 'success');
+              window.planium.showToast(t('tasks.personalListCreatedToast'), 'success');
             }
             closeModal();
           } catch (err) {
@@ -2275,7 +2275,7 @@ function openShareDialog({ list, container }) {
           // Update local state and re-render
           const idx = state.taskLists.findIndex((l) => l.id === list.id);
           if (idx >= 0) state.taskLists[idx].shared_user_ids = ids;
-          window.planner.showToast(t('tasks.shareSavedToast'), 'success');
+          window.planium.showToast(t('tasks.shareSavedToast'), 'success');
           closeModal();
         } catch (err) {
           errEl.textContent = err.message;
@@ -2395,7 +2395,7 @@ function wirePersonalTabsReorder(container) {
       await api.patch('/personal-lists/reorder', { ids: newOwnedOrder });
       vibrate(15);
     } catch (err) {
-      window.planner?.showToast(err.message, 'danger');
+      window.planium?.showToast(err.message, 'danger');
       state.taskLists = oldList;
       renderTaskTabsBar(container);
     }
@@ -2510,7 +2510,7 @@ export async function render(container, { user }) {
     state.taskLists = listsData.data ?? [];
   } catch (err) {
     console.error('[Tasks] Ladefehler:', err.message);
-    window.planner.showToast(t('tasks.loadError'), 'danger');
+    window.planium.showToast(t('tasks.loadError'), 'danger');
     state.tasks     = [];
     state.users     = [];
     state.taskLists = [];
