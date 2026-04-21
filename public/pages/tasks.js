@@ -2422,7 +2422,7 @@ function renderHouseholdView(container) {
   content.innerHTML = `
     <div class="tasks-toolbar">
       <div style="display:flex;align-items:center;gap:var(--space-2);flex:1;min-width:0">
-        <i data-lucide="users" style="width:14px;height:14px;color:var(--module-accent);flex-shrink:0" aria-hidden="true"></i>
+        <i data-lucide="users" style="width:16px;height:16px;color:var(--module-accent);flex-shrink:0" aria-hidden="true"></i>
         <h1 class="tasks-toolbar__title">${t('tasks.title')}</h1>
       </div>
       <div class="tasks-toolbar__actions">
