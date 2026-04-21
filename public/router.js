@@ -271,6 +271,13 @@ async function renderPage(route, previousPath = null) {
     // works in page modules.
     if (!document.querySelector('.nav-bottom') && currentUser) {
       renderAppShell(app);
+      api.get('/mealie/status').then(res => {
+        if (!res.configured) {
+          document.querySelectorAll('a.nav-item[data-route="/meals"]').forEach(el => { el.hidden = true; });
+        }
+      }).catch(() => {
+        document.querySelectorAll('a.nav-item[data-route="/meals"]').forEach(el => { el.hidden = true; });
+      });
     }
 
     const content = document.getElementById('main-content') || app;
