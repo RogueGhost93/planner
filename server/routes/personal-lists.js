@@ -11,7 +11,7 @@ import express from 'express';
 import * as db from '../db.js';
 import { str, color, oneOf, date, collectErrors, MAX_TITLE } from '../middleware/validate.js';
 
-const VALID_PERSONAL_PRIORITIES = ['none', 'urgent'];
+const VALID_PERSONAL_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 
 const log = createLogger('PersonalLists');
 const router = express.Router();
@@ -215,6 +215,8 @@ router.get('/:id/items', (req, res) => {
         CASE priority WHEN 'urgent' THEN 0 ELSE 1 END,
         CASE WHEN due_date IS NULL THEN 1 ELSE 0 END,
         due_date ASC,
+        CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1
+                      WHEN 'low' THEN 2 ELSE 3 END,
         sort_order ASC, id ASC
     `).all(req.params.id);
     res.json({ data: items });
