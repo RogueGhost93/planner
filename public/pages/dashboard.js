@@ -9,7 +9,7 @@ import { t, formatDate, formatTime, getLocale } from '/i18n.js';
 import { esc, linkify } from '/utils/html.js';
 import { openItemEditDialog } from '/pages/tasks.js';
 import { renderPriceTickers, wirePriceTickers } from '/components/price-tickers.js';
-import { showConfirm } from '/components/modal.js';
+import { showConfirm, openModal } from '/components/modal.js';
 
 function deleteBtnHtml(action, dataAttrs = '', label = 'Delete') {
   return `<button class="widget-delete-btn" data-action="${action}" ${dataAttrs}
@@ -373,11 +373,12 @@ function renderTasksWidget(widgetTasks, personalLists, personalItems) {
   const activeTab = readWidgetActiveTab(personalLists);
 
   const householdCount = widgetTasks.length;
+  const householdName  = localStorage.getItem('household-name') || t('tasks.tabHousehold');
   const householdTab = `
     <button class="tasks-widget__tab ${activeTab === 'household' ? 'tasks-widget__tab--active' : ''}"
             data-action="switch-widget-tab" data-tab="household">
       <i data-lucide="users" style="width:12px;height:12px;pointer-events:none" aria-hidden="true"></i>
-      <span>${t('tasks.tabHousehold')}</span>
+      <span>${esc(householdName)}</span>
       ${householdCount > 0 ? `<span class="tasks-widget__tab-count">${householdCount}</span>` : ''}
     </button>`;
 
@@ -606,7 +607,7 @@ function renderQuickNotes(mode = 'private') {
   return `
     <div class="widget" id="quick-notes-widget">
       <div class="widget__header">
-        <span class="widget__title">
+        <span class="widget__title qn-expand-trigger" title="Click to expand" style="cursor:pointer">
           <i data-lucide="sticky-note" class="widget__title-icon" aria-hidden="true"></i>
           ${t('dashboard.quickNotesTitle')}
         </span>
@@ -697,6 +698,35 @@ async function wireQuickNotes(container) {
       }
 
       editor.value = await fetchQuickNote(newMode);
+    });
+  }
+
+  // Expand to large dialog on desktop only
+  const expandTrigger = widget.querySelector('.qn-expand-trigger');
+  if (expandTrigger) {
+    expandTrigger.addEventListener('click', () => {
+      if (window.innerWidth < 768) return;
+      openModal({
+        title: t('dashboard.quickNotesTitle'),
+        size: 'notes',
+        content: `<textarea id="qn-dialog-editor" style="flex:1;min-height:0;width:100%;resize:none;box-sizing:border-box;font-family:inherit;font-size:var(--text-sm);line-height:1.6"
+                            class="quick-notes__editor" spellcheck="true"
+                            placeholder="${editor.placeholder}"></textarea>`,
+        onSave: (panel) => {
+          const dialogEditor = panel.querySelector('#qn-dialog-editor');
+          dialogEditor.value = editor.value;
+          dialogEditor.focus();
+          let _dialogSaveTimer = null;
+          dialogEditor.addEventListener('input', () => {
+            editor.value = dialogEditor.value;
+            clearTimeout(_dialogSaveTimer);
+            const scope = getQNMode();
+            _dialogSaveTimer = setTimeout(() => {
+              api.put(`/dashboard/quick-note?scope=${scope}`, { text: dialogEditor.value }).catch(console.error);
+            }, 400);
+          });
+        },
+      });
     });
   }
 }

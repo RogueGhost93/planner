@@ -152,8 +152,9 @@
   flex: 1;
   padding-bottom: calc(var(--nav-bottom-height) + var(--safe-area-inset-bottom));
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
 }
+.app-content::-webkit-scrollbar { display: none; }
 
 /* Sidebar auf Mobile verstecken */
 .nav-sidebar {
@@ -761,6 +762,21 @@
   }
   .modal-panel--sm { max-width: 400px; }
   .modal-panel--lg { max-width: 680px; }
+  .modal-panel--notes {
+    width: 80vw;
+    max-width: 1000px;
+    height: 80dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    resize: both;
+  }
+  .modal-panel--notes .modal-panel__body {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: var(--space-3);
+  }
 }
 
 .modal-panel__header {

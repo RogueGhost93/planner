@@ -433,7 +433,6 @@ let state = {
   taskSearch:       '',
   taskSearchOpen:   false,
   householdName:    localStorage.getItem('household-name') || '',
-  householdColor:   localStorage.getItem('household-color') || '#2563EB',
   viewMode:         localStorage.getItem('tasks-view') || 'list',
   expandedTasks:    new Set(),
   dragTaskId:       null,
@@ -1441,9 +1440,8 @@ function renderTaskTabsBar(container) {
 
   const householdTab = `
     <button class="task-tab ${state.activeTab === 'household' ? 'task-tab--active' : ''}"
-            data-action="switch-tab" data-tab="household"
-            style="--tab-color: ${esc(state.householdColor)}">
-      <span class="task-tab__color-dot" aria-hidden="true"></span>
+            data-action="switch-tab" data-tab="household">
+      <i data-lucide="users" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
       ${esc(state.householdName || t('tasks.tabHousehold'))}
     </button>`;
 
@@ -2128,14 +2126,7 @@ function wirePersonalView(container) {
 // --------------------------------------------------------
 
 function openHouseholdDialog({ container } = {}) {
-  const currentColor = state.householdColor;
-  const currentName  = state.householdName || t('tasks.tabHousehold');
-
-  const swatches = PERSONAL_LIST_COLORS.map((c) => `
-    <button type="button" class="color-swatch ${c === currentColor ? 'color-swatch--active' : ''}"
-            data-color="${c}" style="background-color:${c}"
-            aria-label="${c}"></button>
-  `).join('');
+  const currentName = state.householdName || t('tasks.tabHousehold');
 
   openSharedModal({
     title: t('tasks.renameHousehold'),
@@ -2148,11 +2139,6 @@ function openHouseholdDialog({ container } = {}) {
                  value="${esc(currentName)}"
                  required maxlength="200" autocomplete="off">
         </div>
-        <div class="form-group">
-          <label class="label">${t('tasks.personalListColorLabel')}</label>
-          <div class="color-swatches" id="household-color-swatches">${swatches}</div>
-          <input type="hidden" id="household-color" value="${currentColor}">
-        </div>
         <div id="household-form-error" class="login-error" hidden></div>
         <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
           <button type="submit" class="btn btn--primary">${t('common.save')}</button>
@@ -2160,32 +2146,18 @@ function openHouseholdDialog({ container } = {}) {
       </form>
     `,
     onSave(panel) {
-      const swatchesEl = panel.querySelector('#household-color-swatches');
-      const colorInput = panel.querySelector('#household-color');
-      swatchesEl?.addEventListener('click', (e) => {
-        const swatch = e.target.closest('.color-swatch');
-        if (!swatch) return;
-        swatchesEl.querySelectorAll('.color-swatch--active')
-          .forEach((s) => s.classList.remove('color-swatch--active'));
-        swatch.classList.add('color-swatch--active');
-        colorInput.value = swatch.dataset.color;
-      });
-
       panel.querySelector('#household-form')
         ?.addEventListener('submit', (e) => {
           e.preventDefault();
           const errEl = panel.querySelector('#household-form-error');
           const name  = panel.querySelector('#household-name').value.trim();
-          const color = colorInput.value;
           if (!name) {
             errEl.textContent = t('common.required');
             errEl.hidden = false;
             return;
           }
-          state.householdName  = name;
-          state.householdColor = color;
-          localStorage.setItem('household-name',  name);
-          localStorage.setItem('household-color', color);
+          state.householdName = name;
+          localStorage.setItem('household-name', name);
           renderTaskTabsBar(container);
           renderHouseholdView(container);
           closeModal();
@@ -2686,6 +2658,9 @@ function renderHouseholdView(container) {
   wireTaskList(container);
   renderFilters(container);
   renderTaskList(container);
+
+  content.querySelector('[data-action="edit-household"]')
+    ?.addEventListener('click', () => openHouseholdDialog({ container }));
 }
 
 // --------------------------------------------------------
