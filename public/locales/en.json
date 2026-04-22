@@ -182,6 +182,7 @@
     "personalListNamePlaceholder": "e.g. Errands",
     "personalListColorLabel": "Color",
     "renamePersonalList": "Rename list",
+    "renameHousehold": "Rename household",
     "deletePersonalListConfirm": "Delete this list and all its items?",
     "personalListDeletedToast": "List deleted.",
     "personalListCreatedToast": "List created.",
