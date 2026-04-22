@@ -1536,6 +1536,13 @@ function renderPersonalItemRow(item) {
             </span>` : ''}
           </div>
         </div>
+        ${!item.priority || item.priority === 'none' ? `
+        <div class="priority-quick-flags" role="group" aria-label="Set priority">
+          <button class="priority-quick-flag priority-quick-flag--urgent" data-action="set-personal-priority" data-priority="urgent" title="Urgent"></button>
+          <button class="priority-quick-flag priority-quick-flag--high"   data-action="set-personal-priority" data-priority="high"   title="High"></button>
+          <button class="priority-quick-flag priority-quick-flag--medium" data-action="set-personal-priority" data-priority="medium" title="Medium"></button>
+          <button class="priority-quick-flag priority-quick-flag--low"    data-action="set-personal-priority" data-priority="low"    title="Low"></button>
+        </div>` : ''}
         <button class="btn btn--ghost btn--icon" data-action="edit-personal-item"
                 aria-label="${t('tasks.editPersonalItemTitle') ?? 'Edit'}"
                 style="min-height:unset;width:36px;height:36px">
@@ -2119,6 +2126,21 @@ function wirePersonalView(container) {
     if (action === 'edit-personal-item') {
       const item = state.personalItems.find((i) => i.id === itemId);
       if (item) openItemEditDialog({ item, container });
+      return;
+    }
+    if (action === 'set-personal-priority') {
+      const priority = target.dataset.priority;
+      const item = state.personalItems.find((i) => i.id === itemId);
+      if (!item || !priority) return;
+      item.priority = priority;
+      refreshPersonalItems(container);
+      try {
+        await api.patch(`/personal-lists/${state.activeTab}/items/${itemId}`, { priority });
+      } catch (err) {
+        item.priority = 'none';
+        refreshPersonalItems(container);
+        window.planium.showToast(err.message, 'danger');
+      }
       return;
     }
   });

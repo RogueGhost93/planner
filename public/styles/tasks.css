@@ -1553,3 +1553,34 @@
 
 .pi-due-row .input { flex: 1; }
 
+
+/* Priority quick-flag buttons (shown on newly added personal items) */
+.priority-quick-flags {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-right: 2px;
+}
+
+.priority-quick-flag {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  opacity: 0.65;
+  transition: opacity 0.15s, transform 0.15s, border-color 0.15s;
+}
+
+.priority-quick-flag:hover {
+  opacity: 1;
+  transform: scale(1.2);
+  border-color: rgba(0,0,0,0.15);
+}
+
+.priority-quick-flag--urgent { background-color: var(--color-priority-urgent); }
+.priority-quick-flag--high   { background-color: var(--color-priority-high); }
+.priority-quick-flag--medium { background-color: var(--color-priority-medium); }
+.priority-quick-flag--low    { background-color: var(--color-priority-low); }
