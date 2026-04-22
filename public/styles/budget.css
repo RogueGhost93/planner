@@ -208,9 +208,10 @@
 .budget-list {
   flex: 1;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
 }
+.budget-list::-webkit-scrollbar { display: none; }
 
 .budget-entry {
   display: flex;

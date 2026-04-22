@@ -89,13 +89,14 @@
 .notes-grid {
   flex: 1;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
+.notes-grid::-webkit-scrollbar { display: none; }
 
 @media (min-width: 480px) {
   .notes-grid {
