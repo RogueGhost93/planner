@@ -327,7 +327,7 @@ router.post('/users', requireAuth, requireAdmin, csrfMiddleware, async (req, res
  */
 router.patch('/me/preferences', requireAuth, csrfMiddleware, (req, res) => {
   const VALID_THEMES  = ['system', 'light', 'dark'];
-  const VALID_ACCENTS = ['blue', 'purple', 'teal', 'green', 'orange', 'red', 'gold', 'pink'];
+  const VALID_ACCENTS = ['blue', 'indigo', 'violet', 'purple', 'pink', 'rose', 'red', 'orange', 'amber', 'gold', 'lime', 'green', 'teal', 'cyan', 'sky', 'slate'];
   const VALID_TONES   = ['short', 'default', 'long', 'gentle', 'alert'];
   const { theme, accent, quick_link, notify_popup, notify_sound, notify_time, notify_interval, notify_tone } = req.body;
   if (theme  && !VALID_THEMES.includes(theme))   return res.status(400).json({ error: 'Invalid theme.',  code: 400 });
