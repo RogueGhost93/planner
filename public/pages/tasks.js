@@ -962,51 +962,59 @@ function renderTaskList(container) {
 }
 
 function renderFilters(container) {
-  const bar = container.querySelector('#filter-bar');
-  if (!bar) return;
+  const menu = container.querySelector('#filter-menu');
+  if (!menu) return;
 
-  const chips = [];
+  const sections = [];
   const statusLabels   = STATUS_LABELS();
   const priorityLabels = PRIORITY_LABELS();
-  if (state.filters.status) {
-    chips.push(`<span class="filter-chip filter-chip--active" data-filter="status">
-      ${statusLabels[state.filters.status]}
-      <span class="filter-chip__remove" aria-hidden="true">×</span>
-    </span>`);
-  }
-  if (state.filters.priority) {
-    chips.push(`<span class="filter-chip filter-chip--active" data-filter="priority">
-      ${priorityLabels[state.filters.priority]}
-      <span class="filter-chip__remove" aria-hidden="true">×</span>
-    </span>`);
-  }
-  if (state.filters.assigned_to) {
-    const u = state.users.find((u) => u.id === Number(state.filters.assigned_to));
-    chips.push(`<span class="filter-chip filter-chip--active" data-filter="assigned_to">
-      ${u?.display_name ?? 'Person'}
-      <span class="filter-chip__remove" aria-hidden="true">×</span>
-    </span>`);
-  }
 
-  // Inaktive Filter-Chips (zum Aktivieren)
-  if (!state.filters.status) {
-    STATUSES().forEach((s) => {
-      chips.push(`<span class="filter-chip" data-filter="status" data-value="${s.value}">${s.label}</span>`);
-    });
-  }
-  if (!state.filters.priority) {
-    PRIORITIES().filter((p) => p.value === 'urgent').forEach((p) => {
-      chips.push(`<span class="filter-chip" data-filter="priority" data-value="${p.value}">${p.label}</span>`);
-    });
-  }
-  if (!state.filters.assigned_to && state.users.length > 1) {
+  sections.push(`<div class="filter-dropdown__section">
+    <div class="filter-dropdown__title">${t('tasks.statusLabel')}</div>`);
+  STATUSES().forEach((s) => {
+    const isActive = state.filters.status === s.value;
+    sections.push(`<label class="filter-option">
+      <input type="radio" name="status" value="${s.value}" ${isActive ? 'checked' : ''} data-filter="status">
+      <span class="filter-option__label">${s.label}</span>
+    </label>`);
+  });
+  sections.push(`<label class="filter-option">
+    <input type="radio" name="status" value="" ${!state.filters.status ? 'checked' : ''} data-filter="status">
+    <span class="filter-option__label">${t('tasks.clearFilter')}</span>
+  </label></div>`);
+
+  sections.push(`<div class="filter-dropdown__section">
+    <div class="filter-dropdown__title">${t('tasks.priorityLabel')}</div>`);
+  PRIORITIES().forEach((p) => {
+    const isActive = state.filters.priority === p.value;
+    sections.push(`<label class="filter-option">
+      <input type="radio" name="priority" value="${p.value}" ${isActive ? 'checked' : ''} data-filter="priority">
+      <span class="filter-option__label">${p.label}</span>
+    </label>`);
+  });
+  sections.push(`<label class="filter-option">
+    <input type="radio" name="priority" value="" ${!state.filters.priority ? 'checked' : ''} data-filter="priority">
+    <span class="filter-option__label">${t('tasks.clearFilter')}</span>
+  </label></div>`);
+
+  if (state.users.length > 1) {
+    sections.push(`<div class="filter-dropdown__section">
+      <div class="filter-dropdown__title">${t('tasks.assignedLabel')}</div>`);
     state.users.forEach((u) => {
-      chips.push(`<span class="filter-chip" data-filter="assigned_to" data-value="${u.id}">${u.display_name}</span>`);
+      const isActive = state.filters.assigned_to === String(u.id);
+      sections.push(`<label class="filter-option">
+        <input type="radio" name="assigned_to" value="${u.id}" ${isActive ? 'checked' : ''} data-filter="assigned_to">
+        <span class="filter-option__label">${u.display_name}</span>
+      </label>`);
     });
+    sections.push(`<label class="filter-option">
+      <input type="radio" name="assigned_to" value="" ${!state.filters.assigned_to ? 'checked' : ''} data-filter="assigned_to">
+      <span class="filter-option__label">${t('tasks.clearFilter')}</span>
+    </label></div>`);
   }
 
-  bar.innerHTML = chips.join('');
-  wireFilterChips(container);
+  menu.innerHTML = sections.join('');
+  wireFilterDropdown(container);
 }
 
 function updateOverdueBadge() {
@@ -1235,18 +1243,36 @@ function wireSelectMode(container) {
   });
 }
 
-function wireFilterChips(container) {
-  container.querySelectorAll('[data-filter]').forEach((chip) => {
-    chip.addEventListener('click', async () => {
-      const filter = chip.dataset.filter;
-      if (chip.classList.contains('filter-chip--active')) {
-        state.filters[filter] = '';
-      } else {
-        state.filters[filter] = chip.dataset.value;
-      }
+function wireFilterDropdown(container) {
+  const inputs = container.querySelectorAll('#filter-menu input[type="radio"]');
+  inputs.forEach((input) => {
+    input.addEventListener('change', async () => {
+      const filter = input.dataset.filter;
+      state.filters[filter] = input.value;
       renderFilters(container);
       await loadTasks(container);
     });
+  });
+}
+
+function wireFilterDropdownToggle(container) {
+  const dropdown = container.querySelector('#filter-dropdown');
+  const btn = container.querySelector('#btn-filter');
+  const menu = container.querySelector('#filter-menu');
+  if (!dropdown || !btn || !menu) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = menu.classList.contains('filter-dropdown__menu--open');
+    menu.classList.toggle('filter-dropdown__menu--open', !isOpen);
+    btn.setAttribute('aria-pressed', !isOpen);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) {
+      menu.classList.remove('filter-dropdown__menu--open');
+      btn.setAttribute('aria-pressed', 'false');
+    }
   });
 }
 
@@ -1580,49 +1606,51 @@ function getFilteredPersonalItems() {
 }
 
 function renderPersonalFilters(container) {
-  const bar = container.querySelector('#personal-filter-bar');
-  if (!bar) return;
+  const menu = container.querySelector('#personal-filter-menu');
+  if (!menu) return;
 
-  const chips = [];
+  const sections = [];
   const statusLabels   = STATUS_LABELS();
   const priorityLabels = PRIORITY_LABELS();
 
-  if (state.personalFilters.status) {
-    chips.push(`<span class="filter-chip filter-chip--active" data-personal-filter="status">
-      ${statusLabels[state.personalFilters.status]}
-      <span class="filter-chip__remove" aria-hidden="true">×</span>
-    </span>`);
-  }
-  if (state.personalFilters.priority) {
-    chips.push(`<span class="filter-chip filter-chip--active" data-personal-filter="priority">
-      ${priorityLabels[state.personalFilters.priority]}
-      <span class="filter-chip__remove" aria-hidden="true">×</span>
-    </span>`);
-  }
-  if (!state.personalFilters.status) {
-    STATUSES().forEach((s) => {
-      chips.push(`<span class="filter-chip" data-personal-filter="status" data-value="${s.value}">${s.label}</span>`);
-    });
-  }
-  if (!state.personalFilters.priority) {
-    ['urgent', 'high', 'medium', 'low'].forEach((p) => {
-      chips.push(`<span class="filter-chip" data-personal-filter="priority" data-value="${p}">${priorityLabels[p]}</span>`);
-    });
-  }
+  sections.push(`<div class="filter-dropdown__section">
+    <div class="filter-dropdown__title">${t('tasks.statusLabel')}</div>`);
+  STATUSES().forEach((s) => {
+    const isActive = state.personalFilters.status === s.value;
+    sections.push(`<label class="filter-option">
+      <input type="radio" name="personal-status" value="${s.value}" ${isActive ? 'checked' : ''} data-personal-filter="status">
+      <span class="filter-option__label">${s.label}</span>
+    </label>`);
+  });
+  sections.push(`<label class="filter-option">
+    <input type="radio" name="personal-status" value="" ${!state.personalFilters.status ? 'checked' : ''} data-personal-filter="status">
+    <span class="filter-option__label">${t('tasks.clearFilter')}</span>
+  </label></div>`);
 
-  bar.innerHTML = chips.join('');
-  wirePersonalFilterChips(container);
+  sections.push(`<div class="filter-dropdown__section">
+    <div class="filter-dropdown__title">${t('tasks.priorityLabel')}</div>`);
+  ['urgent', 'high', 'medium', 'low', 'none'].forEach((p) => {
+    const isActive = state.personalFilters.priority === p;
+    sections.push(`<label class="filter-option">
+      <input type="radio" name="personal-priority" value="${p}" ${isActive ? 'checked' : ''} data-personal-filter="priority">
+      <span class="filter-option__label">${priorityLabels[p] ?? p}</span>
+    </label>`);
+  });
+  sections.push(`<label class="filter-option">
+    <input type="radio" name="personal-priority" value="" ${!state.personalFilters.priority ? 'checked' : ''} data-personal-filter="priority">
+    <span class="filter-option__label">${t('tasks.clearFilter')}</span>
+  </label></div>`);
+
+  menu.innerHTML = sections.join('');
+  wirePersonalFilterDropdown(container);
 }
 
-function wirePersonalFilterChips(container) {
-  container.querySelectorAll('[data-personal-filter]').forEach((chip) => {
-    chip.addEventListener('click', () => {
-      const filter = chip.dataset.personalFilter;
-      if (chip.classList.contains('filter-chip--active')) {
-        state.personalFilters[filter] = '';
-      } else {
-        state.personalFilters[filter] = chip.dataset.value;
-      }
+function wirePersonalFilterDropdown(container) {
+  const inputs = container.querySelectorAll('#personal-filter-menu input[type="radio"]');
+  inputs.forEach((input) => {
+    input.addEventListener('change', () => {
+      const filter = input.dataset.personalFilter;
+      state.personalFilters[filter] = input.value;
       renderPersonalFilters(container);
       refreshPersonalItems(container);
     });
@@ -1827,6 +1855,14 @@ function renderPersonalView(container) {
               <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
             </button>
           </div>
+          <div class="filter-dropdown" id="personal-filter-dropdown">
+            <button class="btn btn--ghost btn--icon filter-dropdown__btn" id="personal-btn-filter"
+                    aria-label="${t('tasks.filterLabel')}" aria-pressed="false"
+                    title="${t('tasks.filterLabel')}">
+              <i data-lucide="filter" style="width:18px;height:18px" aria-hidden="true"></i>
+            </button>
+            <div class="filter-dropdown__menu" id="personal-filter-menu"></div>
+          </div>
           <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="personal-btn-select"
                   aria-label="${t('tasks.selectMode')}" aria-pressed="false"
                   title="${t('tasks.selectMode')}">
@@ -1837,8 +1873,6 @@ function renderPersonalView(container) {
           ${ownerActions}
         </div>
       </div>
-
-      <div class="tasks-filters" id="personal-filter-bar"></div>
 
       <form class="personal-list__add" data-action="add-personal-item" novalidate autocomplete="off">
         <input class="personal-list__add-input" type="text" name="title"
@@ -1856,6 +1890,7 @@ function renderPersonalView(container) {
 
   if (window.lucide) window.lucide.createIcons();
   renderPersonalFilters(container);
+  wirePersonalFilterDropdownToggle(container);
   refreshPersonalItems(container);
   wirePersonalView(container);
 
@@ -1887,6 +1922,27 @@ function refreshPersonalItems(container) {
     if (wrap) wrap.innerHTML = renderPersonalItems();
     if (window.lucide) window.lucide.createIcons();
   }
+}
+
+function wirePersonalFilterDropdownToggle(container) {
+  const dropdown = container.querySelector('#personal-filter-dropdown');
+  const btn = container.querySelector('#personal-btn-filter');
+  const menu = container.querySelector('#personal-filter-menu');
+  if (!dropdown || !btn || !menu) return;
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = menu.classList.contains('filter-dropdown__menu--open');
+    menu.classList.toggle('filter-dropdown__menu--open', !isOpen);
+    btn.setAttribute('aria-pressed', !isOpen);
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!dropdown.contains(e.target)) {
+      menu.classList.remove('filter-dropdown__menu--open');
+      btn.setAttribute('aria-pressed', 'false');
+    }
+  });
 }
 
 function wirePersonalView(container) {
@@ -2619,6 +2675,14 @@ function renderHouseholdView(container) {
             <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
           </button>
         </div>
+        <div class="filter-dropdown" id="filter-dropdown">
+          <button class="btn btn--ghost btn--icon filter-dropdown__btn" id="btn-filter"
+                  aria-label="${t('tasks.filterLabel')}" aria-pressed="false"
+                  title="${t('tasks.filterLabel')}">
+            <i data-lucide="filter" style="width:18px;height:18px" aria-hidden="true"></i>
+          </button>
+          <div class="filter-dropdown__menu" id="filter-menu"></div>
+        </div>
         <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
                 aria-label="${t('tasks.selectMode')}" aria-pressed="false"
                 title="${t('tasks.selectMode')}">
@@ -2631,8 +2695,6 @@ function renderHouseholdView(container) {
         <button class="btn btn--danger tasks-toolbar__bulk-btn" id="btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
       </div>
     </div>
-
-    <div class="tasks-filters" id="filter-bar"></div>
 
     <div id="task-list"></div>
     <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}">
@@ -2657,6 +2719,7 @@ function renderHouseholdView(container) {
   });
   wireTaskList(container);
   renderFilters(container);
+  wireFilterDropdownToggle(container);
   renderTaskList(container);
 
   content.querySelector('[data-action="edit-household"]')
