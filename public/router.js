@@ -79,7 +79,7 @@ const ALL_ACCENTS = [
 // --------------------------------------------------------
 function applyUserPreferences(user) {
   if (!user) return;
-  const theme = user.theme || 'system';
+  const theme = localStorage.getItem('planium-theme') || user.theme || 'light';
   let accent  = user.accent || 'blue';
 
   // Daily accent rotation
@@ -99,7 +99,8 @@ function applyUserPreferences(user) {
   }
 
   // Apply theme
-  if (theme === 'light' || theme === 'dark') {
+  const VALID_THEMES = ['light','dark','obsidian','midnight-forest','noir','opnsense','deep-ocean','aubergine','parchment'];
+  if (VALID_THEMES.includes(theme)) {
     document.documentElement.setAttribute('data-theme', theme);
   } else {
     document.documentElement.removeAttribute('data-theme');
