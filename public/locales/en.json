@@ -116,6 +116,8 @@
     "titlePlaceholder": "What needs to be done?",
     "descriptionLabel": "Note",
     "descriptionPlaceholder": "Optional details…",
+    "filterLabel": "Filter",
+    "clearFilter": "No filter",
     "priorityLabel": "Priority",
     "categoryLabel": "Category",
     "dueDateLabel": "Due date",
