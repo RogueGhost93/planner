@@ -67,20 +67,17 @@ export async function render(container, { user }) {
         <div class="settings-card">
           <h3 class="settings-card__title">${t('settings.cardAppearance')}</h3>
           <p class="settings-card__label" style="margin-bottom:var(--space-2)">${t('settings.themeLabel')}</p>
-          <div class="theme-toggle" id="theme-toggle">
-            <button class="theme-toggle__btn ${currentTheme() === 'system' ? 'theme-toggle__btn--active' : ''}" data-theme-value="system" aria-label="${t('settings.themeSysLabel')}">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              ${t('settings.themeSystem')}
-            </button>
-            <button class="theme-toggle__btn ${currentTheme() === 'light' ? 'theme-toggle__btn--active' : ''}" data-theme-value="light" aria-label="${t('settings.themeLightLabel')}">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-              ${t('settings.themeLight')}
-            </button>
-            <button class="theme-toggle__btn ${currentTheme() === 'dark' ? 'theme-toggle__btn--active' : ''}" data-theme-value="dark" aria-label="${t('settings.themeDarkLabel')}">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              ${t('settings.themeDark')}
-            </button>
-          </div>
+          <select id="theme-select" class="form-input" style="width:100%">
+            <option value="light" ${currentTheme() === 'light' ? 'selected' : ''}>Light</option>
+            <option value="dark" ${currentTheme() === 'dark' ? 'selected' : ''}>Warm Dark</option>
+            <option value="obsidian" ${currentTheme() === 'obsidian' ? 'selected' : ''}>Obsidian</option>
+            <option value="midnight-forest" ${currentTheme() === 'midnight-forest' ? 'selected' : ''}>Midnight Forest</option>
+            <option value="noir" ${currentTheme() === 'noir' ? 'selected' : ''}>Noir</option>
+            <option value="opnsense" ${currentTheme() === 'opnsense' ? 'selected' : ''}>OPNsense</option>
+            <option value="deep-ocean" ${currentTheme() === 'deep-ocean' ? 'selected' : ''}>Deep Ocean</option>
+            <option value="aubergine" ${currentTheme() === 'aubergine' ? 'selected' : ''}>Aubergine</option>
+            <option value="parchment" ${currentTheme() === 'parchment' ? 'selected' : ''}>Parchment</option>
+          </select>
           <p class="settings-card__label" style="margin-top:var(--space-4);margin-bottom:var(--space-2)">Accent color</p>
           <div class="accent-picker" id="accent-picker">
             ${ACCENT_COLORS.map((c) => `
@@ -477,16 +474,11 @@ export async function render(container, { user }) {
 // --------------------------------------------------------
 
 function bindEvents(container, user) {
-  // Theme-Toggle
-  const themeToggle = container.querySelector('#theme-toggle');
-  if (themeToggle) {
-    themeToggle.addEventListener('click', (e) => {
-      const btn = e.target.closest('[data-theme-value]');
-      if (!btn) return;
-      const value = btn.dataset.themeValue;
-      applyTheme(value);
-      themeToggle.querySelectorAll('.theme-toggle__btn').forEach(b => b.classList.remove('theme-toggle__btn--active'));
-      btn.classList.add('theme-toggle__btn--active');
+  // Theme select dropdown
+  const themeSelect = container.querySelector('#theme-select');
+  if (themeSelect) {
+    themeSelect.addEventListener('change', () => {
+      applyTheme(themeSelect.value);
     });
   }
 
@@ -1040,12 +1032,13 @@ function formatDateTime(iso) {
 }
 
 function currentTheme() {
-  return localStorage.getItem('planium-theme') || 'system';
+  return localStorage.getItem('planium-theme') || 'light';
 }
 
 function applyTheme(value) {
   localStorage.setItem('planium-theme', value);
-  if (value === 'light' || value === 'dark') {
+  const VALID = ['light','dark','obsidian','midnight-forest','noir','opnsense','deep-ocean','aubergine','parchment'];
+  if (VALID.includes(value)) {
     document.documentElement.setAttribute('data-theme', value);
   } else {
     document.documentElement.removeAttribute('data-theme');

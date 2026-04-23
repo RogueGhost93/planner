@@ -862,3 +862,597 @@
   --color-accent-light:      #0F172A;
   --color-accent-subtle:     #1E293B;
 }
+
+/* ================================================================
+ * THEME: OBSIDIAN
+ * Inspired by Obsidian note-taking. Near-black, slightly cool blue-gray.
+ * Muted, desaturated accents. Almost monochromatic with selective color.
+ * Applied via: data-theme="obsidian"
+ * ================================================================ */
+:root[data-theme="obsidian"] {
+  /* Near-black with cool blue-gray tint */
+  --neutral-50:  #0D0F11;
+  --neutral-100: #13161A;
+  --neutral-150: #1A1D23;
+  --neutral-200: #22262E;
+  --neutral-250: #2C3038;
+  --neutral-300: #3A3F4A;
+  --neutral-400: #525865;
+  --neutral-500: #737A87;
+  --neutral-600: #9BA3B2;
+  --neutral-700: #BDC4D0;
+  --neutral-800: #D8DDE6;
+  --neutral-900: #E8ECF2;
+  --neutral-950: #F2F5F9;
+
+  --color-bg:             #13161A;
+  --color-surface:        #1A1D23;
+  --color-surface-2:      #0D0F11;
+  --color-surface-3:      #22262E;
+  --color-border:         #22262E;
+  --color-border-subtle:  #1A1D23;
+  --color-text-primary:   #E8ECF2;
+  --color-text-secondary: #9BA3B2;
+  --color-text-tertiary:  #737A87;
+  --color-text-disabled:  #3A3F4A;
+
+  /* Accent: muted violet-blue, Obsidian-style */
+  --color-accent:            #7C9EE8;
+  --color-accent-hover:      #6B8ED8;
+  --color-accent-active:     #5A7EC8;
+  --color-accent-light:      #1A2040;
+  --color-accent-subtle:     #1E2848;
+  --color-btn-primary:       #5A7EC8;
+  --color-btn-primary-hover: #4A6EB8;
+
+  /* Semantic */
+  --color-success:       #6EBD8F;
+  --color-success-light: #0E2018;
+  --color-warning:       #E8B86E;
+  --color-warning-light: #251800;
+  --color-danger:        #E8837A;
+  --color-danger-light:  #2A100E;
+  --color-info:          #7CBFE8;
+  --color-info-light:    #0E1E2A;
+
+  /* Module accents — Obsidian: cool blue-grays with selective pops of muted color */
+  --module-dashboard: #7BAEE8;
+  --module-tasks:     #72C99A;
+  --module-calendar:  #B08AE8;
+  --module-meals:     #E8B96A;
+  --module-lists:     #E88E6A;
+  --module-news:      #5EC8C0;
+  --module-notes:     #E8D46A;
+  --module-contacts:  #6AAEE8;
+  --module-budget:    #62C4A8;
+  --module-settings:  #9AADC4;
+
+  /* Semantic — Obsidian */
+  --color-priority-low:        #737A87;
+  --color-priority-medium:     #E8B96A;
+  --color-priority-high:       #E88E6A;
+  --color-priority-urgent:     #E8716A;
+  --color-priority-low-bg:     rgba(115,122,135,0.15);
+  --color-priority-medium-bg:  rgba(232,185,106,0.15);
+  --color-priority-high-bg:    rgba(232,142,106,0.15);
+  --color-priority-urgent-bg:  rgba(232,113,106,0.15);
+
+  /* Shadows — stronger, cooler */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  --color-overlay: rgba(0,0,0,0.7);
+  --color-overlay-light: rgba(0,0,0,0.4);
+
+  --sidebar-bg:           #0D0F11;
+  --sidebar-shadow-light: rgba(255,255,255,0.02);
+  --sidebar-shadow-dark:  rgba(0,0,0,0.6);
+}
+
+/* ================================================================
+ * THEME: MIDNIGHT FOREST
+ * Deep green-blacks. Botanical calm. Like working by lamplight
+ * in a forest cabin. Rich, natural, earthy.
+ * Applied via: data-theme="midnight-forest"
+ * ================================================================ */
+:root[data-theme="midnight-forest"] {
+  /* Deep green-tinted blacks */
+  --neutral-50:  #080E0A;
+  --neutral-100: #0E1610;
+  --neutral-150: #151F17;
+  --neutral-200: #1D2A1F;
+  --neutral-250: #263529;
+  --neutral-300: #334438;
+  --neutral-400: #4A6050;
+  --neutral-500: #6A8870;
+  --neutral-600: #90AB96;
+  --neutral-700: #B0C8B5;
+  --neutral-800: #CCDECD;
+  --neutral-900: #E2EDE3;
+  --neutral-950: #EFF6EF;
+
+  --color-bg:             #0E1610;
+  --color-surface:        #151F17;
+  --color-surface-2:      #080E0A;
+  --color-surface-3:      #1D2A1F;
+  --color-border:         #1D2A1F;
+  --color-border-subtle:  #151F17;
+  --color-text-primary:   #E2EDE3;
+  --color-text-secondary: #90AB96;
+  --color-text-tertiary:  #6A8870;
+  --color-text-disabled:  #334438;
+
+  /* Accent: warm sage green */
+  --color-accent:            #6DBF7E;
+  --color-accent-hover:      #5DAF6E;
+  --color-accent-active:     #4D9F5E;
+  --color-accent-light:      #0E2415;
+  --color-accent-subtle:     #122C18;
+  --color-btn-primary:       #4D9F5E;
+  --color-btn-primary-hover: #3D8F4E;
+
+  /* Semantic */
+  --color-success:       #6DBF7E;
+  --color-success-light: #0A1E10;
+  --color-warning:       #D4A96A;
+  --color-warning-light: #20150A;
+  --color-danger:        #D47A7A;
+  --color-danger-light:  #1E0A0A;
+  --color-info:          #7ABFD4;
+  --color-info-light:    #0A1820;
+
+  /* Module accents — Midnight Forest: earthy, botanical, warm lamplight tones */
+  --module-dashboard: #82C4D8;
+  --module-tasks:     #72C882;
+  --module-calendar:  #A88ED8;
+  --module-meals:     #D8B06A;
+  --module-lists:     #D88260;
+  --module-news:      #5EC8B4;
+  --module-notes:     #D8C860;
+  --module-contacts:  #78B8D8;
+  --module-budget:    #68C8A8;
+  --module-settings:  #90AE98;
+
+  /* Semantic — Midnight Forest */
+  --color-priority-low:        #6A8870;
+  --color-priority-medium:     #D8B06A;
+  --color-priority-high:       #D88260;
+  --color-priority-urgent:     #D86060;
+  --color-priority-low-bg:     rgba(106,136,112,0.18);
+  --color-priority-medium-bg:  rgba(216,176,106,0.18);
+  --color-priority-high-bg:    rgba(216,130,96,0.18);
+  --color-priority-urgent-bg:  rgba(216,96,96,0.18);
+
+  /* Shadows — green-tinted darks */
+  --shadow-sm: 0 1px 3px rgba(0,8,0,0.45);
+  --shadow-md: 0 4px 12px rgba(0,8,0,0.55);
+  --shadow-lg: 0 8px 32px rgba(0,8,0,0.65);
+  --color-overlay: rgba(0,5,0,0.72);
+  --color-overlay-light: rgba(0,5,0,0.4);
+
+  --sidebar-bg:           #080E0A;
+  --sidebar-shadow-light: rgba(100,200,100,0.03);
+  --sidebar-shadow-dark:  rgba(0,0,0,0.6);
+}
+
+/* ================================================================
+ * THEME: NOIR
+ * Cool, pure charcoal and slate. High contrast. Editorial minimal.
+ * Like a high-end print magazine or code editor in dark mode.
+ * Applied via: data-theme="noir"
+ * ================================================================ */
+:root[data-theme="noir"] {
+  /* Pure cool grays, no warm or green tint */
+  --neutral-50:  #0A0A0A;
+  --neutral-100: #111111;
+  --neutral-150: #1A1A1A;
+  --neutral-200: #242424;
+  --neutral-250: #2E2E2E;
+  --neutral-300: #3D3D3D;
+  --neutral-400: #565656;
+  --neutral-500: #787878;
+  --neutral-600: #9E9E9E;
+  --neutral-700: #C2C2C2;
+  --neutral-800: #DEDEDE;
+  --neutral-900: #F0F0F0;
+  --neutral-950: #F9F9F9;
+
+  --color-bg:             #111111;
+  --color-surface:        #1A1A1A;
+  --color-surface-2:      #0A0A0A;
+  --color-surface-3:      #242424;
+  --color-border:         #2E2E2E;
+  --color-border-subtle:  #242424;
+  --color-text-primary:   #F0F0F0;
+  --color-text-secondary: #9E9E9E;
+  --color-text-tertiary:  #787878;
+  --color-text-disabled:  #3D3D3D;
+
+  /* Accent: pure white/light-gray (near monochromatic) */
+  --color-accent:            #E0E0E0;
+  --color-accent-hover:      #F0F0F0;
+  --color-accent-active:     #C0C0C0;
+  --color-accent-light:      #1E1E1E;
+  --color-accent-subtle:     #242424;
+  --color-btn-primary:       #DEDEDE;
+  --color-btn-primary-hover: #F0F0F0;
+
+  /* Semantic */
+  --color-success:       #72C472;
+  --color-success-light: #101A10;
+  --color-warning:       #D4B464;
+  --color-warning-light: #1E1600;
+  --color-danger:        #D46464;
+  --color-danger-light:  #1E0A0A;
+  --color-info:          #64AAD4;
+  --color-info-light:    #0A1418;
+
+  /* Module accents — Noir: restrained, precise, high contrast with clean selective color */
+  --module-dashboard: #7AB4E8;
+  --module-tasks:     #7ACA7A;
+  --module-calendar:  #B47AE8;
+  --module-meals:     #E8B86A;
+  --module-lists:     #E88A6A;
+  --module-news:      #6ACAC4;
+  --module-notes:     #E8D46A;
+  --module-contacts:  #6AB8E8;
+  --module-budget:    #6ACAA8;
+  --module-settings:  #A8A8B8;
+
+  /* Semantic — Noir */
+  --color-priority-low:        #787878;
+  --color-priority-medium:     #E8B86A;
+  --color-priority-high:       #E88A6A;
+  --color-priority-urgent:     #E86A6A;
+  --color-priority-low-bg:     rgba(120,120,120,0.15);
+  --color-priority-medium-bg:  rgba(232,184,106,0.15);
+  --color-priority-high-bg:    rgba(232,138,106,0.15);
+  --color-priority-urgent-bg:  rgba(232,106,106,0.15);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.7);
+  --color-overlay: rgba(0,0,0,0.75);
+  --color-overlay-light: rgba(0,0,0,0.45);
+
+  --sidebar-bg:           #0A0A0A;
+  --sidebar-shadow-light: rgba(255,255,255,0.03);
+  --sidebar-shadow-dark:  rgba(0,0,0,0.7);
+}
+
+/* ================================================================
+ * THEME: OPNSENSE
+ * Inspired by OPNsense firewall UI. Deep warm-dark with burnt orange
+ * as the dominant accent. Industrial, precise, high-contrast.
+ * Applied via: data-theme="opnsense"
+ * ================================================================ */
+:root[data-theme="opnsense"] {
+  /* Deep warm-dark, slightly red-brown tinted */
+  --neutral-50:  #110C0A;
+  --neutral-100: #1A1210;
+  --neutral-150: #231A17;
+  --neutral-200: #2E221E;
+  --neutral-250: #3A2B26;
+  --neutral-300: #4A3830;
+  --neutral-400: #6A5248;
+  --neutral-500: #8A7268;
+  --neutral-600: #B09088;
+  --neutral-700: #CCB0A8;
+  --neutral-800: #E0CCC8;
+  --neutral-900: #F0E4E0;
+  --neutral-950: #F8F2F0;
+
+  --color-bg:             #1A1210;
+  --color-surface:        #231A17;
+  --color-surface-2:      #110C0A;
+  --color-surface-3:      #2E221E;
+  --color-border:         #3A2B26;
+  --color-border-subtle:  #2E221E;
+  --color-text-primary:   #F0E4E0;
+  --color-text-secondary: #B09088;
+  --color-text-tertiary:  #8A7268;
+  --color-text-disabled:  #4A3830;
+
+  /* Accent: OPNsense burnt orange */
+  --color-accent:            #E8650A;
+  --color-accent-hover:      #D45508;
+  --color-accent-active:     #C04806;
+  --color-accent-light:      #2E1A0A;
+  --color-accent-subtle:     #3A2010;
+  --color-btn-primary:       #E8650A;
+  --color-btn-primary-hover: #D45508;
+
+  /* Semantic */
+  --color-success:       #6EC87A;
+  --color-success-light: #0E2014;
+  --color-warning:       #E8A84A;
+  --color-warning-light: #2A1A00;
+  --color-danger:        #E86060;
+  --color-danger-light:  #2A0E0E;
+  --color-info:          #6AB4D8;
+  --color-info-light:    #0A1820;
+
+  /* Module accents — orange-family with warm complementary tones */
+  --module-dashboard: #E8820A;
+  --module-tasks:     #6EC87A;
+  --module-calendar:  #C87ABA;
+  --module-meals:     #E8A84A;
+  --module-lists:     #E8650A;
+  --module-news:      #4AC8BA;
+  --module-notes:     #E8C84A;
+  --module-contacts:  #6AB4D8;
+  --module-budget:    #4AC898;
+  --module-settings:  #A89888;
+
+  /* Priority */
+  --color-priority-low:        #8A7268;
+  --color-priority-medium:     #E8A84A;
+  --color-priority-high:       #E8820A;
+  --color-priority-urgent:     #E86060;
+  --color-priority-low-bg:     rgba(138,114,104,0.15);
+  --color-priority-medium-bg:  rgba(232,168,74,0.15);
+  --color-priority-high-bg:    rgba(232,130,10,0.15);
+  --color-priority-urgent-bg:  rgba(232,96,96,0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.65);
+  --color-overlay: rgba(0,0,0,0.72);
+  --color-overlay-light: rgba(0,0,0,0.4);
+  --sidebar-bg:           #110C0A;
+  --sidebar-shadow-light: rgba(255,150,50,0.04);
+  --sidebar-shadow-dark:  rgba(0,0,0,0.6);
+}
+
+/* ================================================================
+ * THEME: DEEP OCEAN
+ * Deep navy-indigo backgrounds. Teal, cyan and sky accents.
+ * Like working at depth — cool, focused, luminous.
+ * Applied via: data-theme="deep-ocean"
+ * ================================================================ */
+:root[data-theme="deep-ocean"] {
+  /* Deep navy with blue-indigo tint */
+  --neutral-50:  #060A12;
+  --neutral-100: #0A1020;
+  --neutral-150: #10182E;
+  --neutral-200: #18223C;
+  --neutral-250: #202E4A;
+  --neutral-300: #2C3E60;
+  --neutral-400: #445878;
+  --neutral-500: #607898;
+  --neutral-600: #8098B8;
+  --neutral-700: #A8BCD0;
+  --neutral-800: #C8D8E8;
+  --neutral-900: #E0EAF4;
+  --neutral-950: #F0F6FC;
+
+  --color-bg:             #0A1020;
+  --color-surface:        #10182E;
+  --color-surface-2:      #060A12;
+  --color-surface-3:      #18223C;
+  --color-border:         #202E4A;
+  --color-border-subtle:  #18223C;
+  --color-text-primary:   #E0EAF4;
+  --color-text-secondary: #8098B8;
+  --color-text-tertiary:  #607898;
+  --color-text-disabled:  #2C3E60;
+
+  /* Accent: electric teal */
+  --color-accent:            #22D3EE;
+  --color-accent-hover:      #06B6D4;
+  --color-accent-active:     #0891B2;
+  --color-accent-light:      #082840;
+  --color-accent-subtle:     #0C3450;
+  --color-btn-primary:       #0EA5E9;
+  --color-btn-primary-hover: #0284C7;
+
+  /* Semantic */
+  --color-success:       #34D399;
+  --color-success-light: #062018;
+  --color-warning:       #FBBF24;
+  --color-warning-light: #1C1400;
+  --color-danger:        #F87171;
+  --color-danger-light:  #200A0A;
+  --color-info:          #38BDF8;
+  --color-info-light:    #06182A;
+
+  /* Module accents — oceanic spectrum */
+  --module-dashboard: #38BDF8;
+  --module-tasks:     #34D399;
+  --module-calendar:  #818CF8;
+  --module-meals:     #FBBF24;
+  --module-lists:     #FB923C;
+  --module-news:      #22D3EE;
+  --module-notes:     #FCD34D;
+  --module-contacts:  #60A5FA;
+  --module-budget:    #2DD4BF;
+  --module-settings:  #94A3B8;
+
+  /* Priority */
+  --color-priority-low:        #607898;
+  --color-priority-medium:     #FBBF24;
+  --color-priority-high:       #FB923C;
+  --color-priority-urgent:     #F87171;
+  --color-priority-low-bg:     rgba(96,120,152,0.15);
+  --color-priority-medium-bg:  rgba(251,191,36,0.15);
+  --color-priority-high-bg:    rgba(251,146,60,0.15);
+  --color-priority-urgent-bg:  rgba(248,113,113,0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,5,20,0.5);
+  --shadow-lg: 0 8px 32px rgba(0,5,20,0.65);
+  --color-overlay: rgba(0,5,20,0.72);
+  --color-overlay-light: rgba(0,5,20,0.4);
+  --sidebar-bg:           #060A12;
+  --sidebar-shadow-light: rgba(34,211,238,0.04);
+  --sidebar-shadow-dark:  rgba(0,0,0,0.6);
+}
+
+/* ================================================================
+ * THEME: AUBERGINE
+ * Deep purple-plum backgrounds. Soft lavender, rose and lilac accents.
+ * Moody, creative, artistic. Like a late-night design session.
+ * Applied via: data-theme="aubergine"
+ * ================================================================ */
+:root[data-theme="aubergine"] {
+  /* Deep plum-purple tinted blacks */
+  --neutral-50:  #0C0810;
+  --neutral-100: #130E1A;
+  --neutral-150: #1C1428;
+  --neutral-200: #261C36;
+  --neutral-250: #302444;
+  --neutral-300: #403258;
+  --neutral-400: #584870;
+  --neutral-500: #786890;
+  --neutral-600: #9C8CB0;
+  --neutral-700: #BCB0CC;
+  --neutral-800: #D8D0E4;
+  --neutral-900: #EDE8F4;
+  --neutral-950: #F6F4FA;
+
+  --color-bg:             #130E1A;
+  --color-surface:        #1C1428;
+  --color-surface-2:      #0C0810;
+  --color-surface-3:      #261C36;
+  --color-border:         #302444;
+  --color-border-subtle:  #261C36;
+  --color-text-primary:   #EDE8F4;
+  --color-text-secondary: #9C8CB0;
+  --color-text-tertiary:  #786890;
+  --color-text-disabled:  #403258;
+
+  /* Accent: soft lavender */
+  --color-accent:            #C084FC;
+  --color-accent-hover:      #A855F7;
+  --color-accent-active:     #9333EA;
+  --color-accent-light:      #20103A;
+  --color-accent-subtle:     #2C1648;
+  --color-btn-primary:       #A855F7;
+  --color-btn-primary-hover: #9333EA;
+
+  /* Semantic */
+  --color-success:       #86EFAC;
+  --color-success-light: #0E1E18;
+  --color-warning:       #FDE68A;
+  --color-warning-light: #1E1800;
+  --color-danger:        #FCA5A5;
+  --color-danger-light:  #200C0C;
+  --color-info:          #93C5FD;
+  --color-info-light:    #0C1628;
+
+  /* Module accents — jewel tones on dark plum */
+  --module-dashboard: #93C5FD;
+  --module-tasks:     #86EFAC;
+  --module-calendar:  #C084FC;
+  --module-meals:     #FDE68A;
+  --module-lists:     #FDBA74;
+  --module-news:      #67E8F9;
+  --module-notes:     #FCD34D;
+  --module-contacts:  #A5B4FC;
+  --module-budget:    #6EE7B7;
+  --module-settings:  #C4B5D4;
+
+  /* Priority */
+  --color-priority-low:        #786890;
+  --color-priority-medium:     #FDE68A;
+  --color-priority-high:       #FDBA74;
+  --color-priority-urgent:     #FCA5A5;
+  --color-priority-low-bg:     rgba(120,104,144,0.15);
+  --color-priority-medium-bg:  rgba(253,230,138,0.15);
+  --color-priority-high-bg:    rgba(253,186,116,0.15);
+  --color-priority-urgent-bg:  rgba(252,165,165,0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(10,0,20,0.5);
+  --shadow-lg: 0 8px 32px rgba(10,0,20,0.65);
+  --color-overlay: rgba(10,0,20,0.72);
+  --color-overlay-light: rgba(10,0,20,0.4);
+  --sidebar-bg:           #0C0810;
+  --sidebar-shadow-light: rgba(192,132,252,0.04);
+  --sidebar-shadow-dark:  rgba(0,0,0,0.6);
+}
+
+/* ================================================================
+ * THEME: PARCHMENT
+ * Warm golden light theme. Aged paper, notebook, candlelight.
+ * Softer and more organic than the default light mode.
+ * Applied via: data-theme="parchment"
+ * ================================================================ */
+:root[data-theme="parchment"] {
+  /* Warm cream-gold neutrals */
+  --neutral-50:  #FDFAF4;
+  --neutral-100: #F8F2E4;
+  --neutral-150: #F0E8D4;
+  --neutral-200: #E8DEC4;
+  --neutral-250: #DDD2B4;
+  --neutral-300: #C8C0A0;
+  --neutral-400: #A89880;
+  --neutral-500: #887860;
+  --neutral-600: #6A5C48;
+  --neutral-700: #4C4030;
+  --neutral-800: #342C20;
+  --neutral-900: #201810;
+  --neutral-950: #140E08;
+
+  --color-bg:             #F8F2E4;
+  --color-surface:        #FDFAF4;
+  --color-surface-2:      #F0E8D4;
+  --color-surface-3:      #EDE3CC;
+  --color-border:         #E8DEC4;
+  --color-border-subtle:  #F0E8D4;
+  --color-text-primary:   #201810;
+  --color-text-secondary: #6A5C48;
+  --color-text-tertiary:  #887860;
+  --color-text-disabled:  #C8C0A0;
+
+  /* Accent: warm burnt sienna-brown */
+  --color-accent:            #9A5C2A;
+  --color-accent-hover:      #844C20;
+  --color-accent-active:     #6E3E18;
+  --color-accent-light:      #F4EAD8;
+  --color-accent-subtle:     #EDE0C4;
+  --color-btn-primary:       #9A5C2A;
+  --color-btn-primary-hover: #844C20;
+
+  /* Semantic */
+  --color-success:       #3D7A4A;
+  --color-success-light: #D8EED8;
+  --color-warning:       #9A6A10;
+  --color-warning-light: #FDF4D4;
+  --color-danger:        #A83028;
+  --color-danger-light:  #F8E0DC;
+  --color-info:          #3A6EA8;
+  --color-info-light:    #DCE8F4;
+
+  /* Module accents — earthy, ink-on-paper tones */
+  --module-dashboard: #3A6EA8;
+  --module-tasks:     #3D7A4A;
+  --module-calendar:  #7A4A9A;
+  --module-meals:     #9A6A10;
+  --module-lists:     #A84820;
+  --module-news:      #1A7A70;
+  --module-notes:     #9A8010;
+  --module-contacts:  #1A5A9A;
+  --module-budget:    #1A7A58;
+  --module-settings:  #6A6858;
+
+  /* Priority */
+  --color-priority-low:        #887860;
+  --color-priority-medium:     #9A6A10;
+  --color-priority-high:       #A84820;
+  --color-priority-urgent:     #A83028;
+  --color-priority-low-bg:     rgba(136,120,96,0.12);
+  --color-priority-medium-bg:  rgba(154,106,16,0.12);
+  --color-priority-high-bg:    rgba(168,72,32,0.12);
+  --color-priority-urgent-bg:  rgba(168,48,40,0.12);
+
+  --shadow-sm: 0 1px 2px rgba(32,24,16,0.06), 0 1px 4px rgba(32,24,16,0.04);
+  --shadow-md: 0 2px 8px rgba(32,24,16,0.10), 0 1px 2px rgba(32,24,16,0.06);
+  --shadow-lg: 0 8px 24px rgba(32,24,16,0.14), 0 2px 6px rgba(32,24,16,0.06);
+  --color-overlay: rgba(20,12,4,0.45);
+  --color-overlay-light: rgba(20,12,4,0.2);
+  --sidebar-bg:           #F0E8D4;
+  --sidebar-shadow-light: rgba(255,255,255,0.7);
+  --sidebar-shadow-dark:  rgba(32,24,16,0.08);
+}
