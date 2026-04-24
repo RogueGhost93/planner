@@ -7,6 +7,12 @@ services:
       - "0.0.0.0:3000:3000"
     volumes:
       - planium_data:/data
+      # Optional: bind-mount Filebox-Ordner vom Host, um Dateien direkt
+      # vom Host aus reinzuziehen oder zu sichern. Erst aktivieren, nachdem
+      # ein Nutzer Filebox in den Settings eingeschaltet hat (dann werden
+      # die Unterordner automatisch angelegt). Beispiel:
+      - ./files/global:/data/filebox/global
+      - ./files/test:/data/filebox/test
     env_file:
       - .env
     environment:

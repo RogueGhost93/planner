@@ -266,6 +266,36 @@ router.get('/bookmarks', async (req, res) => {
 });
 
 // --------------------------------------------------------
+// GET /api/v1/linkding/favicon?url=<encoded_url>
+// Proxies a favicon from the Linkding instance (browser can't reach internal host).
+// Only proxies URLs that belong to the configured Linkding instance (SSRF guard).
+// --------------------------------------------------------
+router.get('/favicon', async (req, res) => {
+  const { url: baseUrl, token } = getConfig(req.session.userId);
+  if (!baseUrl || !token) return res.status(503).end();
+
+  const faviconUrl = req.query.url;
+  if (!faviconUrl || typeof faviconUrl !== 'string') return res.status(400).end();
+
+  if (!faviconUrl.startsWith(baseUrl)) return res.status(403).end();
+
+  try {
+    const imgRes = await fetch(faviconUrl, {
+      headers: { Authorization: `Token ${token}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!imgRes.ok) return res.status(404).end();
+
+    const ct = imgRes.headers.get('content-type') || 'image/png';
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(await imgRes.arrayBuffer()));
+  } catch {
+    res.status(404).end();
+  }
+});
+
+// --------------------------------------------------------
 // GET /api/v1/linkding/tags
 // Fetches all tags from Linkding.
 // Response: [{ name: string, count: number }, ...]

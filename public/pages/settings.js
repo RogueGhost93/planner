@@ -1151,6 +1151,24 @@ function bindEvents(container, user) {
   // Per-user integration overrides (data-driven from INTEGRATIONS)
   INTEGRATIONS.forEach((i) => bindPersonalOverrideEvents(container, i));
 
+  // Filebox per-user opt-in toggle
+  const fileboxToggle = container.querySelector('#filebox-enabled');
+  if (fileboxToggle) {
+    fileboxToggle.addEventListener('change', async () => {
+      try {
+        await api.post('/filebox/settings', { enabled: fileboxToggle.checked });
+        window.planium?.refreshOptionalNavItems?.();
+        window.planium?.showToast(
+          fileboxToggle.checked ? 'Filebox enabled' : 'Filebox disabled',
+          'success',
+        );
+      } catch (err) {
+        fileboxToggle.checked = !fileboxToggle.checked;
+        window.planium?.showToast(err.message ?? 'Failed to update', 'danger');
+      }
+    });
+  }
+
   // Abmelden
   const logoutBtn = container.querySelector('#logout-btn');
   if (logoutBtn) {

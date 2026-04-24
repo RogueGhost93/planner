@@ -71,9 +71,15 @@ export async function render(container, { user }) {
     <style>
       #mobile-tag-filter-btn { display: none }
       @media (max-width: 768px) {
-        .bookmarks-page-wrapper { grid-template-columns: 1fr !important }
+        .bookmarks-page-wrapper { grid-template-columns: 1fr !important; overflow-x: hidden }
         .bookmarks-sidebar { display: none !important }
         #mobile-tag-filter-btn { display: inline-flex !important }
+        .bookmarks-main { overflow-x: hidden; max-width: 100vw }
+        .bm-card { padding: 10px !important }
+        .bm-title { font-size: 12px !important }
+        .bm-url { font-size: 10px !important }
+        .bm-tag { font-size: 10px !important }
+        .bm-actions { font-size: 11px }
       }
     </style>
     <div class="bookmarks-page-wrapper" style="display:grid;grid-template-columns:250px 1fr;gap:0;height:100vh;background:var(--color-bg)">
@@ -525,6 +531,7 @@ function renderBookmarks(container) {
   bookmarks.forEach((bookmark) => {
     const card = document.createElement('div');
     const isSelected = bulkSelected.has(bookmark.id);
+    card.className = 'bm-card';
     card.style.cssText = `
       border: 2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'};
       border-radius: 8px;
@@ -534,6 +541,8 @@ function renderBookmarks(container) {
       flex-direction: column;
       gap: 8px;
       transition: all 0.2s;
+      min-width: 0;
+      max-width: 100%;
     `;
 
     // Checkbox (only in bulk edit mode)
@@ -578,18 +587,22 @@ function renderBookmarks(container) {
     titleRow.style.cssText = 'display:flex;gap:8px;align-items:center;min-width:0';
 
     const favicon = document.createElement('img');
-    const googleFavicon = `https://www.google.com/s2/favicons?sz=16&domain=${esc(new URL(bookmark.url).hostname)}`;
-    favicon.src = bookmark.favicon_url || googleFavicon;
     favicon.style.cssText = 'width:16px;height:16px;flex-shrink:0;border-radius:2px';
-    favicon.addEventListener('error', () => {
-      if (favicon.src !== googleFavicon) {
-        favicon.src = googleFavicon;
-      } else {
-        favicon.style.display = 'none';
-      }
-    });
+    let hostname = '';
+    try { hostname = new URL(bookmark.url).hostname; } catch { /* empty */ }
+    const faviconSrcs = [];
+    if (bookmark.favicon_url) faviconSrcs.push(`/api/v1/linkding/favicon?url=${encodeURIComponent(bookmark.favicon_url)}`);
+    if (hostname) faviconSrcs.push(`https://icons.duckduckgo.com/ip3/${hostname}.ico`);
+    let faviconIdx = 0;
+    const tryNextFavicon = () => {
+      if (faviconIdx < faviconSrcs.length) { favicon.src = faviconSrcs[faviconIdx++]; }
+      else { favicon.style.display = 'none'; }
+    };
+    favicon.addEventListener('error', tryNextFavicon);
+    tryNextFavicon();
 
     const titleLink = document.createElement('a');
+    titleLink.className = 'bm-title';
     titleLink.href = bookmark.url;
     titleLink.target = '_blank';
     titleLink.rel = 'noopener noreferrer';
@@ -612,6 +625,7 @@ function renderBookmarks(container) {
 
     // URL
     const urlEl = document.createElement('a');
+    urlEl.className = 'bm-url';
     urlEl.href = bookmark.url;
     urlEl.target = '_blank';
     urlEl.rel = 'noopener noreferrer';
@@ -633,6 +647,7 @@ function renderBookmarks(container) {
     if (bookmark.tag_names && bookmark.tag_names.length > 0) {
       bookmark.tag_names.forEach((tag) => {
         const tagBadge = document.createElement('span');
+        tagBadge.className = 'bm-tag';
         tagBadge.style.cssText = `
           display: inline-block;
           background: var(--color-primary);
@@ -660,7 +675,8 @@ function renderBookmarks(container) {
 
     // Actions (bottom row with SVG icons)
     const actionsEl = document.createElement('div');
-    actionsEl.style.cssText = 'display:flex;gap:2px;align-items:center;cursor:default;border-top:1px solid var(--color-border);padding-top:8px;justify-content:flex-end';
+    actionsEl.className = 'bm-actions';
+    actionsEl.style.cssText = 'display:flex;gap:2px;align-items:center;cursor:default;border-top:1px solid var(--color-border);padding-top:8px;justify-content:flex-start';
 
     const btnBase = 'background:none;border:none;cursor:pointer;padding:5px 8px;border-radius:4px;transition:background 0.2s;display:inline-flex;align-items:center;justify-content:center;color:var(--color-text-secondary)';
 

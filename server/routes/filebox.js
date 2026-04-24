@@ -21,7 +21,14 @@ import * as db from '../db.js';
 const log    = createLogger('Filebox');
 const router = express.Router();
 
-const FILEBOX_ROOT = path.join(process.env.DATA_DIR || '/data', 'filebox');
+// DATA_DIR > directory of DB_PATH > <repo>/data — keeps Filebox next to the DB
+// in dev when no DATA_DIR is set, so we don't try to mkdir /data (EACCES).
+function resolveDataDir() {
+  if (process.env.DATA_DIR) return process.env.DATA_DIR;
+  if (process.env.DB_PATH)  return path.dirname(process.env.DB_PATH);
+  return path.join(import.meta.dirname, '..', '..', 'data');
+}
+const FILEBOX_ROOT = path.join(resolveDataDir(), 'filebox');
 const GLOBAL_DIR   = path.join(FILEBOX_ROOT, 'global');
 const MAX_FILE_BYTES = 50 * 1024 * 1024 * 1024; // 50 GiB
 
