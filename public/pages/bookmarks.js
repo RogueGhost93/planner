@@ -68,6 +68,14 @@ export async function render(container, { user }) {
   currentOffset = 0;
 
   container.innerHTML = `
+    <style>
+      #mobile-tag-filter-btn { display: none }
+      @media (max-width: 768px) {
+        .bookmarks-page-wrapper { grid-template-columns: 1fr !important }
+        .bookmarks-sidebar { display: none !important }
+        #mobile-tag-filter-btn { display: inline-flex !important }
+      }
+    </style>
     <div class="bookmarks-page-wrapper" style="display:grid;grid-template-columns:250px 1fr;gap:0;height:100vh;background:var(--color-bg)">
       <!-- Sidebar -->
       <aside class="bookmarks-sidebar" style="border-right:1px solid var(--color-border);background:var(--color-surface);display:flex;flex-direction:column;overflow:hidden;height:100vh">
@@ -93,7 +101,7 @@ export async function render(container, { user }) {
       <main class="bookmarks-main" style="display:flex;flex-direction:column;overflow-y:auto">
         <!-- Header -->
         <div style="padding:var(--space-3);border-bottom:1px solid var(--color-border);background:var(--color-surface);sticky;top:0;z-index:10">
-          <div style="display:grid;grid-template-columns:1fr auto auto;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2)">
+          <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2)">
             <input
               type="text"
               id="bookmarks-search"
@@ -102,6 +110,7 @@ export async function render(container, { user }) {
               value="${esc(currentSearch)}"
               style="width:100%;font-size:15px;padding:8px 12px"
             />
+            <button id="mobile-tag-filter-btn" class="btn btn--secondary" style="padding:8px 12px;font-size:13px;white-space:nowrap;align-items:center;gap:6px">🏷️ Tags${currentTags.length > 0 ? ` <span style="background:var(--color-primary);color:var(--color-text-inverse);border-radius:10px;padding:1px 7px;font-size:11px">${currentTags.length}</span>` : ''}</button>
             <button id="bookmarks-bulk-toggle" class="btn btn--secondary" style="padding:8px 12px;font-size:13px;white-space:nowrap">Bulk Edit</button>
             <select id="bookmarks-per-page" class="form-input" style="padding:8px 12px;font-size:14px;min-width:70px">
               <option value="20" ${currentLimit === 20 ? 'selected' : ''}>20</option>
@@ -280,6 +289,10 @@ function toggleTag(tagName, container) {
 function updateActiveFiltersToolbar(container) {
   const toolbar = container.querySelector('#bookmarks-active-filters');
   const filtersContainer = container.querySelector('#filters-container');
+  const mobileBtn = container.querySelector('#mobile-tag-filter-btn');
+  if (mobileBtn) {
+    mobileBtn.innerHTML = `🏷️ Tags${currentTags.length > 0 ? ` <span style="background:var(--color-primary);color:var(--color-text-inverse);border-radius:10px;padding:1px 7px;font-size:11px;margin-left:2px">${currentTags.length}</span>` : ''}`;
+  }
 
   if (currentTags.length === 0) {
     toolbar.style.display = 'none';
@@ -976,6 +989,109 @@ async function showEditBookmarkModal(container, bookmark) {
   urlInput.select();
 }
 
+function showTagFilterModal(container) {
+  const existing = document.getElementById('tag-filter-modal');
+  if (existing) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'tag-filter-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:500;display:flex;flex-direction:column;justify-content:flex-end';
+
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'background:var(--color-surface);border-radius:16px 16px 0 0;max-height:80vh;display:flex;flex-direction:column;overflow:hidden';
+
+  function renderSheet() {
+    const searchVal = sheet.querySelector('#tag-modal-search')?.value || '';
+
+    sheet.innerHTML = `
+      <div style="padding:16px;border-bottom:1px solid var(--color-border);flex-shrink:0">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <h2 style="margin:0;font-size:16px;font-weight:600">Filter by Tags</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            ${currentTags.length > 0 ? `<button id="tag-modal-clear" class="btn btn--secondary" style="padding:5px 12px;font-size:13px">Clear</button>` : ''}
+            <button id="tag-modal-done" class="btn btn--primary" style="padding:5px 16px;font-size:14px">Done</button>
+          </div>
+        </div>
+        ${currentTags.length > 0 ? `
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+            ${currentTags.map(tag => `
+              <div style="display:inline-flex;align-items:center;gap:4px;background:var(--color-primary);color:var(--color-text-inverse);padding:5px 10px;border-radius:20px;font-size:13px;font-weight:500">
+                <span>${esc(tag)}</span>
+                <button data-remove="${esc(tag)}" style="background:none;border:none;color:inherit;cursor:pointer;padding:0 0 0 2px;font-size:17px;line-height:1">×</button>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        <input id="tag-modal-search" type="text" class="form-input" placeholder="Search tags…" style="width:100%;padding:8px 12px;font-size:14px" value="${esc(searchVal)}" />
+      </div>
+      <div id="tag-modal-list" style="flex:1;overflow-y:auto;padding:12px"></div>
+    `;
+
+    sheet.querySelector('#tag-modal-done').addEventListener('click', () => modal.remove());
+    sheet.querySelector('#tag-modal-clear')?.addEventListener('click', () => {
+      currentTags = [];
+      currentOffset = 0;
+      saveFiltersToStorage();
+      updateActiveFiltersToolbar(container);
+      loadBookmarks(container);
+      renderSheet();
+    });
+    sheet.querySelectorAll('[data-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        toggleTag(btn.dataset.remove, container);
+        renderSheet();
+      });
+    });
+
+    const searchInput = sheet.querySelector('#tag-modal-search');
+    searchInput.addEventListener('input', () => renderTagList(searchInput.value));
+    searchInput.focus();
+
+    renderTagList(searchVal);
+  }
+
+  function renderTagList(searchTerm) {
+    const listEl = sheet.querySelector('#tag-modal-list');
+    if (!listEl) return;
+
+    let tagsToShow = [...allTags];
+    if (searchTerm) {
+      tagsToShow = tagsToShow.filter(t => (t.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    }
+
+    const sorted = tagsToShow.sort((a, b) => {
+      if (tagSortMode === 'count') {
+        if (b.count !== a.count) return b.count - a.count;
+      }
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    listEl.innerHTML = '';
+    if (sorted.length === 0) {
+      listEl.innerHTML = '<p style="color:var(--color-text-secondary);font-size:14px;text-align:center;padding:20px">No tags found</p>';
+      return;
+    }
+
+    sorted.forEach(tag => {
+      if (!tag.name) return;
+      const isActive = currentTags.includes(tag.name);
+      const btn = document.createElement('button');
+      btn.style.cssText = `display:flex;width:100%;text-align:left;padding:10px 12px;margin-bottom:4px;border:1px solid ${isActive ? 'var(--color-primary)' : 'var(--color-border)'};background:${isActive ? 'var(--color-primary)' : 'var(--color-surface)'};color:${isActive ? 'var(--color-text-inverse)' : 'var(--color-text)'};border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;align-items:center;justify-content:space-between`;
+      btn.innerHTML = `<span>${esc(tag.name)}</span><span style="font-size:12px;opacity:0.6">${tag.count || 0}</span>`;
+      btn.addEventListener('click', () => {
+        toggleTag(tag.name, container);
+        renderSheet();
+      });
+      listEl.appendChild(btn);
+    });
+  }
+
+  renderSheet();
+  modal.appendChild(sheet);
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
 function bindEvents(container) {
   const searchInput = container.querySelector('#bookmarks-search');
   const tagsSearchInput = container.querySelector('#tags-search');
@@ -991,6 +1107,9 @@ function bindEvents(container) {
   const bulkArchiveBtn = container.querySelector('#bulk-archive');
   const bulkDeleteBtn = container.querySelector('#bulk-delete');
   const bulkClearBtn = container.querySelector('#bulk-clear');
+  const mobileTagFilterBtn = container.querySelector('#mobile-tag-filter-btn');
+
+  mobileTagFilterBtn?.addEventListener('click', () => showTagFilterModal(container));
 
   searchInput?.addEventListener('input', (e) => {
     currentSearch = e.target.value.trim();
