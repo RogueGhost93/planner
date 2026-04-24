@@ -61,17 +61,19 @@ export async function render(container, { user }) {
   let mealieStatus   = { configured: false, url: null };
   let freshrssStatus = { configured: false };
   let linkdingStatus = { configured: false, url: null };
+  let fileboxStatus  = { enabled: false };
   let taskLists      = [];
   const myConfigs    = {};
 
   try {
-    const [usersRes, gStatus, aStatus, mStatus, fStatus, lStatus, tlRes, ...myCfgRes] = await Promise.allSettled([
+    const [usersRes, gStatus, aStatus, mStatus, fStatus, lStatus, fbStatus, tlRes, ...myCfgRes] = await Promise.allSettled([
       user.role === 'admin' ? auth.getUsers() : Promise.resolve({ data: [] }),
       api.get('/calendar/google/status'),
       api.get('/calendar/apple/status'),
       api.get('/mealie/status'),
       api.get('/freshrss/status'),
       api.get('/linkding/status'),
+      api.get('/filebox/status'),
       api.get('/task-lists'),
       ...INTEGRATIONS.map(i => api.get(`${i.endpoint}/my-config`)),
     ]);
@@ -81,6 +83,7 @@ export async function render(container, { user }) {
     if (mStatus.status  === 'fulfilled')  mealieStatus   = mStatus.value;
     if (fStatus.status  === 'fulfilled')  freshrssStatus = fStatus.value;
     if (lStatus.status  === 'fulfilled')  linkdingStatus = lStatus.value;
+    if (fbStatus.status === 'fulfilled')  fileboxStatus  = fbStatus.value;
     if (tlRes.status    === 'fulfilled')  taskLists      = tlRes.value.data ?? [];
     INTEGRATIONS.forEach((i, idx) => {
       if (myCfgRes[idx]?.status === 'fulfilled') myConfigs[i.id] = myCfgRes[idx].value;
@@ -283,6 +286,26 @@ export async function render(container, { user }) {
             <div id="password-error" class="form-error" hidden></div>
             <button type="submit" class="btn btn--primary">${t('settings.savePassword')}</button>
           </form>
+        </div>
+      </details>
+
+      <!-- Filebox (per-user opt-in) -->
+      <details class="settings-section">
+        <summary class="settings-section__title">Filebox</summary>
+        <div class="settings-card">
+          <h3 class="settings-card__title">File sharing</h3>
+          <p class="settings-card__label" style="margin-bottom:var(--space-3)">
+            Adds a page for uploading, downloading and sharing files. A shared
+            global folder is visible to everyone; your private folder is only
+            visible to you. Leave this off if you don't need it.
+          </p>
+          <div class="settings-toggle-row">
+            <label class="settings-toggle-label" for="filebox-enabled">Enable Filebox for my account</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="filebox-enabled" ${fileboxStatus?.enabled ? 'checked' : ''} />
+              <span class="toggle-switch__slider"></span>
+            </label>
+          </div>
         </div>
       </details>
 

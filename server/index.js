@@ -29,6 +29,7 @@ import mealieRouter from './routes/mealie.js';
 import freshrssRouter from './routes/freshrss.js';
 import linkdingRouter from './routes/linkding.js';
 import bookmarksRouter from './routes/bookmarks.js';
+import fileboxRouter from './routes/filebox.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
@@ -174,6 +175,7 @@ app.use('/api/v1/quotes', quotesRouter);
 app.use('/api/v1/mealie', mealieRouter);
 app.use('/api/v1/freshrss', freshrssRouter);
 app.use('/api/v1/linkding', linkdingRouter);
+app.use('/api/v1/filebox', fileboxRouter);
 app.use('/api/v1', bookmarksRouter);
 
 // --------------------------------------------------------

@@ -246,6 +246,17 @@ router.get('/bookmarks', async (req, res) => {
     console.log('Final Linkding path:', path);
     const data = await linkdingFetch(url, token, path);
     console.log('Response count:', data?.count, '| results:', data?.results?.length);
+
+    // Make favicon_url absolute using the Linkding base URL
+    if (data?.results) {
+      data.results = data.results.map(b => ({
+        ...b,
+        favicon_url: b.favicon_url
+          ? (b.favicon_url.startsWith('http') ? b.favicon_url : `${url}${b.favicon_url}`)
+          : null,
+      }));
+    }
+
     res.json(data);
   } catch (err) {
     log.error('bookmarks GET', err);
