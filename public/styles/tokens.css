@@ -98,6 +98,7 @@
   --module-contacts:   #0969DA;  /* Kräftiges Blau - Kontakte */
   --module-budget:     #1A7F5A;  /* Teal - Finanzen, Stabilität */
   --module-settings:   #6E7781;  /* Grau - Konfiguration */
+  --module-filebox:    var(--module-news);  /* Alias - folgt News-Teal in allen Themes */
 
   /* --------------------------------------------------------
    * 5. Farben - Mahlzeit-Typen

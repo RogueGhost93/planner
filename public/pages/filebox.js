@@ -62,7 +62,7 @@ function getCsrfToken() {
 
 async function loadFiles() {
   state.loading = true;
-  renderList();
+  renderAll();
   try {
     const res = await api.get(`/filebox/files?scope=${state.scope}`);
     state.files = res.files || [];
@@ -71,7 +71,7 @@ async function loadFiles() {
     state.files = [];
   } finally {
     state.loading = false;
-    renderList();
+    renderAll();
   }
 }
 
@@ -119,20 +119,61 @@ async function deleteFile(name) {
 // Rendering
 // --------------------------------------------------------
 
+function renderStats() {
+  const statsEl = _container?.querySelector('#filebox-stats');
+  if (!statsEl) return;
+  const n = state.files.length;
+  const total = state.files.reduce((sum, f) => sum + (f.size || 0), 0);
+  if (!n) { statsEl.innerHTML = ''; return; }
+  statsEl.innerHTML = `
+    <span>${n} file${n === 1 ? '' : 's'}</span>
+    <span class="filebox-stats__dot" aria-hidden="true"></span>
+    <span>${formatBytes(total)}</span>
+  `;
+}
+
+function renderDropzone() {
+  const dz = _container?.querySelector('#filebox-dropzone');
+  if (!dz) return;
+  const empty = state.files.length === 0;
+  dz.classList.toggle('filebox-dropzone--empty', empty);
+  if (empty) {
+    dz.innerHTML = `
+      <i data-lucide="upload-cloud" class="filebox-dropzone__icon" aria-hidden="true"></i>
+      <div class="filebox-dropzone__text"><strong>Drop files here</strong> or click to browse</div>
+      <div class="filebox-dropzone__hint">Files in this folder will be visible to ${state.scope === 'global' ? 'everyone' : 'only you'}.</div>
+    `;
+  } else {
+    dz.innerHTML = `
+      <i data-lucide="upload-cloud" class="filebox-dropzone__icon" aria-hidden="true"></i>
+      <div class="filebox-dropzone__text"><strong>Drop files</strong> here or click to add</div>
+    `;
+  }
+  window.lucide?.createIcons();
+}
+
 function renderList() {
   const listEl = _container?.querySelector('#filebox-list');
   if (!listEl) return;
 
   if (state.loading) {
-    listEl.innerHTML = `<div class="filebox-empty">Loading…</div>`;
+    listEl.innerHTML = `
+      <div class="filebox-loading">
+        <i data-lucide="loader-2" aria-hidden="true"></i>
+        <span>Loading…</span>
+      </div>
+    `;
+    window.lucide?.createIcons();
     return;
   }
   if (!state.files.length) {
     listEl.innerHTML = `
       <div class="filebox-empty">
-        <i data-lucide="inbox" class="filebox-empty__icon" aria-hidden="true"></i>
-        <div class="filebox-empty__title">No files yet</div>
-        <div class="filebox-empty__hint">Drop files here or tap <strong>Upload</strong> to add some.</div>
+        <span class="filebox-empty__icon-wrap" aria-hidden="true">
+          <i data-lucide="folder-open"></i>
+        </span>
+        <div class="filebox-empty__title">No files in ${state.scope === 'global' ? 'the global folder' : 'your private folder'}</div>
+        <div class="filebox-empty__hint">Drag files onto the drop zone above, or click it to pick from your device.</div>
       </div>
     `;
     window.lucide?.createIcons();
@@ -141,10 +182,16 @@ function renderList() {
 
   listEl.innerHTML = state.files.map(f => `
     <div class="filebox-item" data-name="${esc(f.name)}">
-      <i data-lucide="${fileIconFor(f.name)}" class="filebox-item__icon" aria-hidden="true"></i>
+      <span class="filebox-item__icon-wrap" aria-hidden="true">
+        <i data-lucide="${fileIconFor(f.name)}"></i>
+      </span>
       <div class="filebox-item__body">
         <div class="filebox-item__name" title="${esc(f.name)}">${esc(f.name)}</div>
-        <div class="filebox-item__meta">${formatBytes(f.size)} · ${formatDate(f.modifiedAt)}</div>
+        <div class="filebox-item__meta">
+          <span>${formatBytes(f.size)}</span>
+          <span class="filebox-item__meta-dot" aria-hidden="true"></span>
+          <span>${formatDate(f.modifiedAt)}</span>
+        </div>
       </div>
       <div class="filebox-item__actions">
         <a class="filebox-item__btn" href="/api/v1/filebox/download/${encodeURIComponent(state.scope)}/${encodeURIComponent(f.name)}" title="Download" aria-label="Download">
@@ -164,6 +211,12 @@ function renderList() {
       if (name) deleteFile(name);
     });
   });
+}
+
+function renderAll() {
+  renderDropzone();
+  renderStats();
+  renderList();
 }
 
 function switchScope(scope) {
@@ -189,12 +242,11 @@ export async function render(container, _context) {
 
   if (!status.enabled) {
     container.innerHTML = `
-      <div class="page filebox-page">
-        <div class="page__header">
-          <h1 class="page__title">Filebox</h1>
-        </div>
+      <div class="filebox-page">
         <div class="filebox-optin">
-          <i data-lucide="folder-lock" class="filebox-optin__icon" aria-hidden="true"></i>
+          <span class="filebox-optin__icon-wrap" aria-hidden="true">
+            <i data-lucide="folder-lock"></i>
+          </span>
           <h2 class="filebox-optin__title">Filebox is disabled</h2>
           <p class="filebox-optin__hint">
             Enable it in Settings to upload and share files via a global folder
@@ -214,9 +266,9 @@ export async function render(container, _context) {
   }
 
   container.innerHTML = `
-    <div class="page filebox-page">
-      <div class="page__header filebox-header">
-        <h1 class="page__title">Filebox</h1>
+    <div class="filebox-page">
+      <div class="filebox-toolbar">
+        <h1 class="filebox-toolbar__title">Filebox</h1>
         <div class="filebox-scope" role="tablist" aria-label="Scope">
           <button type="button" class="filebox-scope__btn filebox-scope__btn--active" data-scope="global" aria-pressed="true">
             <i data-lucide="users" aria-hidden="true"></i><span>Global</span>
@@ -225,14 +277,17 @@ export async function render(container, _context) {
             <i data-lucide="user" aria-hidden="true"></i><span>Private</span>
           </button>
         </div>
+        <div class="filebox-toolbar__actions">
+          <button type="button" class="btn btn--primary filebox-toolbar__btn" id="filebox-upload-btn">
+            <i data-lucide="upload" aria-hidden="true"></i><span>Upload</span>
+          </button>
+          <input type="file" id="filebox-file-input" multiple hidden />
+        </div>
       </div>
 
-      <div class="filebox-dropzone" id="filebox-dropzone">
-        <i data-lucide="upload-cloud" class="filebox-dropzone__icon" aria-hidden="true"></i>
-        <div class="filebox-dropzone__text">Drop files here or</div>
-        <button type="button" class="btn btn--primary" id="filebox-upload-btn">Choose files</button>
-        <input type="file" id="filebox-file-input" multiple hidden />
-      </div>
+      <div class="filebox-stats" id="filebox-stats" aria-live="polite"></div>
+
+      <div class="filebox-dropzone" id="filebox-dropzone" role="button" tabindex="0" aria-label="Upload files"></div>
 
       <div class="filebox-list" id="filebox-list"></div>
     </div>
@@ -253,8 +308,12 @@ export async function render(container, _context) {
     fileInput.value = '';
   });
 
-  // Drag-and-drop
+  // Drag-and-drop (and click to upload)
   const dz = container.querySelector('#filebox-dropzone');
+  dz.addEventListener('click', () => fileInput.click());
+  dz.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
   ['dragenter', 'dragover'].forEach(ev => {
     dz.addEventListener(ev, (e) => {
       e.preventDefault();
