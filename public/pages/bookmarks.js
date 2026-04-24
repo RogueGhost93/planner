@@ -186,6 +186,7 @@ function toggleTag(tagName, container) {
   } else {
     currentTags.push(tagName);
   }
+  console.log('Toggle tag:', tagName, '| Current tags:', currentTags);
   currentOffset = 0;
   bulkSelected.clear();
   renderTagsSidebar(container);
