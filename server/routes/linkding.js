@@ -172,11 +172,14 @@ router.get('/bookmarks', async (req, res) => {
 
     console.log('Backend - req.query.tags:', req.query.tags);
     console.log('Backend - tagsInput:', tagsInput, 'Array.isArray:', Array.isArray(tagsInput));
-    tagsInput.forEach(tag => {
-      if (tag && typeof tag === 'string') {
-        path += `&tag=${encodeURIComponent(tag.slice(0, 200))}`;
+
+    // Try comma-separated tags for AND logic (Linkding API format)
+    if (tagsInput.length > 0) {
+      const validTags = tagsInput.filter(tag => tag && typeof tag === 'string').slice(0, 10);
+      if (validTags.length > 0) {
+        path += `&tag_names=${encodeURIComponent(validTags.join(','))}`;
       }
-    });
+    }
     if (unread) path += `&unread=${unread}`;
 
     console.log('Backend - Final Linkding API path:', path);
