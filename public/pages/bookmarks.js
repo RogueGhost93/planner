@@ -87,7 +87,7 @@ export async function render(container, { user }) {
           <div id="bookmarks-error" class="form-error" style="margin-bottom:var(--space-3)" hidden></div>
 
           <!-- Bulk actions toolbar -->
-          <div id="bookmarks-bulk-toolbar" style="display:none;margin-bottom:var(--space-3);padding:var(--space-2);background:var(--color-primary);color:var(--color-text-inverse);border-radius:6px;display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap">
+          <div id="bookmarks-bulk-toolbar" style="display:none;margin-bottom:var(--space-3);padding:var(--space-2);background:var(--color-primary);color:var(--color-text-inverse);border-radius:6px;gap:var(--space-2);align-items:center;flex-wrap:wrap">
             <span id="bulk-count" style="font-size:14px">0 selected</span>
             <button id="bulk-select-all" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:4px;cursor:pointer;color:inherit;font-size:13px">Select All</button>
             <button id="bulk-unselect-all" style="padding:6px 12px;background:rgba(255,255,255,0.2);border:none;border-radius:4px;cursor:pointer;color:inherit;font-size:13px">Unselect All</button>
@@ -522,13 +522,13 @@ function updateBulkToolbar(container) {
   const toolbar = container.querySelector('#bookmarks-bulk-toolbar');
   const countEl = container.querySelector('#bulk-count');
 
-  if (bulkSelected.size === 0) {
+  if (!bulkEditMode) {
     toolbar.style.display = 'none';
     return;
   }
 
   toolbar.style.display = 'flex';
-  countEl.textContent = `${bulkSelected.size} selected`;
+  countEl.textContent = bulkSelected.size === 0 ? 'No selection' : `${bulkSelected.size} selected`;
 }
 
 async function bulkMarkRead(container, value) {
