@@ -22,6 +22,7 @@ const ROUTES = [
   { path: '/news',     page: '/pages/news.js',      requiresAuth: true, module: 'news'      },
   { path: '/bookmarks', page: '/pages/bookmarks.js', requiresAuth: true, module: 'news'     },
   { path: '/notes',    page: '/pages/notes.js',     requiresAuth: true, module: 'notes'     },
+  { path: '/filebox',  page: '/pages/filebox.js',   requiresAuth: true, module: 'news'      },
   { path: '/contacts', page: '/pages/contacts.js',  requiresAuth: true, module: 'contacts'  },
   { path: '/budget',   page: '/pages/budget.js',    requiresAuth: true, module: 'budget'    },
   { path: '/settings', page: '/pages/settings.js',  requiresAuth: true, module: 'settings'  },
@@ -409,19 +410,22 @@ function setNavRouteHidden(path, hidden) {
 }
 
 async function refreshOptionalNavItems() {
-  const [mealieStatus, freshrssStatus, linkdingStatus] = await Promise.allSettled([
+  const [mealieStatus, freshrssStatus, linkdingStatus, fileboxStatus] = await Promise.allSettled([
     api.get('/mealie/status'),
     api.get('/freshrss/status'),
     api.get('/linkding/status'),
+    api.get('/filebox/status'),
   ]);
 
   const mealieConfigured = mealieStatus.status === 'fulfilled' && mealieStatus.value?.configured;
   const freshrssConfigured = freshrssStatus.status === 'fulfilled' && freshrssStatus.value?.configured;
   const linkdingConfigured = linkdingStatus.status === 'fulfilled' && linkdingStatus.value?.configured;
+  const fileboxEnabled = fileboxStatus.status === 'fulfilled' && fileboxStatus.value?.enabled;
 
   setNavRouteHidden('/meals', !mealieConfigured);
   setNavRouteHidden('/news', !freshrssConfigured);
   setNavRouteHidden('/bookmarks', !linkdingConfigured);
+  setNavRouteHidden('/filebox', !fileboxEnabled);
 }
 
 function navItems() {
@@ -433,6 +437,7 @@ function navItems() {
     { path: '/notes',    label: t('nav.notes'),     icon: 'sticky-note'      },
     { path: '/news',     label: t('nav.news'),      icon: 'newspaper', optional: true },
     { path: '/bookmarks', label: 'Bookmarks',       icon: 'link',            optional: true },
+    { path: '/filebox',  label: 'Filebox',          icon: 'folder',          optional: true },
     { path: '/meals',    label: t('nav.meals'),     icon: 'utensils'         },
     { path: '/contacts', label: t('nav.contacts'),  icon: 'book-user'        },
     { path: '/settings', label: t('nav.settings'),  icon: 'settings'         },

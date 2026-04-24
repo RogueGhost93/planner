@@ -525,25 +525,24 @@ function renderBookmarks(container) {
   bookmarks.forEach((bookmark) => {
     const card = document.createElement('div');
     const isSelected = bulkSelected.has(bookmark.id);
-    const gridCols = bulkEditMode ? '24px 1fr auto' : '1fr auto';
     card.style.cssText = `
       border: 2px solid ${isSelected ? 'var(--color-primary)' : 'var(--color-border)'};
       border-radius: 8px;
       padding: 12px;
       background: var(--color-surface);
-      display: grid;
-      grid-template-columns: ${gridCols};
-      gap: 12px;
-      align-items: start;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
       transition: all 0.2s;
     `;
 
     // Checkbox (only in bulk edit mode)
+    let checkboxEl = null;
     if (bulkEditMode) {
-      const checkboxEl = document.createElement('input');
+      checkboxEl = document.createElement('input');
       checkboxEl.type = 'checkbox';
       checkboxEl.checked = isSelected;
-      checkboxEl.style.cssText = 'cursor:pointer;margin-top:2px';
+      checkboxEl.style.cssText = 'cursor:pointer;margin-top:2px;flex-shrink:0';
       checkboxEl.addEventListener('change', () => {
         if (checkboxEl.checked) {
           bulkSelected.add(bookmark.id);
@@ -553,7 +552,6 @@ function renderBookmarks(container) {
         updateBulkToolbar(container);
         renderBookmarks(container);
       });
-      card.appendChild(checkboxEl);
     }
 
     // Content
@@ -580,10 +578,15 @@ function renderBookmarks(container) {
     titleRow.style.cssText = 'display:flex;gap:8px;align-items:center;min-width:0';
 
     const favicon = document.createElement('img');
-    favicon.src = `https://www.google.com/s2/favicons?sz=16&domain=${esc(new URL(bookmark.url).hostname)}`;
+    const googleFavicon = `https://www.google.com/s2/favicons?sz=16&domain=${esc(new URL(bookmark.url).hostname)}`;
+    favicon.src = bookmark.favicon_url || googleFavicon;
     favicon.style.cssText = 'width:16px;height:16px;flex-shrink:0;border-radius:2px';
     favicon.addEventListener('error', () => {
-      favicon.style.display = 'none';
+      if (favicon.src !== googleFavicon) {
+        favicon.src = googleFavicon;
+      } else {
+        favicon.style.display = 'none';
+      }
     });
 
     const titleLink = document.createElement('a');
@@ -655,60 +658,72 @@ function renderBookmarks(container) {
       contentEl.appendChild(tagsEl);
     }
 
-    // Actions
+    // Actions (bottom row with SVG icons)
     const actionsEl = document.createElement('div');
-    actionsEl.style.cssText = 'display:flex;gap:4px;align-items:center;flex-shrink:0;cursor:default';
+    actionsEl.style.cssText = 'display:flex;gap:2px;align-items:center;cursor:default;border-top:1px solid var(--color-border);padding-top:8px;justify-content:flex-end';
+
+    const btnBase = 'background:none;border:none;cursor:pointer;padding:5px 8px;border-radius:4px;transition:background 0.2s;display:inline-flex;align-items:center;justify-content:center;color:var(--color-text-secondary)';
 
     const readBtn = document.createElement('button');
-    readBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;transition:background 0.2s';
-    readBtn.textContent = bookmark.unread ? '📖' : '📕';
+    readBtn.style.cssText = btnBase;
+    readBtn.innerHTML = bookmark.unread
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+      : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`;
     readBtn.title = bookmark.unread ? 'Mark read' : 'Mark unread';
     readBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await toggleBookmarkReadStatus(container, bookmark.id, bookmark.unread);
     });
-    readBtn.addEventListener('mouseover', (e) => { e.target.style.background = 'var(--color-primary)'; e.target.style.opacity = '0.2'; });
-    readBtn.addEventListener('mouseout', (e) => { e.target.style.background = 'none'; e.target.style.opacity = '1'; });
+    readBtn.addEventListener('mouseover', () => { readBtn.style.background = 'var(--color-primary-muted, rgba(99,102,241,0.15))'; });
+    readBtn.addEventListener('mouseout', () => { readBtn.style.background = 'none'; });
 
     const archiveBtn = document.createElement('button');
-    archiveBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;transition:background 0.2s';
-    archiveBtn.textContent = bookmark.archived ? '📦' : '📌';
+    archiveBtn.style.cssText = btnBase;
+    archiveBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`;
     archiveBtn.title = bookmark.archived ? 'Unarchive' : 'Archive';
     archiveBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await toggleBookmarkArchive(container, bookmark.id, bookmark.archived);
     });
-    archiveBtn.addEventListener('mouseover', (e) => { e.target.style.background = 'var(--color-primary)'; e.target.style.opacity = '0.2'; });
-    archiveBtn.addEventListener('mouseout', (e) => { e.target.style.background = 'none'; e.target.style.opacity = '1'; });
+    archiveBtn.addEventListener('mouseover', () => { archiveBtn.style.background = 'var(--color-primary-muted, rgba(99,102,241,0.15))'; });
+    archiveBtn.addEventListener('mouseout', () => { archiveBtn.style.background = 'none'; });
 
     const editBtn = document.createElement('button');
-    editBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;transition:background 0.2s';
-    editBtn.textContent = '✏️';
+    editBtn.style.cssText = btnBase;
+    editBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
     editBtn.title = 'Edit';
     editBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await showEditBookmarkModal(container, bookmark);
     });
-    editBtn.addEventListener('mouseover', (e) => { e.target.style.background = 'var(--color-primary)'; e.target.style.opacity = '0.2'; });
-    editBtn.addEventListener('mouseout', (e) => { e.target.style.background = 'none'; e.target.style.opacity = '1'; });
+    editBtn.addEventListener('mouseover', () => { editBtn.style.background = 'var(--color-primary-muted, rgba(99,102,241,0.15))'; });
+    editBtn.addEventListener('mouseout', () => { editBtn.style.background = 'none'; });
 
     const deleteBtn = document.createElement('button');
-    deleteBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:14px;padding:4px 6px;border-radius:4px;color:var(--color-danger);transition:background 0.2s';
-    deleteBtn.textContent = '🗑️';
+    deleteBtn.style.cssText = btnBase + ';color:var(--color-danger)';
+    deleteBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
     deleteBtn.title = 'Delete';
     deleteBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await deleteBookmark(container, bookmark.id);
     });
-    deleteBtn.addEventListener('mouseover', (e) => { e.target.style.background = 'var(--color-danger)'; e.target.style.opacity = '0.2'; });
-    deleteBtn.addEventListener('mouseout', (e) => { e.target.style.background = 'none'; e.target.style.opacity = '1'; });
+    deleteBtn.addEventListener('mouseover', () => { deleteBtn.style.background = 'rgba(var(--color-danger-rgb, 239,68,68), 0.15)'; });
+    deleteBtn.addEventListener('mouseout', () => { deleteBtn.style.background = 'none'; });
 
     actionsEl.appendChild(readBtn);
     actionsEl.appendChild(archiveBtn);
     actionsEl.appendChild(editBtn);
     actionsEl.appendChild(deleteBtn);
 
-    card.appendChild(contentEl);
+    if (bulkEditMode && checkboxEl) {
+      const topRow = document.createElement('div');
+      topRow.style.cssText = 'display:flex;gap:12px;align-items:start';
+      topRow.appendChild(checkboxEl);
+      topRow.appendChild(contentEl);
+      card.appendChild(topRow);
+    } else {
+      card.appendChild(contentEl);
+    }
     card.appendChild(actionsEl);
     bookmarksEl.appendChild(card);
   });
