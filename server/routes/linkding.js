@@ -169,6 +169,9 @@ router.get('/bookmarks', async (req, res) => {
 
     let path = `/bookmarks/?limit=${limit}&offset=${offset}`;
     if (search) path += `&q=${encodeURIComponent(search)}`;
+
+    console.log('Backend - req.query.tags:', req.query.tags);
+    console.log('Backend - tagsInput:', tagsInput, 'Array.isArray:', Array.isArray(tagsInput));
     tagsInput.forEach(tag => {
       if (tag && typeof tag === 'string') {
         path += `&tag=${encodeURIComponent(tag.slice(0, 200))}`;
@@ -176,7 +179,9 @@ router.get('/bookmarks', async (req, res) => {
     });
     if (unread) path += `&unread=${unread}`;
 
+    console.log('Backend - Final Linkding API path:', path);
     const data = await linkdingFetch(url, token, path);
+    console.log('Backend - Received data count:', data?.count, 'results length:', data?.results?.length);
     res.json(data);
   } catch (err) {
     log.error('bookmarks GET', err);
