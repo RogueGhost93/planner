@@ -165,9 +165,22 @@ router.get('/bookmarks', async (req, res) => {
     const tagsInput = req.query.tags ? (Array.isArray(req.query.tags) ? req.query.tags : [req.query.tags]) : [];
     const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
     const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
-    const unread = req.query.unread === 'true' ? 'true' : req.query.unread === 'false' ? 'false' : '';
+    const statusFilter = req.query.statusFilter || 'all';
 
-    let path = `/bookmarks/?limit=${limit}&offset=${offset}`;
+    console.log('=== BOOKMARKS REQUEST ===');
+    console.log('statusFilter:', statusFilter);
+    console.log('search:', search);
+    console.log('tags:', tagsInput);
+
+    // Choose endpoint based on status filter
+    // Linkding uses different endpoints for archived bookmarks
+    let endpoint = '/bookmarks/';
+    if (statusFilter === 'archived') {
+      endpoint = '/bookmarks/archived/';
+      console.log('Using archived endpoint');
+    }
+
+    let path = `${endpoint}?limit=${limit}&offset=${offset}`;
 
     // Build search query - combine search terms and tags using Linkding's query syntax
     let queryParts = [];
@@ -184,17 +197,30 @@ router.get('/bookmarks', async (req, res) => {
       });
     }
 
+    // Handle unread/read filters
+    // Linkding BookmarkSearch accepts unread parameter with values: "off", "yes", "no"
+    if (statusFilter === 'unread') {
+      path += '&unread=yes';
+      console.log('Applied: unread=yes');
+    } else if (statusFilter === 'read') {
+      path += '&unread=no';
+      console.log('Applied: unread=no');
+    } else if (statusFilter === 'untagged') {
+      // Use search syntax for untagged - requires ! prefix
+      queryParts.push('!untagged');
+      console.log('Applied: search filter !untagged');
+    }
+
+    // Add regular search queries if any
     if (queryParts.length > 0) {
       const fullQuery = queryParts.join(' and ');
       path += `&q=${encodeURIComponent(fullQuery)}`;
-      console.log('Backend - Search query:', fullQuery);
+      console.log('Final search query:', fullQuery);
     }
 
-    if (unread) path += `&unread=${unread}`;
-
-    console.log('Backend - Final Linkding API path:', path);
+    console.log('Final Linkding path:', path);
     const data = await linkdingFetch(url, token, path);
-    console.log('Backend - Received data count:', data?.count, 'results length:', data?.results?.length);
+    console.log('Response count:', data?.count, '| results:', data?.results?.length);
     res.json(data);
   } catch (err) {
     log.error('bookmarks GET', err);
@@ -256,8 +282,8 @@ router.get('/tags', async (req, res) => {
 
 // --------------------------------------------------------
 // PATCH /api/v1/linkding/bookmarks/:id
-// Updates a bookmark (read status, archive, etc).
-// Body: { unread?: bool, archived?: bool }
+// Updates a bookmark (url, title, description, tags, read status, archive, etc).
+// Body: { url?: string, title?: string, description?: string, tag_names?: string[], unread?: bool, archived?: bool }
 // Response: { success: true }
 // --------------------------------------------------------
 router.patch('/bookmarks/:id', async (req, res) => {
@@ -273,14 +299,52 @@ router.patch('/bookmarks/:id', async (req, res) => {
 
   try {
     const body = {};
+
+    // URL field
+    if (req.body.url !== undefined) {
+      if (typeof req.body.url !== 'string' || !req.body.url.trim()) {
+        return res.status(400).json({ error: 'URL must be a non-empty string', code: 400 });
+      }
+      try {
+        new URL(req.body.url.trim());
+        body.url = req.body.url.trim();
+      } catch {
+        return res.status(400).json({ error: 'Invalid URL format', code: 400 });
+      }
+    }
+
+    // Title field
+    if (req.body.title !== undefined) {
+      body.title = typeof req.body.title === 'string' ? req.body.title.trim() : '';
+    }
+
+    // Description field
+    if (req.body.description !== undefined) {
+      body.description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+    }
+
+    // Tags field - Linkding expects tag_names as array of strings
+    if (req.body.tag_names !== undefined) {
+      if (Array.isArray(req.body.tag_names)) {
+        body.tag_names = req.body.tag_names
+          .map(tag => (typeof tag === 'string' ? tag.trim() : ''))
+          .filter(tag => tag.length > 0);
+      } else {
+        return res.status(400).json({ error: 'tag_names must be an array', code: 400 });
+      }
+    }
+
+    // Status fields - Linkding uses is_archived and unread
     if (req.body.unread !== undefined) body.unread = !!req.body.unread;
-    if (req.body.archived !== undefined) body.archived = !!req.body.archived;
+    if (req.body.archived !== undefined) body.is_archived = !!req.body.archived;
 
     if (Object.keys(body).length === 0) {
       return res.status(400).json({ error: 'No fields to update', code: 400 });
     }
 
-    await linkdingFetch(url, token, `/bookmarks/${bookmarkId}/`, 'PATCH', body);
+    console.log('PATCH request to Linkding:', `/bookmarks/${bookmarkId}/`, 'body:', body);
+    const result = await linkdingFetch(url, token, `/bookmarks/${bookmarkId}/`, 'PATCH', body);
+    console.log('PATCH response:', result);
     res.json({ success: true });
   } catch (err) {
     log.error('bookmark PATCH', err);
