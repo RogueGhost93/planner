@@ -74,6 +74,28 @@ function formatDueDate(dateStr) {
 
 const PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
 
+function diffCalendarDays(dateStr) {
+  const todayMidnight = new Date();
+  todayMidnight.setHours(0, 0, 0, 0);
+  const targetMidnight = dateStr.length === 10
+    ? new Date(dateStr + 'T00:00:00')
+    : new Date(dateStr);
+  targetMidnight.setHours(0, 0, 0, 0);
+  return Math.round((targetMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+}
+
+function isRecurringTaskDue(task) {
+  if (!task.is_recurring || !task.due_date || task.priority === 'urgent') return true;
+  const diff = diffCalendarDays(task.due_date);
+  if (diff < 0) return true;
+  const rrule = (task.recurrence_rule || '').toUpperCase();
+  if (rrule.includes('FREQ=YEARLY'))  return diff <= 30;
+  if (rrule.includes('FREQ=MONTHLY')) return diff <= 7;
+  if (rrule.includes('FREQ=WEEKLY'))  return diff <= 1;
+  if (rrule.includes('FREQ=DAILY'))   return diff <= 1;
+  return diff <= 14;
+}
+
 // Urgent always first (overrides date). Everything else sorted by due date,
 // with priority as tiebreaker for same date (or both undated).
 function sortTasksForList(tasks) {
@@ -224,10 +246,12 @@ function renderTaskCard(task, opts = {}) {
 }
 
 function renderTaskGroups(tasks) {
-  const pending = sortTasksForList(tasks.filter((t) => t.status !== 'done'));
-  const done    = sortTasksForList(tasks.filter((t) => t.status === 'done'));
+  const open = tasks.filter((t) => t.status !== 'done');
+  const pending = sortTasksForList(open.filter((t) => isRecurringTaskDue(t)));
+  const notYetDue = sortTasksForList(open.filter((t) => !isRecurringTaskDue(t)));
+  const done = sortTasksForList(tasks.filter((t) => t.status === 'done'));
 
-  if (!pending.length && !done.length) {
+  if (!pending.length && !notYetDue.length && !done.length) {
     return `<div class="empty-state">
       <svg class="empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -244,6 +268,16 @@ function renderTaskGroups(tasks) {
     html += `
       <div class="task-group">
         ${pending.map((tk) => renderSwipeRow(tk, renderTaskCard(tk))).join('')}
+      </div>`;
+  }
+
+  if (notYetDue.length) {
+    html += `
+      <div class="task-group">
+        <div class="task-group__divider">
+          <span>${t('tasks.notYetDue')}</span>
+        </div>
+        ${notYetDue.map((tk) => renderSwipeRow(tk, renderTaskCard(tk))).join('')}
       </div>`;
   }
 
