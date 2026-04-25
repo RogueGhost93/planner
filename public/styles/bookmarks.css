@@ -18,7 +18,10 @@
   border-left: 3px solid var(--module-accent);
   box-shadow: var(--shadow-sm);
   margin: var(--space-3);
-  align-self: start;
+}
+
+.bookmarks-content {
+  background: var(--color-surface);
 }
 
 .bookmarks-toolbar__title {

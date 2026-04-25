@@ -263,4 +263,54 @@ router.use((err, req, res, next) => {
   next(err);
 });
 
+// --------------------------------------------------------
+// Share router — handles Web Share Target POSTs from the OS share sheet.
+// Mounted at /filebox/share (NOT under /api/v1) because Android share intents
+// can't add the X-CSRF-Token header. CSRF protection is provided by:
+//   1. Origin header check — must be empty/null/own-origin (blocks cross-site
+//      form POSTs from a malicious page; share intents have a null Origin).
+//   2. Session auth — only logged-in users save files.
+// Files default to the user's PRIVATE folder.
+// --------------------------------------------------------
+const shareRouter = express.Router();
+
+function originCheck(req, res, next) {
+  const origin = req.headers.origin;
+  if (!origin || origin === 'null') return next();
+  const host = req.headers.host;
+  if (origin === `https://${host}` || origin === `http://${host}`) return next();
+  log.warn('share denied: bad origin', { origin });
+  res.status(403).send('Forbidden');
+}
+
+function requireAuthOrLogin(req, res, next) {
+  if (req.session?.userId) return next();
+  res.redirect('/login?next=/filebox');
+}
+
+shareRouter.post('/',
+  originCheck,
+  requireAuthOrLogin,
+  (req, res, next) => {
+    if (!isFileboxEnabled(req.session.userId)) {
+      return res.redirect('/filebox?shared=disabled');
+    }
+    // Shared files land in the user's private folder by default.
+    req.query.scope = 'private';
+    next();
+  },
+  upload.array('files', 50),
+  (req, res) => {
+    const count = (req.files || []).length;
+    log.info('share', { user: req.session.userId, count });
+    res.redirect(`/filebox?shared=${count}`);
+  },
+);
+
+shareRouter.use((err, req, res, next) => {
+  log.error('share error', err.message || err);
+  res.redirect('/filebox?shared=error');
+});
+
 export default router;
+export { shareRouter };

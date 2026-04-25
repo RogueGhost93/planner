@@ -29,7 +29,7 @@ import mealieRouter from './routes/mealie.js';
 import freshrssRouter from './routes/freshrss.js';
 import linkdingRouter from './routes/linkding.js';
 import bookmarksRouter from './routes/bookmarks.js';
-import fileboxRouter from './routes/filebox.js';
+import fileboxRouter, { shareRouter as fileboxShareRouter } from './routes/filebox.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
@@ -157,6 +157,11 @@ app.use('/api/', apiLimiter);
 // API-Routen
 // --------------------------------------------------------
 app.use('/api/v1/auth', authRouter);
+
+// Web Share Target endpoint — mounted OUTSIDE /api/v1 because Android share
+// intents can't add the X-CSRF-Token header. Origin check inside provides
+// CSRF protection.
+app.use('/filebox/share', fileboxShareRouter);
 
 // Alle weiteren API-Routen erfordern Authentifizierung + CSRF-Schutz
 app.use('/api/v1', requireAuth);
