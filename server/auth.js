@@ -108,7 +108,10 @@ const sessionMiddleware = session({
     httpOnly: true,
     // secure=true by default; set SESSION_SECURE=false in .env to allow HTTP (local dev without reverse proxy)
     secure: process.env.SESSION_SECURE !== 'false',
-    sameSite: 'strict',
+    // 'lax' lets the session cookie survive Web Share Target POST navigations
+    // (Android share sheet → /filebox/share). CSRF token header still protects
+    // all /api/v1 endpoints; cross-site form POSTs can't add custom headers.
+    sameSite: 'lax',
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 Tage in ms
   },
 });

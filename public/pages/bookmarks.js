@@ -71,9 +71,10 @@ export async function render(container, { user }) {
     <style>
       #mobile-tag-filter-btn { display: none }
       @media (max-width: 768px) {
-        .bookmarks-page-wrapper { grid-template-columns: 1fr !important; overflow-x: hidden }
+        .bookmarks-content { grid-template-columns: 1fr !important }
         .bookmarks-sidebar { display: none !important }
         #mobile-tag-filter-btn { display: inline-flex !important }
+        .bookmarks-per-page-label { display: none }
         .bookmarks-main { overflow-x: hidden; max-width: 100vw }
         .bm-card { padding: 10px !important }
         .bm-title { font-size: 12px !important }
@@ -87,7 +88,8 @@ export async function render(container, { user }) {
         <h1 class="bookmarks-toolbar__title">Bookmarks</h1>
         <div></div>
         <div class="bookmarks-toolbar__actions">
-          <label style="font-size:13px;color:var(--color-text-secondary);white-space:nowrap">Per page:</label>
+          <button id="mobile-tag-filter-btn" class="btn btn--secondary" style="padding:6px 10px;font-size:13px;white-space:nowrap;align-items:center;gap:6px">🏷️ Tags${currentTags.length > 0 ? ` <span style="background:var(--color-primary);color:var(--color-text-inverse);border-radius:10px;padding:1px 7px;font-size:11px">${currentTags.length}</span>` : ''}</button>
+          <label class="bookmarks-per-page-label" style="font-size:13px;color:var(--color-text-secondary);white-space:nowrap">Per page:</label>
           <select id="bookmarks-per-page" class="form-input" style="padding:6px 10px;font-size:13px;min-width:70px">
             <option value="20" ${currentLimit === 20 ? 'selected' : ''}>20</option>
             <option value="50" ${currentLimit === 50 ? 'selected' : ''}>50</option>
@@ -121,7 +123,7 @@ export async function render(container, { user }) {
       <main class="bookmarks-main" style="display:flex;flex-direction:column;overflow-y:auto">
         <!-- Header -->
         <div style="padding:var(--space-3);border-bottom:1px solid var(--color-border);background:var(--color-surface);sticky;top:0;z-index:10">
-          <div style="display:grid;grid-template-columns:1fr auto;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2)">
+          <div style="margin-bottom:var(--space-2)">
             <input
               type="text"
               id="bookmarks-search"
@@ -130,7 +132,6 @@ export async function render(container, { user }) {
               value="${esc(currentSearch)}"
               style="width:100%;font-size:15px;padding:8px 12px"
             />
-            <button id="mobile-tag-filter-btn" class="btn btn--secondary" style="padding:8px 12px;font-size:13px;white-space:nowrap;align-items:center;gap:6px">🏷️ Tags${currentTags.length > 0 ? ` <span style="background:var(--color-primary);color:var(--color-text-inverse);border-radius:10px;padding:1px 7px;font-size:11px">${currentTags.length}</span>` : ''}</button>
           </div>
 
           <!-- Filter controls -->

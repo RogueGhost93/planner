@@ -97,7 +97,11 @@ async function uploadFiles(fileList) {
     await loadFiles();
   } catch (err) {
     console.error('[filebox] upload error', err);
-    window.planium.showToast(err.message || 'Upload failed', 'danger');
+    const isNetworkErr = err.name === 'TypeError' && /fetch/i.test(err.message);
+    const msg = isNetworkErr
+      ? 'Network blocked the upload. On Brave: tap the lion icon → toggle Shields off for this site, then retry.'
+      : (err.message || 'Upload failed');
+    window.planium.showToast(msg, 'danger');
   }
 }
 
@@ -240,6 +244,24 @@ function switchScope(scope) {
 export async function render(container, _context) {
   _container = container;
 
+  // Web Share Target landing — toast for files shared from another app.
+  const shared = new URLSearchParams(window.location.search).get('shared');
+  if (shared) {
+    if (shared === 'disabled') {
+      window.planium.showToast('Enable Filebox in Settings to receive shared files', 'danger');
+    } else if (shared === 'error') {
+      window.planium.showToast('Sharing failed. Please try again.', 'danger');
+    } else {
+      const n = parseInt(shared, 10) || 0;
+      if (n > 0) {
+        window.planium.showToast(`Received ${n} shared file${n === 1 ? '' : 's'}`, 'success');
+        state.scope = 'private'; // shared files land in private
+      }
+    }
+    // Clean URL so refresh doesn't repeat the toast
+    window.history.replaceState({}, '', '/filebox');
+  }
+
   // Status check — if disabled, show the opt-in card instead.
   let status = { enabled: false };
   try { status = await api.get('/filebox/status'); } catch (_) { /* ignore */ }
@@ -274,10 +296,10 @@ export async function render(container, _context) {
       <div class="filebox-toolbar">
         <h1 class="filebox-toolbar__title">Filebox</h1>
         <div class="filebox-scope" role="tablist" aria-label="Scope">
-          <button type="button" class="filebox-scope__btn filebox-scope__btn--active" data-scope="global" aria-pressed="true">
+          <button type="button" class="filebox-scope__btn ${state.scope === 'global' ? 'filebox-scope__btn--active' : ''}" data-scope="global" aria-pressed="${state.scope === 'global'}">
             <i data-lucide="users" aria-hidden="true"></i><span>Global</span>
           </button>
-          <button type="button" class="filebox-scope__btn" data-scope="private" aria-pressed="false">
+          <button type="button" class="filebox-scope__btn ${state.scope === 'private' ? 'filebox-scope__btn--active' : ''}" data-scope="private" aria-pressed="${state.scope === 'private'}">
             <i data-lucide="user" aria-hidden="true"></i><span>Private</span>
           </button>
         </div>
