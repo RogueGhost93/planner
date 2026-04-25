@@ -297,6 +297,13 @@
     justify-content: space-between;
   }
 
+  .news-limit-toggle__btn {
+    min-width: 32px;
+    min-height: 28px;
+    padding: var(--space-0h) var(--space-1h);
+    font-size: var(--text-xs);
+  }
+
   .news-item {
     padding: var(--space-2h) var(--space-3);
   }

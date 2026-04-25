@@ -67,6 +67,17 @@
   .filebox-scope            { grid-area: scope; justify-self: stretch; }
   .filebox-toolbar__actions { grid-area: upload; }
   .filebox-toolbar__btn span { display: none; }
+  .filebox-scope__btn {
+    padding: 4px var(--space-2);
+  }
+  .filebox-scope__btn i {
+    width: 13px;
+    height: 13px;
+  }
+  .filebox-toolbar__btn i {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 /* --------------------------------------------------------
