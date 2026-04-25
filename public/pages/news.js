@@ -118,7 +118,7 @@ function getFaviconUrl(item) {
   if (!targetUrl) return null;
   try {
     const { hostname } = new URL(targetUrl);
-    return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
+    return `/api/v1/freshrss/favicon?domain=${encodeURIComponent(hostname)}`;
   } catch {
     return null;
   }

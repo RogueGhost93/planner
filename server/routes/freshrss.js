@@ -279,6 +279,35 @@ router.get('/test', async (req, res) => {
 });
 
 // --------------------------------------------------------
+// GET /api/v1/freshrss/favicon?domain=<hostname>
+// Proxies a favicon from DuckDuckGo's ip3 service. Same-origin so it
+// survives phone networks / browser shields that block icons.duckduckgo.com.
+// --------------------------------------------------------
+router.get('/favicon', async (req, res) => {
+  const domain = req.query.domain;
+  if (typeof domain !== 'string' || domain.length === 0 || domain.length > 253
+      || !/^[a-z0-9.-]+$/i.test(domain)
+      || domain.startsWith('.') || domain.endsWith('.')) {
+    return res.status(400).end();
+  }
+
+  try {
+    const { default: fetch } = await import('node-fetch');
+    const imgRes = await fetch(`https://icons.duckduckgo.com/ip3/${domain}.ico`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!imgRes.ok) return res.status(404).end();
+
+    const ct = imgRes.headers.get('content-type') || 'image/x-icon';
+    res.setHeader('Content-Type', ct);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(await imgRes.arrayBuffer()));
+  } catch {
+    res.status(404).end();
+  }
+});
+
+// --------------------------------------------------------
 // GET /api/v1/freshrss/headlines?limit=20
 // Returns latest headlines from all feeds.
 // Response: { data: [{ title, url, source, publishedAt }] } | { data: null }

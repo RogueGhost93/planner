@@ -189,7 +189,8 @@ function renderGreeting(user, stats = {}, headlines = null, weather = null) {
 
   const weatherChip = weather
     ? `<span class="widget-greeting__sep" aria-hidden="true">·</span>
-       <span class="greeting-weather">
+       <span class="greeting-weather" data-action="open-weather" role="button" tabindex="0"
+             aria-label="${t('dashboard.weatherDetailsLabel') || 'Show weather forecast'}">
          <img class="greeting-weather__icon" src="${WEATHER_ICON_BASE}${weather.current.icon}"
               alt="${esc(weather.current.desc)}" width="16" height="16" loading="lazy">
          <span class="greeting-weather__temp">${esc(String(weather.current.temp))}°</span>
@@ -1236,6 +1237,72 @@ function wireGreetingLink(container) {
   });
 }
 
+function wireWeatherChip(container, weather) {
+  if (!weather) return;
+  const chip = container.querySelector('.greeting-weather[data-action="open-weather"]');
+  if (!chip) return;
+
+  const open = () => openWeatherModal(weather);
+  chip.addEventListener('click', (e) => { e.stopPropagation(); open(); });
+  chip.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+  });
+}
+
+function openWeatherModal(weather) {
+  const cur = weather.current;
+  const days = (weather.forecast ?? []).slice(0, 5);
+  const locale = getLocale();
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dayLabel = (dateStr) => {
+    if (dateStr === todayStr) return t('common.today');
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' });
+  };
+
+  const forecastRows = days.map((d) => `
+    <li class="weather-modal__row">
+      <span class="weather-modal__day">${esc(dayLabel(d.date))}</span>
+      <img class="weather-modal__row-icon" src="${WEATHER_ICON_BASE}${d.icon}"
+           alt="${esc(d.desc || '')}" width="32" height="32" loading="lazy">
+      <span class="weather-modal__desc">${esc(d.desc || '')}</span>
+      <span class="weather-modal__temps">
+        <span class="weather-modal__max">${esc(String(d.temp_max))}°</span>
+        <span class="weather-modal__min">${esc(String(d.temp_min))}°</span>
+      </span>
+    </li>`).join('');
+
+  const cityLine = weather.city ? `<div class="weather-modal__city">${esc(weather.city)}</div>` : '';
+
+  const meta = esc(t('dashboard.weatherFeelsLike', {
+    temp:     cur.feels_like,
+    humidity: cur.humidity,
+    wind:     cur.wind_speed,
+  }));
+
+  const content = `
+    <div class="weather-modal">
+      <div class="weather-modal__current">
+        <img class="weather-modal__current-icon" src="${WEATHER_ICON_BASE}${cur.icon}"
+             alt="${esc(cur.desc || '')}" width="64" height="64">
+        <div class="weather-modal__current-info">
+          ${cityLine}
+          <div class="weather-modal__current-temp">${esc(String(cur.temp))}°</div>
+          <div class="weather-modal__current-desc">${esc(cur.desc || '')}</div>
+          <div class="weather-modal__current-meta">${meta}</div>
+        </div>
+      </div>
+      ${forecastRows ? `<ul class="weather-modal__list">${forecastRows}</ul>` : ''}
+    </div>`;
+
+  openModal({
+    title: t('dashboard.weatherForecastTitle'),
+    content,
+    size: 'sm',
+  });
+}
+
 function wireNewsRotation(container, headlines, signal) {
   if (!headlines || headlines.length <= 1) return;
   const sourceEl = container.querySelector('#greeting-news-source');
@@ -1357,6 +1424,7 @@ export async function render(container, { user }) {
 
   wireLinks(container);
   wireGreetingLink(container);
+  wireWeatherChip(container, weather);
   wireNewsRotation(container, headlines, _fabController.signal);
   if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
   scheduleMidnightQuoteRefresh(container, _fabController.signal);

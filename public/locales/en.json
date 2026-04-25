@@ -71,6 +71,8 @@
     "weatherRefresh": "Refresh weather",
     "weatherRefreshTitle": "Refresh",
     "weatherFeelsLike": "Feels like {{temp}}° · {{humidity}}% · Wind {{wind}} km/h",
+    "weatherForecastTitle": "Weather forecast",
+    "weatherDetailsLabel": "Show weather forecast",
     "fabTaskLabel": "Add task",
     "fabCalendarLabel": "Add event",
     "fabShoppingLabel": "Add shopping",
