@@ -13,6 +13,7 @@ import { initNotifications, stopNotifications } from '/components/task-notificat
 // Each route has: path, page (dynamically loaded), requiresAuth, module (for theme-color)
 // --------------------------------------------------------
 const ROUTES = [
+  { path: '/setup',    page: '/pages/setup.js',    requiresAuth: false, module: null        },
   { path: '/login',    page: '/pages/login.js',    requiresAuth: false, module: null        },
   { path: '/',         page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
   { path: '/tasks',    page: '/pages/tasks.js',     requiresAuth: true, module: 'tasks'     },
@@ -612,7 +613,17 @@ function applyBackground() {
 (async () => {
   await initI18n();
   applyBackground();
-  navigate(location.pathname, false);
+
+  let initialPath = location.pathname;
+  try {
+    const { required } = await auth.setupRequired();
+    if (required) initialPath = '/setup';
+    else if (initialPath === '/setup') initialPath = '/login';
+  } catch {
+    // network/server error → fall through; login flow will surface it
+  }
+
+  navigate(initialPath, false);
 })();
 
 // Global exports

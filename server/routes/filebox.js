@@ -197,7 +197,9 @@ router.post('/upload', upload.array('file'), (req, res) => {
   const files = (req.files || []).map((f) => ({
     name: f.filename,
     size: f.size,
+    mime: f.mimetype,
   }));
+  log.info('upload', { scope: req.query.scope, count: files.length, files });
   res.json({ ok: true, files });
 });
 

@@ -91,7 +91,11 @@ const sessionStore = new BetterSQLiteStore();
  * Wird in server/index.js eingebunden.
  */
 if (!process.env.SESSION_SECRET) {
-  throw new Error('[Auth] SESSION_SECRET must be set in .env. Run: node setup.js');
+  throw new Error(
+    '[Auth] SESSION_SECRET must be set in .env before starting the server.\n' +
+    '       Generate one with: openssl rand -hex 32\n' +
+    '       Then add SESSION_SECRET=<value> to your .env file.'
+  );
 }
 
 const sessionMiddleware = session({
@@ -149,6 +153,91 @@ function requireAdmin(req, res, next) {
 // --------------------------------------------------------
 // Routen
 // --------------------------------------------------------
+
+/**
+ * Returns true if no admin account exists yet.
+ * Used to gate the first-run /setup endpoint and the GUI redirect.
+ */
+function isSetupRequired() {
+  const row = db.get()
+    .prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1")
+    .get();
+  return !row;
+}
+
+/**
+ * GET /api/v1/auth/setup-required
+ * Response: { required: boolean }
+ * Public — used by the SPA on boot to decide whether to redirect to /setup.
+ */
+router.get('/setup-required', (req, res) => {
+  try {
+    res.json({ required: isSetupRequired() });
+  } catch (err) {
+    log.error('Setup-Status-Fehler:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
+
+/**
+ * POST /api/v1/auth/setup
+ * Body: { username, display_name, password }
+ * Creates the first admin account. Hard-gated: rejected once any admin exists.
+ * Public — no auth/CSRF, by design (no session yet on first run).
+ */
+router.post('/setup', loginLimiter, async (req, res) => {
+  try {
+    if (!isSetupRequired()) {
+      return res.status(409).json({ error: 'Setup has already been completed.', code: 409 });
+    }
+
+    const { username, display_name, password } = req.body;
+
+    if (!username || !display_name || !password) {
+      return res.status(400).json({ error: 'Username, display name and password are required.', code: 400 });
+    }
+
+    if (!/^[a-zA-Z0-9._-]{3,64}$/.test(username)) {
+      return res.status(400).json({ error: 'Username must be 3-64 characters and may only contain letters, numbers, dots, hyphens and underscores.', code: 400 });
+    }
+
+    if (display_name.length > 128) {
+      return res.status(400).json({ error: 'Display name must be 128 characters or fewer.', code: 400 });
+    }
+
+    if (password.length < 8 || password.length > 1024) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters.', code: 400 });
+    }
+
+    const avatarColors = ['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#FF2D55'];
+    const avatarColor = avatarColors[Math.floor(Math.random() * avatarColors.length)];
+
+    const hash = await bcrypt.hash(password, 12);
+
+    const result = db.get()
+      .prepare(`
+        INSERT INTO users (username, display_name, password_hash, avatar_color, role)
+        VALUES (?, ?, ?, ?, 'admin')
+      `)
+      .run(username, display_name, hash, avatarColor);
+
+    res.status(201).json({
+      user: {
+        id: result.lastInsertRowid,
+        username,
+        display_name,
+        avatar_color: avatarColor,
+        role: 'admin',
+      },
+    });
+  } catch (err) {
+    if (err.message?.includes('UNIQUE constraint')) {
+      return res.status(409).json({ error: 'Username already taken.', code: 409 });
+    }
+    log.error('Setup-Fehler:', err);
+    res.status(500).json({ error: 'Internal server error.', code: 500 });
+  }
+});
 
 /**
  * POST /api/v1/auth/login
