@@ -74,7 +74,6 @@ export async function render(container, { user }) {
         .bookmarks-content { grid-template-columns: 1fr !important }
         .bookmarks-sidebar { display: none !important }
         #mobile-tag-filter-btn { display: inline-flex !important }
-        .bookmarks-per-page-label { display: none }
         .bookmarks-main { overflow-x: hidden; max-width: 100vw }
         .bm-card { padding: 10px !important }
         .bm-title { font-size: 12px !important }
@@ -89,12 +88,6 @@ export async function render(container, { user }) {
         <div></div>
         <div class="bookmarks-toolbar__actions">
           <button id="mobile-tag-filter-btn" class="btn btn--secondary" style="padding:6px 10px;font-size:13px;white-space:nowrap;align-items:center;gap:6px">🏷️ Tags${currentTags.length > 0 ? ` <span style="background:var(--color-primary);color:var(--color-text-inverse);border-radius:10px;padding:1px 7px;font-size:11px">${currentTags.length}</span>` : ''}</button>
-          <label class="bookmarks-per-page-label" style="font-size:13px;color:var(--color-text-secondary);white-space:nowrap">Per page:</label>
-          <select id="bookmarks-per-page" class="form-input" style="padding:6px 10px;font-size:13px;min-width:70px">
-            <option value="20" ${currentLimit === 20 ? 'selected' : ''}>20</option>
-            <option value="50" ${currentLimit === 50 ? 'selected' : ''}>50</option>
-            <option value="100" ${currentLimit === 100 ? 'selected' : ''}>100</option>
-          </select>
           <button id="bookmarks-bulk-toggle" class="btn btn--secondary" style="padding:6px 12px;font-size:13px;white-space:nowrap">Bulk Edit</button>
         </div>
       </div>
@@ -135,15 +128,20 @@ export async function render(container, { user }) {
           </div>
 
           <!-- Filter controls -->
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2)">
-            <select id="bookmarks-filter" class="form-input" style="width:100%;padding:8px 10px;font-size:14px">
+          <div style="display:flex;gap:var(--space-2);align-items:center">
+            <select id="bookmarks-filter" class="form-input" style="flex:1;min-width:0;padding:8px 10px;font-size:14px">
               <option value="all" ${currentStatusFilter === 'all' ? 'selected' : ''}>All Status</option>
               <option value="unread" ${currentStatusFilter === 'unread' ? 'selected' : ''}>Unread</option>
               <option value="read" ${currentStatusFilter === 'read' ? 'selected' : ''}>Read</option>
               <option value="untagged" ${currentStatusFilter === 'untagged' ? 'selected' : ''}>Untagged</option>
               <option value="archived" ${currentStatusFilter === 'archived' ? 'selected' : ''}>Archived</option>
             </select>
-            <div id="bookmarks-info" style="font-size:12px;color:var(--color-text-secondary);padding:8px 10px;text-align:right">
+            <select id="bookmarks-per-page" class="form-input" style="padding:8px 10px;font-size:14px;width:70px;flex-shrink:0">
+              <option value="20" ${currentLimit === 20 ? 'selected' : ''}>20</option>
+              <option value="50" ${currentLimit === 50 ? 'selected' : ''}>50</option>
+              <option value="100" ${currentLimit === 100 ? 'selected' : ''}>100</option>
+            </select>
+            <div id="bookmarks-info" style="font-size:12px;color:var(--color-text-secondary);white-space:nowrap;padding:8px 4px">
             </div>
           </div>
 

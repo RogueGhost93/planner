@@ -52,7 +52,6 @@ function renderToolbar() {
     <div class="news-toolbar">
       <div class="news-toolbar__title-wrap">
         <h1 class="news-toolbar__title">${t('news.title')}</h1>
-        <span class="news-toolbar__count" id="news-count">${state.headlines.length}</span>
       </div>
       <div class="news-toolbar__actions">
         <div class="news-font-toggle" role="group" aria-label="Font size">

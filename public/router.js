@@ -239,9 +239,9 @@ async function navigate(path, userOrPushState = true, pushState = true) {
 
     const accent = route?.module ? getCSSToken(`--module-${route.module}`) : '';
     document.documentElement.style.setProperty('--active-module-accent', accent);
+    updateNav(path);
 
     await renderPage(route, previousPath);
-    updateNav(path);
     updateThemeColorForRoute(route);
   } finally {
     isNavigating = false;

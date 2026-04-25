@@ -267,10 +267,6 @@ function renderToolbar() {
                 data-view="${v}">${VIEW_LABELS()[v]}</button>
       `).join('')}
     </div>
-    <label class="btn btn--secondary btn--icon" title="Import .ics" aria-label="Import .ics file" style="margin-left:auto;cursor:pointer;">
-      <i data-lucide="upload" aria-hidden="true"></i>
-      <input type="file" id="cal-import-input" accept=".ics,text/calendar" style="display:none">
-    </label>
     <div class="toolbar-search" data-calendar-search>
       <i data-lucide="search" class="toolbar-search__icon" aria-hidden="true"></i>
       <input class="toolbar-search__input" type="search" id="cal-search"
@@ -285,6 +281,11 @@ function renderToolbar() {
         <i data-lucide="more-vertical" aria-hidden="true"></i>
       </button>
       <div class="cal-more-dropdown" id="cal-more-dropdown" hidden>
+        <label class="cal-more-option" style="cursor:pointer;">
+          <i data-lucide="upload" style="width:14px;height:14px;" aria-hidden="true"></i>
+          Import .ics
+          <input type="file" id="cal-import-input" accept=".ics,text/calendar" style="display:none">
+        </label>
         <button class="cal-more-option cal-more-option--danger" id="cal-clear-imported">
           <i data-lucide="trash-2" style="width:14px;height:14px;" aria-hidden="true"></i>
           Clear imported events
