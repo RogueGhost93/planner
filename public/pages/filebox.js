@@ -88,11 +88,15 @@ async function uploadFiles(fileList) {
       body: form,
     });
     const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
+    if (!res.ok) {
+      console.error('[filebox] upload failed', res.status, data);
+      throw new Error(data?.error || `Upload failed (${res.status})`);
+    }
     const n = data.files?.length || 0;
     window.planium.showToast(`Uploaded ${n} file${n === 1 ? '' : 's'}`, 'success');
     await loadFiles();
   } catch (err) {
+    console.error('[filebox] upload error', err);
     window.planium.showToast(err.message || 'Upload failed', 'danger');
   }
 }
