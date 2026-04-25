@@ -22,7 +22,7 @@ const ROUTES = [
   { path: '/news',     page: '/pages/news.js',      requiresAuth: true, module: 'news'      },
   { path: '/bookmarks', page: '/pages/bookmarks.js', requiresAuth: true, module: 'news'     },
   { path: '/notes',    page: '/pages/notes.js',     requiresAuth: true, module: 'notes'     },
-  { path: '/filebox',  page: '/pages/filebox.js',   requiresAuth: true, module: 'news'      },
+  { path: '/filebox',  page: '/pages/filebox.js',   requiresAuth: true, module: 'filebox'   },
   { path: '/contacts', page: '/pages/contacts.js',  requiresAuth: true, module: 'contacts'  },
   { path: '/budget',   page: '/pages/budget.js',    requiresAuth: true, module: 'budget'    },
   { path: '/settings', page: '/pages/settings.js',  requiresAuth: true, module: 'settings'  },
