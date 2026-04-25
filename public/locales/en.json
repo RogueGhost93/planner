@@ -134,6 +134,7 @@
     "priorityLow": "Low",
     "statusOpen": "Open",
     "statusDone": "Done",
+    "notYetDue": "Not Yet Due",
     "categoryHousehold": "Household",
     "categorySchool": "School",
     "categoryShopping": "Shopping",
