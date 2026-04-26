@@ -10,6 +10,7 @@ import { createLogger } from '../logger.js';
 import express from 'express';
 import * as db from '../db.js';
 import { str, color, oneOf, date, collectErrors, MAX_TITLE } from '../middleware/validate.js';
+import { nextOccurrence } from '../services/recurrence.js';
 
 const VALID_PERSONAL_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 
@@ -211,16 +212,20 @@ router.get('/:id/items', (req, res) => {
     if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
 
     const items = db.get().prepare(`
-      SELECT * FROM personal_tasks
-      WHERE list_id = ?
+      SELECT t.*,
+             u.display_name AS assigned_name,
+             u.avatar_color AS assigned_color
+      FROM personal_tasks t
+      LEFT JOIN users u ON u.id = t.assigned_to
+      WHERE t.list_id = ?
       ORDER BY
-        done ASC,
-        CASE priority WHEN 'urgent' THEN 0 ELSE 1 END,
-        CASE WHEN due_date IS NULL THEN 1 ELSE 0 END,
-        due_date ASC,
-        CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1
-                      WHEN 'low' THEN 2 ELSE 3 END,
-        sort_order ASC, id ASC
+        t.done ASC,
+        CASE t.priority WHEN 'urgent' THEN 0 ELSE 1 END,
+        CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
+        t.due_date ASC,
+        CASE t.priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1
+                        WHEN 'low' THEN 2 ELSE 3 END,
+        t.sort_order ASC, t.id ASC
     `).all(req.params.id);
     res.json({ data: items });
   } catch (err) {
@@ -239,22 +244,32 @@ router.post('/:id/items', (req, res) => {
     const list = accessibleList(req.params.id, req.session.userId);
     if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
 
-    const v = str(req.body.title, 'title', { max: MAX_TITLE });
-    if (v.error) return res.status(400).json({ error: v.error, code: 400 });
+    const vTitle = str(req.body.title, 'title', { max: MAX_TITLE });
+    if (vTitle.error) return res.status(400).json({ error: vTitle.error, code: 400 });
+
+    const description     = req.body.description     ?? null;
+    const due_time        = req.body.due_time        ?? null;
+    const is_recurring    = req.body.is_recurring    ? 1 : 0;
+    const recurrence_rule = req.body.recurrence_rule ?? null;
+    const assigned_to     = req.body.assigned_to     ?? null;
 
     const id = db.transaction(() => {
       const maxOrder = db.get()
         .prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM personal_tasks WHERE list_id = ?')
         .get(req.params.id).m;
       const result = db.get().prepare(`
-        INSERT INTO personal_tasks (list_id, title, sort_order)
-        VALUES (?, ?, ?)
-      `).run(req.params.id, v.value, maxOrder + 1);
+        INSERT INTO personal_tasks (list_id, title, description, due_time, is_recurring, recurrence_rule, assigned_to, sort_order)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(req.params.id, vTitle.value, description, due_time, is_recurring, recurrence_rule, assigned_to, maxOrder + 1);
       return result.lastInsertRowid;
     });
 
     res.status(201).json({
-      data: db.get().prepare('SELECT * FROM personal_tasks WHERE id = ?').get(id),
+      data: db.get().prepare(`
+        SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color
+        FROM personal_tasks t LEFT JOIN users u ON u.id = t.assigned_to
+        WHERE t.id = ?
+      `).get(id),
     });
   } catch (err) {
     log.error('POST /:id/items', err);
@@ -311,13 +326,61 @@ router.patch('/:id/items/:itemId', (req, res) => {
       }
     }
 
+    if (req.body.description !== undefined) {
+      updates.push('description = ?');
+      params.push(req.body.description || null);
+    }
+
+    if (req.body.due_time !== undefined) {
+      updates.push('due_time = ?');
+      params.push(req.body.due_time || null);
+    }
+
+    if (req.body.is_recurring !== undefined) {
+      updates.push('is_recurring = ?');
+      params.push(req.body.is_recurring ? 1 : 0);
+    }
+
+    if (req.body.recurrence_rule !== undefined) {
+      updates.push('recurrence_rule = ?');
+      params.push(req.body.recurrence_rule || null);
+    }
+
+    if (req.body.assigned_to !== undefined) {
+      updates.push('assigned_to = ?');
+      params.push(req.body.assigned_to || null);
+    }
+
     if (!updates.length) return res.json({ data: item });
+
+    // When marking done and item is recurring, reschedule instead
+    const markingDone = req.body.done !== undefined && req.body.done;
+    if (markingDone && (item.is_recurring || req.body.is_recurring) && (item.recurrence_rule || req.body.recurrence_rule)) {
+      const rule   = req.body.recurrence_rule || item.recurrence_rule;
+      const base   = item.due_date || new Date().toISOString().slice(0, 10);
+      const nextDue = nextOccurrence(base, rule);
+      // Reset to pending with next due date instead of marking done
+      const idx = updates.indexOf('done = ?');
+      if (idx !== -1) {
+        updates[idx] = 'done = 0';
+        params.splice(idx, 1);
+      }
+      if (nextDue) {
+        const dueDateIdx = updates.indexOf('due_date = ?');
+        if (dueDateIdx !== -1) params[dueDateIdx] = nextDue;
+        else { updates.push('due_date = ?'); params.push(nextDue); }
+      }
+    }
 
     params.push(req.params.itemId);
     db.get().prepare(`UPDATE personal_tasks SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
     res.json({
-      data: db.get().prepare('SELECT * FROM personal_tasks WHERE id = ?').get(req.params.itemId),
+      data: db.get().prepare(`
+        SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color
+        FROM personal_tasks t LEFT JOIN users u ON u.id = t.assigned_to
+        WHERE t.id = ?
+      `).get(req.params.itemId),
     });
   } catch (err) {
     log.error('PATCH /:id/items/:itemId', err);

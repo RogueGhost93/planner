@@ -1,76 +1,87 @@
 <claude-mem-context>
 # Memory Context
 
-# [planium] recent context, 2026-04-24 6:09pm GMT+2
+# [planium] recent context, 2026-04-26 2:02pm GMT+2
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (17,879t read) | 368,633t work | 95% savings
+Stats: 50 obs (15,966t read) | 124,047t work | 87% savings
 
-### Apr 23, 2026
-S29 Homarr iframe widget randomly freezing when Planium is embedded inside it (Apr 23, 10:40 PM)
-S30 Move Priority and Tasks Filter to Toolbar Dropdown (Apr 23, 10:41 PM)
-S31 Current Filter Implementation: Filter Chips in #filter-bar and #personal-filter-bar Divs (Apr 23, 10:42 PM)
-S32 Final commit `d2308b2` — news favicon fix on main with full description (Apr 23, 10:43 PM)
-S33 Add "Assigned To" filter dimension to household task filter UI, then migrate personal list filters from flat chip strip to dropdown pattern for visual consistency (Apr 23, 10:47 PM)
-S34 DuckDuckGo Icon CDN Serves Valid Images But Has No CORS Headers (Apr 23, 10:50 PM)
-S35 Service Worker Cache Bumped to v128 for Favicon Icon Refactor (Apr 23, 11:01 PM)
-S36 Auth Uses req.session.role; Per-User Pattern Already Exists via owner_id in task_lists (Apr 23, 11:03 PM)
-272 11:04p 🔵 Planium External Integration Pattern: app_settings Table
-273 " 🔵 Planium Tasks Schema and Route Architecture
-274 " 🔵 Planium Frontend Settings Page Pattern and API Client
-275 11:05p 🔵 Exact Settings UI Event Binding Pattern for Integration Cards
-276 " 🔵 Planium Has Two Separate List Systems: head_lists and task_lists
-277 11:06p 🔵 Git commit history confirmed in planium repo
-278 " 🟣 Created server/routes/linkding.js Integration Route Module
-279 " 🟣 Created server/routes/bookmarks.js with /save-link and /task-lists Endpoints
-280 " 🟣 Registered Linkding and Bookmarks Routes in server/index.js
-281 11:07p 🟣 Settings Page State Initialization Extended for Linkding and Task Lists
-282 " 🟣 Linkding Settings UI Section Added to settings.js HTML Template
-283 " 🟣 Linkding Event Bindings Added to settings.js bindEvents()
-284 11:08p 🟣 Created save-link-modal.js Frontend Component
-285 " 🔴 Fixed personal_tasks INSERT to Match Actual Schema (No description Column)
-### Apr 24, 2026
-286 3:34p ⚖️ Per-User Isolation Considered for Mealie, FreshRSS, and Linkding
-287 " 🔵 Mealie, FreshRSS, and Linkding Store Credentials Globally in app_settings Table
-288 " 🔵 Auth Uses req.session.role; Per-User Pattern Already Exists via owner_id in task_lists
-S37 Bookmarks Mobile UI: Tag Sidebar Redesign Discussion (Apr 24, 3:34 PM)
-289 3:37p 🔴 i18n Key Displayed as Literal String on Settings Page
-290 " 🟣 Global Fallback Toggle and API/URL Override Added to Settings
-291 " 🔄 Settings Page Sections Made Collapsible
-292 3:38p 🔵 Root Cause of "settings.themeLabel" Bug Confirmed: Missing i18n Key
-293 " 🔵 Settings Page Structure: 8+ Sections Mapped Across 1,197 Lines
-294 " 🔵 Integration Backend Architecture: Mealie, FreshRSS, Linkding Share Common Pattern
-295 5:56p 🔵 Planium Bookmarks/Save-Link Route Implementation
-296 " ⚖️ Planned Per-User Integration Settings Feature for Planium
-297 5:57p 🔵 Planium DB Already at Migration 21; user_settings Table Already Exists
-298 " ⚖️ No New DB Migration Needed for Per-User Integration Settings
-299 " 🟣 Mealie Route Refactored to Support Per-User Config Override
-300 " 🟣 Mealie Route Call Sites Updated to Pass req.session.userId
-301 5:58p 🟣 Mealie Per-User Config CRUD Endpoints Added
-302 " 🟣 FreshRSS Route Refactored for Per-User Config Override
-303 " ⚖️ Bookmarks Mobile UI: Tag Sidebar Redesign Discussion
-304 " 🟣 FreshRSS All Proxy Routes Wired to Per-User Config
-305 " 🔴 FreshRSS Token and Headline Caches Made Per-Credentials
-306 5:59p 🔴 FreshRSS Token Cache Call Sites Updated to Use Per-Credentials Map
-307 " 🔴 FreshRSS Test Route Force-Re-Auth Pattern Fixed for Map-Based Cache
-308 " 🔴 FreshRSS Headline Cache and 401 Token Eviction Fully Migrated to Per-Credentials Keys
-309 " 🔴 FreshRSS Headline Cache Write Path Fixed — Per-Credentials Cache Migration Complete
-310 6:00p 🟣 FreshRSS Per-User Config CRUD Endpoints Added
-311 " 🟣 Linkding Route Refactored for Per-User Config; getLinkdingConfig Exported for Bookmarks Route
-312 " ⚖️ Bookmark Tag Visibility UX Decision
-S38 Bookmark tag filtering UX design for ~500 bookmarks on mobile — tags hidden during scroll but accessible for filtering (Apr 24, 6:00 PM)
-313 " 🟣 All Linkding Route Call Sites Bulk-Updated to Pass req.session.userId
-314 " 🟣 Linkding Per-User Config CRUD Endpoints Added — Backend Integration Settings Complete
-315 6:01p 🟣 bookmarks.js Migrated to Import Per-User getLinkdingConfig from linkding.js
-316 " 🟣 Per-User Integration Config Backend Complete — All Routes Syntax-Valid
-317 " 🔵 Settings UI CSS Structure Located for Task 3
-318 " 🔵 Settings Page Structure Discovered for Task 3 UI Work
-319 6:02p 🔵 Integration Card UI and Event Binding Structure Mapped in settings.js
-320 " 🔵 Integration Event Handler API Call Patterns Documented in settings.js
-321 " 🔵 Settings Page Section Map — FreshRSS and Linkding Use Hardcoded Titles
+### Apr 25, 2026
+S61 Import .ics Button Moved from Toolbar to Dropdown to Fix Mobile Layout (Apr 25, 10:21 PM)
+S62 News toolbar decluttered and made mobile-friendly (Apr 25, 11:59 PM)
+### Apr 26, 2026
+S63 Filebox CSS Mobile Breakpoint Exists But Doesn't Reduce Icon Sizes (Apr 26, 12:01 AM)
+537 12:02a 🟣 Filebox Mobile Icon Size Reduction for Single-Row Layout
+539 " 🔵 Filebox Module File Structure in Planium Project
+538 " 🔵 bookmarks.js render() Makes Two Sequential Awaited API Calls; Module-Level State Persists Across Visits
+540 " 🔵 Filebox Toolbar HTML Structure and CSS Class Names
+541 " 🔵 Filebox CSS Mobile Breakpoint Exists But Doesn't Reduce Icon Sizes
+S64 Fixed Race Condition: Favicon Fallback Now Handles Already-Failed Images (Apr 26, 12:02 AM)
+542 12:05a 🔴 Mobile UI Layout Issues Persist in Filebox and Bookmarks
+543 12:06a 🔵 Bookmarks Filter Bar HTML Structure Identified in bookmarks.js
+544 " 🔵 Bookmarks Filter Row Container Lacks flex-wrap and Per-Page Select Lacks max-width
+545 10:45a 🔵 News Tab Crash Traced to Removed DOM Element in Commit 8b3287a
+546 10:49a 🔵 Icons Failing to Load from index.hr
+547 " 🔵 Favicon Loading Path in news.js Traced to Internal Proxy API
+548 " 🔵 Favicon Proxy Relies on DuckDuckGo's ip3 Icon Service
+549 " 🔵 Client-Side Favicon Error Fallback Replaces Broken Images with Lucide Icon
+550 " 🔵 Service Worker Cache Bumped from v133 to v134 in Recent Commit
+551 10:50a ✅ Bookmarks Module Color Unified to Calendar Alias Across All Themes
+552 10:51a 🔵 Favicon Proxy Endpoint Requires Authentication Session
+553 " 🔵 DuckDuckGo Icon Service Returns 200 for index.hr — Not the Root Cause
+554 " ✅ News Toolbar Headline Count Badge Removed in Commit 8b3287a
+555 10:53a 🔵 DuckDuckGo Returns Valid image/x-icon for index.hr — Proxy Data Path Confirmed Working
+556 10:54a 🔵 Favicon Proxy Introduced in Commit 98da887 to Bypass Phone Network Blocking
+557 10:55a 🔵 sourceUrl for Favicon Lookup Comes from FreshRSS item.origin.htmlUrl
+558 " 🔵 Favicon Proxy Route Has No Server-Side Logging — Failures Are Silent
+559 10:58a 🔵 Headline Cache Has 15-Minute TTL — Stale sourceUrl Data Persists Between Fixes
+560 " 🔴 Fixed Race Condition: Favicon Fallback Now Handles Already-Failed Images
+S65 Debugging 404 error for index.hr favicon in a proxy/RSS reader app — root cause analysis before implementing a fix (Apr 26, 10:58 AM)
+561 11:08a 🔵 404 Error on index.html (index.hr) Resource
+S66 Debugging FreshRSS favicon proxy endpoint returning failures for www.index.hr — investigating whether localhost URL or caching is the root cause (Apr 26, 11:09 AM)
+562 11:11a 🔵 FreshRSS Favicon API Endpoint Localhost Investigation
+563 11:12a 🔵 DuckDuckGo Favicon Service Returns 200 Regardless of User-Agent
+564 " 🔵 node-fetch Successfully Fetches Favicons from DuckDuckGo
+S67 Favicon Proxy Route Code Confirmed Correct — Would Not Selectively Reject index.hr or zerohedge (Apr 26, 11:13 AM)
+565 11:16a 🔵 Favicon Regression: index.hr and Zerohedge Icons Empty After Recent Changes
+566 " 🔵 Favicon Proxy Architecture Context Retrieved for Regression Investigation
+567 " 🔵 Service Worker Bypasses /api/ Routes; DuckDuckGo Returns Valid Icons for All Failing Domains
+568 11:17a 🔵 Favicon Proxy Endpoint Protected by requireAuth + CSRF Middleware
+569 " 🔵 CSRF Middleware Explicitly Exempts GET Requests — Favicon Proxy Not Blocked by CSRF
+570 " 🔵 Commit 5dcd0f3 Changed Session Cookie sameSite from strict to lax — Not Favicon-Related
+571 11:18a 🔵 Favicon Proxy Route Code Confirmed Correct — Would Not Selectively Reject index.hr or zerohedge
+S68 Frontend getFaviconUrl Updated to Call /icon Route Instead of /favicon (Apr 26, 11:18 AM)
+572 11:20a 🔵 Server 404 Handler Located in server/index.js
+573 " 🔵 SPA Fallback Route Architecture in server/index.js
+574 11:21a 🔵 Planium Project Scripts and Runtime Requirements
+575 " 🔵 FreshRSS Route File Uses Custom Logger and GReader API
+576 11:26a 🔵 Icons Fail to Load in Brave Browser But Work in Firefox
+577 11:27a 🔴 Renamed Favicon Proxy Route from /favicon to /icon to Bypass Brave/uBlock Blocking
+578 " 🔴 Frontend getFaviconUrl Updated to Call /icon Route Instead of /favicon
+S69 Feasibility question: implementing pull-to-refresh (PTR) in a PWA (Planium app) (Apr 26, 11:27 AM)
+579 11:43a 🔵 News Widget Source Files Located
+580 " 🔵 News Widget Toolbar Structure and Mobile Styles Mapped
+581 " 🔵 Existing Mobile Breakpoint Stacks Toolbar Vertically, Not Fixing Icon Row Overflow
+582 " 🔵 Desktop Button Sizes for News Toolbar Actions Identified
+583 11:44a 🔵 Design Token Values for Spacing Variables Resolved
+584 1:03p 🔵 Pull-to-Refresh Not Working on Chrome — CSS Directory Missing
+585 " 🔵 Planium CSS Files Located at public/styles/ Not public/css/
+586 " 🔵 No overscroll-behavior Rule Found — Pull-to-Refresh Cause Not in CSS Reset
+S70 User asked whether pull-to-refresh (PTR) works for all tabs at once or requires per-tab setup (Apr 26, 1:09 PM)
+**Investigated**: The architecture of a pull-to-refresh feature being designed for a multi-tab web app, specifically how the gesture handler and refresh callbacks relate to tab structure
 
-Access 369k tokens of past work via get_observations([IDs]) or mem-search skill.
+**Learned**: - A single PTR gesture handler on `.app-content` (the shared container) handles the touch gesture for all tabs — no need to duplicate gesture logic
+    - Each tab requires its own refresh callback registration because each page has different data-fetching logic (news fetches headlines, tasks reloads tasks, etc.)
+    - The proposed pattern: a `pullToRefresh.js` module with a `register(fn)` function that each page module calls on init, so PTR fires the currently-registered callback
+    - This is a "one gesture handler, many callbacks" pattern — write touch logic once, opt-in per tab with one line
+
+**Completed**: Architecture decision clarified: PTR gesture is shared, but each tab needs one line of opt-in to register its refresh callback. No code has been written yet — awaiting user confirmation to proceed.
+
+**Next Steps**: User is deciding whether to proceed with implementing the `pullToRefresh.js` module using the proposed register(fn) pattern. If confirmed, next step is to build the module and wire up each tab's refresh callback.
+
+
+Access 124k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

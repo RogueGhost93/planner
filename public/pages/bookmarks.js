@@ -21,6 +21,7 @@ let bulkSelected = new Set();
 let currentLimit = 50;
 let bulkEditMode = false;
 let tagSortMode = 'alpha'; // 'alpha' or 'count'
+let tagModalRefresh = null; // Set while mobile tag filter modal is open
 
 const FILTERS_STORAGE_KEY = 'bookmarks_filters';
 const TAG_SORT_STORAGE_KEY = 'bookmarks_tag_sort';
@@ -518,6 +519,7 @@ async function loadBookmarks(container) {
     renderBookmarks(container);
     renderPagination(container);
     renderTagsSidebar(container);
+    if (tagModalRefresh) tagModalRefresh();
   } catch (err) {
     console.error('Bookmarks load error:', err);
     errorEl.textContent = err.message || 'Failed to load bookmarks';
@@ -1067,7 +1069,7 @@ function showTagFilterModal(container) {
       <div id="tag-modal-list" style="flex:1;overflow-y:auto;padding:12px"></div>
     `;
 
-    sheet.querySelector('#tag-modal-done').addEventListener('click', () => modal.remove());
+    sheet.querySelector('#tag-modal-done').addEventListener('click', closeModal);
     sheet.querySelector('#tag-modal-clear')?.addEventListener('click', () => {
       currentTags = [];
       currentOffset = 0;
@@ -1094,7 +1096,7 @@ function showTagFilterModal(container) {
     const listEl = sheet.querySelector('#tag-modal-list');
     if (!listEl) return;
 
-    let tagsToShow = [...allTags];
+    let tagsToShow = currentTags.length === 0 ? [...allTags] : [...filteredTags];
     if (searchTerm) {
       tagsToShow = tagsToShow.filter(t => (t.name || '').toLowerCase().includes(searchTerm.toLowerCase()));
     }
@@ -1126,10 +1128,16 @@ function showTagFilterModal(container) {
     });
   }
 
+  function closeModal() {
+    modal.remove();
+    tagModalRefresh = null;
+  }
+
+  tagModalRefresh = renderSheet;
   renderSheet();
   modal.appendChild(sheet);
   document.body.appendChild(modal);
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
 }
 
 function bindEvents(container) {

@@ -188,7 +188,7 @@ export async function render(container, { user }) {
   _container = container;
   state.today  = isoDate(new Date());
   state.cursor = state.today;
-  state.view   = 'agenda';
+  state.view   = 'month';
 
   container.innerHTML = `
     <div class="calendar-page" id="calendar-page">

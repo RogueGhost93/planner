@@ -15,6 +15,7 @@ let state = {
   scope: 'global', // 'global' | 'private'
   files: [],
   loading: false,
+  upload: null, // { label, loaded, total } while an upload is in progress
 };
 let _container = null;
 
@@ -75,50 +76,98 @@ async function loadFiles() {
   }
 }
 
-async function uploadOneRaw(file) {
+function xhrUpload({ url, headers = {}, body, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.withCredentials = true;
+    for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) onProgress(e.loaded, e.total);
+      });
+    }
+    xhr.addEventListener('load', () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (_) {}
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+    });
+    xhr.addEventListener('error', () => reject(new TypeError('Network error during upload')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+    xhr.send(body);
+  });
+}
+
+function setUploadProgress(label, loaded, total) {
+  const first = !state.upload;
+  state.upload = { label, loaded, total };
+  const dz = _container?.querySelector('#filebox-dropzone');
+  if (!dz) return;
+  const prog = dz.querySelector('.filebox-dropzone__progress');
+  if (first || !prog) {
+    renderDropzone();
+    return;
+  }
+  const percent = total ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+  prog.querySelector('.filebox-dropzone__progress-label').textContent =
+    `${label} — ${formatBytes(loaded)} / ${formatBytes(total)} (${percent}%)`;
+  prog.querySelector('.filebox-dropzone__progress-bar > div').style.width = `${percent}%`;
+}
+
+function clearUploadProgress() {
+  state.upload = null;
+  renderDropzone();
+}
+
+async function uploadOneRaw(file, onProgress) {
   const url = `/api/v1/filebox/upload-raw?scope=${encodeURIComponent(state.scope)}&filename=${encodeURIComponent(file.name)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    credentials: 'same-origin',
+  const result = await xhrUpload({
+    url,
     headers: {
       'X-CSRF-Token': getCsrfToken(),
       'Content-Type': file.type || 'application/octet-stream',
     },
     body: file,
+    onProgress,
   });
-  const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
-  return data;
+  if (!result.ok) throw new Error(result.data?.error || `Upload failed (${result.status})`);
+  return result.data;
 }
 
 async function uploadFiles(fileList) {
   if (!fileList?.length) return;
+  if (state.upload) return;
   const files = Array.from(fileList);
+  const totalBytes = files.reduce((sum, f) => sum + (f.size || 0), 0);
+  const label = files.length === 1 ? `Uploading ${files[0].name}` : `Uploading ${files.length} files`;
+
+  setUploadProgress(label, 0, totalBytes);
 
   // First attempt: standard multipart upload (one request, all files).
   const form = new FormData();
   for (const file of files) form.append('file', file);
 
   try {
-    const res = await fetch(`/api/v1/filebox/upload?scope=${state.scope}`, {
-      method: 'POST',
-      credentials: 'same-origin',
+    const result = await xhrUpload({
+      url: `/api/v1/filebox/upload?scope=${state.scope}`,
       headers: { 'X-CSRF-Token': getCsrfToken() },
       body: form,
+      onProgress: (loaded, total) => setUploadProgress(label, loaded, total),
     });
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      console.error('[filebox] multipart upload failed', res.status, data);
-      throw new Error(data?.error || `Upload failed (${res.status})`);
+    if (!result.ok) {
+      console.error('[filebox] multipart upload failed', result.status, result.data);
+      throw new Error(result.data?.error || `Upload failed (${result.status})`);
     }
-    const n = data.files?.length || 0;
+    const n = result.data?.files?.length || 0;
+    clearUploadProgress();
     window.planium.showToast(`Uploaded ${n} file${n === 1 ? '' : 's'}`, 'success');
     await loadFiles();
     return;
   } catch (err) {
-    const isNetworkErr = err.name === 'TypeError' && /fetch|load/i.test(err.message);
+    const isNetworkErr = err.name === 'TypeError' && /fetch|load|network/i.test(err.message);
     if (!isNetworkErr) {
       console.error('[filebox] upload error', err);
+      clearUploadProgress();
       window.planium.showToast(err.message || 'Upload failed', 'danger');
       return;
     }
@@ -129,15 +178,24 @@ async function uploadFiles(fileList) {
 
   let ok = 0;
   let lastError = null;
-  for (const file of files) {
+  let cumulative = 0;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const perFileLabel = files.length === 1
+      ? `Uploading ${file.name}`
+      : `Uploading ${file.name} (${i + 1}/${files.length})`;
     try {
-      await uploadOneRaw(file);
+      await uploadOneRaw(file, (loaded) => {
+        setUploadProgress(perFileLabel, cumulative + loaded, totalBytes);
+      });
+      cumulative += file.size || 0;
       ok++;
     } catch (err) {
       console.error('[filebox] raw upload failed for', file.name, err);
       lastError = err;
     }
   }
+  clearUploadProgress();
   if (ok > 0) {
     window.planium.showToast(`Uploaded ${ok} of ${files.length} file${files.length === 1 ? '' : 's'}`, ok === files.length ? 'success' : 'danger');
     await loadFiles();
@@ -148,10 +206,9 @@ async function uploadFiles(fileList) {
 }
 
 async function deleteFile(name) {
-  const ok = await showConfirm({
+  const ok = await showConfirm(`"${name}" will be permanently deleted.`, {
     title: 'Delete file?',
-    message: `"${name}" will be permanently deleted.`,
-    confirmText: 'Delete',
+    okLabel: 'Delete',
     danger: true,
   });
   if (!ok) return;
@@ -185,6 +242,22 @@ function renderStats() {
 function renderDropzone() {
   const dz = _container?.querySelector('#filebox-dropzone');
   if (!dz) return;
+
+  if (state.upload) {
+    const { label, loaded, total } = state.upload;
+    const percent = total ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+    dz.classList.add('filebox-dropzone--uploading');
+    dz.classList.remove('filebox-dropzone--empty', 'filebox-dropzone--active');
+    dz.innerHTML = `
+      <div class="filebox-dropzone__progress">
+        <div class="filebox-dropzone__progress-label">${esc(label)} — ${formatBytes(loaded)} / ${formatBytes(total)} (${percent}%)</div>
+        <div class="filebox-dropzone__progress-bar"><div style="width: ${percent}%"></div></div>
+      </div>
+    `;
+    return;
+  }
+
+  dz.classList.remove('filebox-dropzone--uploading');
   const empty = state.files.length === 0;
   dz.classList.toggle('filebox-dropzone--empty', empty);
   if (empty) {
@@ -379,14 +452,15 @@ export async function render(container, _context) {
 
   // Drag-and-drop (and click to upload)
   const dz = container.querySelector('#filebox-dropzone');
-  dz.addEventListener('click', () => fileInput.click());
+  dz.addEventListener('click', () => { if (!state.upload) fileInput.click(); });
   dz.addEventListener('keydown', (e) => {
+    if (state.upload) return;
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
   });
   ['dragenter', 'dragover'].forEach(ev => {
     dz.addEventListener(ev, (e) => {
       e.preventDefault();
-      dz.classList.add('filebox-dropzone--active');
+      if (!state.upload) dz.classList.add('filebox-dropzone--active');
     });
   });
   ['dragleave', 'drop'].forEach(ev => {
@@ -398,6 +472,7 @@ export async function render(container, _context) {
   });
   dz.addEventListener('drop', (e) => {
     e.preventDefault();
+    if (state.upload) return;
     if (e.dataTransfer?.files?.length) uploadFiles(e.dataTransfer.files);
   });
 

@@ -710,6 +710,21 @@ const MIGRATIONS = [
       ALTER TABLE task_lists ADD COLUMN show_priority INTEGER NOT NULL DEFAULT 1;
     `,
   },
+  {
+    version: 23,
+    description: 'Add description, recurrence, assigned_to to personal_tasks',
+    up: `
+      ALTER TABLE personal_tasks ADD COLUMN description TEXT;
+      ALTER TABLE personal_tasks ADD COLUMN is_recurring INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE personal_tasks ADD COLUMN recurrence_rule TEXT;
+      ALTER TABLE personal_tasks ADD COLUMN assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL;
+    `,
+  },
+  {
+    version: 24,
+    description: 'Add due_time to personal_tasks',
+    up: `ALTER TABLE personal_tasks ADD COLUMN due_time TEXT;`,
+  },
 ];
 
 /**

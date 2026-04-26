@@ -347,6 +347,21 @@ router.patch('/:id/status', (req, res) => {
 // Aufgabe löschen (Subtasks werden per CASCADE mitgelöscht).
 // Response: { ok: true }
 // --------------------------------------------------------
+router.patch('/:id/priority', (req, res) => {
+  try {
+    const check = v.oneOf(req.body.priority ?? 'none', VALID_PRIORITIES, 'priority');
+    if (check.error) return res.status(400).json({ error: check.error, code: 400 });
+    const result = db.get().prepare('UPDATE tasks SET priority = ? WHERE id = ?')
+      .run(check.value, req.params.id);
+    if (result.changes === 0)
+      return res.status(404).json({ error: 'Aufgabe nicht gefunden.', code: 404 });
+    res.json({ data: db.get().prepare('SELECT * FROM tasks WHERE id = ?').get(req.params.id) });
+  } catch (err) {
+    log.error('PATCH /:id/priority Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
 router.delete('/:id', (req, res) => {
   try {
     const result = db.get().prepare('DELETE FROM tasks WHERE id = ?').run(req.params.id);
@@ -355,6 +370,16 @@ router.delete('/:id', (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     log.error('DELETE /:id Fehler:', err);
+    res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
+  }
+});
+
+router.delete('/', (req, res) => {
+  try {
+    const result = db.get().prepare('DELETE FROM tasks').run();
+    res.json({ ok: true, deleted: result.changes });
+  } catch (err) {
+    log.error('DELETE / Fehler:', err);
     res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
   }
 });

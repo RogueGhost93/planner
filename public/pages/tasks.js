@@ -28,22 +28,6 @@ const STATUSES = () => [
   { value: 'done', label: t('tasks.statusDone') },
 ];
 
-const CATEGORIES = [
-  'Household', 'School', 'Shopping', 'Repairs',
-  'Health', 'Finance', 'Leisure', 'Other',
-];
-
-const CATEGORY_LABELS = () => ({
-  'Household': t('tasks.categoryHousehold'),
-  'School':    t('tasks.categorySchool'),
-  'Shopping':  t('tasks.categoryShopping'),
-  'Repairs':   t('tasks.categoryRepair'),
-  'Health':    t('tasks.categoryHealth'),
-  'Finance':   t('tasks.categoryFinance'),
-  'Leisure':   t('tasks.categoryLeisure'),
-  'Other':     t('tasks.categoryMisc'),
-});
-
 const PRIORITY_LABELS = () => Object.fromEntries(PRIORITIES().map((p) => [p.value, p.label]));
 const STATUS_LABELS   = () => Object.fromEntries(STATUSES().map((s)  => [s.value, s.label]));
 
@@ -147,22 +131,6 @@ function renderDueDate(dateStr) {
   </span>`;
 }
 
-function renderSwipeRow(task, innerHtml) {
-  const isDone = task.status === 'done';
-  return `
-    <div class="swipe-row" data-swipe-id="${task.id}" data-swipe-status="${task.status}">
-      <div class="swipe-reveal swipe-reveal--done" aria-hidden="true">
-        <i data-lucide="${isDone ? 'rotate-ccw' : 'check'}" style="width:22px;height:22px" aria-hidden="true"></i>
-        <span>${isDone ? t('tasks.swipeOpen') : t('tasks.swipeDone')}</span>
-      </div>
-      <div class="swipe-reveal swipe-reveal--edit" aria-hidden="true">
-        <i data-lucide="pencil" style="width:22px;height:22px" aria-hidden="true"></i>
-        <span>${t('tasks.swipeEdit')}</span>
-      </div>
-      ${innerHtml}
-    </div>`;
-}
-
 function renderTaskCard(task, opts = {}) {
   const { expandedSubtasks = false } = opts;
   const isDone     = task.status === 'done';
@@ -213,6 +181,14 @@ function renderTaskCard(task, opts = {}) {
                title="${esc(task.assigned_name)}">
             ${esc(initials(task.assigned_name ?? ''))}
           </div>` : ''}
+
+        ${(!task.priority || task.priority === 'none') && state.householdShowPriority ? `
+        <div class="priority-quick-flags" role="group" aria-label="Set priority">
+          <button class="priority-quick-flag priority-quick-flag--urgent" data-action="set-task-priority" data-id="${task.id}" data-priority="urgent" title="Urgent"></button>
+          <button class="priority-quick-flag priority-quick-flag--high"   data-action="set-task-priority" data-id="${task.id}" data-priority="high"   title="High"></button>
+          <button class="priority-quick-flag priority-quick-flag--medium" data-action="set-task-priority" data-id="${task.id}" data-priority="medium" title="Medium"></button>
+          <button class="priority-quick-flag priority-quick-flag--low"    data-action="set-task-priority" data-id="${task.id}" data-priority="low"    title="Low"></button>
+        </div>` : ''}
 
         <button class="btn btn--ghost btn--icon" data-action="edit-task" data-id="${task.id}"
                 aria-label="${t('tasks.editButton')}" style="min-height:unset;width:36px;height:36px">
@@ -266,7 +242,7 @@ function renderTaskGroups(tasks) {
   if (pending.length) {
     html += `
       <div class="task-group">
-        ${pending.map((tk) => renderSwipeRow(tk, renderTaskCard(tk))).join('')}
+        ${pending.map((tk) => renderTaskCard(tk)).join('')}
       </div>`;
   }
 
@@ -276,7 +252,7 @@ function renderTaskGroups(tasks) {
         <div class="task-group__divider">
           <span>${t('tasks.notYetDue')}</span>
         </div>
-        ${notYetDue.map((tk) => renderSwipeRow(tk, renderTaskCard(tk))).join('')}
+        ${notYetDue.map((tk) => renderTaskCard(tk)).join('')}
       </div>`;
   }
 
@@ -290,7 +266,7 @@ function renderTaskGroups(tasks) {
             ${t('tasks.personalListClearDone')}
           </button>
         </div>
-        ${done.map((tk) => renderSwipeRow(tk, renderTaskCard(tk))).join('')}
+        ${done.map((tk) => renderTaskCard(tk)).join('')}
       </div>`;
   }
 
@@ -306,11 +282,6 @@ function renderModalContent({ task = null, users = [] } = {}) {
 
   const userOptions = users.map((u) =>
     `<option value="${u.id}" ${task?.assigned_to === u.id ? 'selected' : ''}>${esc(u.display_name)}</option>`
-  ).join('');
-
-  const catLabels = CATEGORY_LABELS();
-  const categoryOptions = CATEGORIES.map((c) =>
-    `<option value="${c}" ${(task?.category ?? 'Other') === c ? 'selected' : ''}>${catLabels[c] ?? c}</option>`
   ).join('');
 
   const current = task?.priority ?? 'none';
@@ -457,7 +428,9 @@ let state = {
   filters:          { status: '', priority: '', assigned_to: '' },
   taskSearch:       '',
   taskSearchOpen:   false,
-  householdName:    localStorage.getItem('household-name') || '',
+  householdName:         localStorage.getItem('household-name')         || '',
+  householdColor:        localStorage.getItem('household-color')        || '#2563EB',
+  householdShowPriority: localStorage.getItem('household-show-priority') !== '0',
   viewMode:         localStorage.getItem('tasks-view') || 'list',
   expandedTasks:    new Set(),
   dragTaskId:       null,
@@ -467,7 +440,7 @@ let state = {
   activeTab:        'household',
   personalItems:    [],
   personalViewMode:    localStorage.getItem('personal-view') || 'list',
-  personalFilters:     { status: '', priority: '' },
+  personalFilters:     { status: '', priority: '', assigned_to: '' },
   personalSearch:      '',
   personalSearchOpen:  false,
   personalSelectMode:  false,
@@ -500,12 +473,9 @@ function taskMatchesSearch(task, query) {
   if (!query) return true;
   const priorityLabels = PRIORITY_LABELS();
   const statusLabels = STATUS_LABELS();
-  const categoryLabels = CATEGORY_LABELS();
   return [
     task.title,
     task.description,
-    task.category,
-    categoryLabels[task.category],
     task.priority,
     priorityLabels[task.priority],
     task.status,
@@ -709,7 +679,6 @@ async function handleFormSubmit(e, container) {
     title:           form.title.value.trim(),
     description:     form.description.value.trim() || null,
     priority:        form.priority.value,
-    category:        form.category.value,
     due_date:        form.due_date?.value || null,
     due_time:        form.due_time?.value || null,
     assigned_to:     form.assigned_to.value ? Number(form.assigned_to.value) : null,
@@ -981,9 +950,8 @@ function renderTaskList(container) {
   listEl.innerHTML = renderTaskGroups(getVisibleTasks());
   listEl.classList.toggle('task-list--select-mode', state.selectMode);
   if (window.lucide) window.lucide.createIcons();
-  stagger(listEl.querySelectorAll('.swipe-row, .kanban-card'));
+  stagger(listEl.querySelectorAll('.task-card, .kanban-card'));
   updateOverdueBadge();
-  wireSwipeGestures(container);
 }
 
 function renderFilters(container) {
@@ -1054,137 +1022,6 @@ function updateOverdueBadge() {
       el.insertAdjacentHTML('beforeend', `<span class="nav-badge">${overdue}</span>`);
     });
   }
-}
-
-// --------------------------------------------------------
-// Swipe-Gesten (Mobil: links = erledigt, rechts = bearbeiten)
-// --------------------------------------------------------
-
-const SWIPE_THRESHOLD    = 80;   // px - Mindestweg für Aktion
-const SWIPE_MAX_VERT     = 12;   // px - vertikaler Bewegungs-Toleranzbereich (darunter: kein Scroll-Abbruch)
-const SWIPE_LOCK_VERT    = 30;   // px - ab diesem Weg gilt es als Scroll (Swipe abgebrochen)
-
-function wireSwipeGestures(container) {
-  const listEl = container.querySelector('#task-list');
-  if (!listEl) return;
-
-  listEl.querySelectorAll('.swipe-row').forEach((row) => {
-    let startX = 0, startY = 0;
-    let dx = 0;
-    let locked = false;    // false = unentschieden, 'swipe' | 'scroll'
-    let thresholdHit = false; // Haptic-Feedback am Threshold nur einmal
-    const card = row.querySelector('.task-card');
-    if (!card) return;
-
-    function resetCard(animate = true) {
-      card.style.transition = animate ? 'transform 0.25s ease' : '';
-      card.style.transform  = '';
-      row.classList.remove('swipe-row--swiping');
-      // Reveal-Panels zurücksetzen
-      row.querySelector('.swipe-reveal--done').style.opacity = '0';
-      row.querySelector('.swipe-reveal--edit').style.opacity = '0';
-    }
-
-    row.addEventListener('touchstart', (e) => {
-      // Geste ignorieren wenn Modal offen oder Select-Modus aktiv
-      if (document.getElementById('shared-modal-overlay')) return;
-      if (state.selectMode) return;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
-      dx     = 0;
-      locked = false;
-      thresholdHit = false;
-      card.style.transition = '';
-    }, { passive: true });
-
-    row.addEventListener('touchmove', (e) => {
-      if (locked === 'scroll') return;
-
-      const currentX = e.touches[0].clientX;
-      const currentY = e.touches[0].clientY;
-      dx = currentX - startX;
-      const dy = Math.abs(currentY - startY);
-
-      // Scroll-Richtung früh erkennen
-      if (locked === false) {
-        if (dy > SWIPE_MAX_VERT && Math.abs(dx) < dy) {
-          locked = 'scroll';
-          resetCard(false);
-          return;
-        }
-        if (Math.abs(dx) > SWIPE_MAX_VERT) {
-          locked = 'swipe';
-        }
-      }
-
-      if (locked !== 'swipe') return;
-
-      // Vertikalen Scroll verhindern sobald Swipe erkannt
-      if (dy < SWIPE_LOCK_VERT) e.preventDefault();
-
-      // Karte verschieben (gedämpft nach THRESHOLD)
-      const dampened = dx > 0
-        ? Math.min(dx, SWIPE_THRESHOLD + (dx - SWIPE_THRESHOLD) * 0.2)
-        : Math.max(dx, -(SWIPE_THRESHOLD + (-dx - SWIPE_THRESHOLD) * 0.2));
-
-      card.style.transform = `translateX(${dampened}px)`;
-      row.classList.add('swipe-row--swiping');
-
-      // Reveal-Panels einblenden (0 → 1 über Threshold)
-      const progress = Math.min(Math.abs(dx) / SWIPE_THRESHOLD, 1);
-      if (dx < 0) {
-        row.querySelector('.swipe-reveal--done').style.opacity = String(progress);
-        row.querySelector('.swipe-reveal--edit').style.opacity = '0';
-      } else {
-        row.querySelector('.swipe-reveal--edit').style.opacity = String(progress);
-        row.querySelector('.swipe-reveal--done').style.opacity = '0';
-      }
-
-      // Haptic-Feedback beim Erreichen des Schwellwerts
-      if (!thresholdHit && Math.abs(dx) >= SWIPE_THRESHOLD) {
-        thresholdHit = true;
-        vibrate(15);
-      }
-    }, { passive: false });
-
-    row.addEventListener('touchend', async () => {
-      if (locked !== 'swipe') { resetCard(false); return; }
-
-      const taskId = row.dataset.swipeId;
-      const status = row.dataset.swipeStatus;
-
-      if (dx < -SWIPE_THRESHOLD) {
-        // Swipe links → Status-Toggle (offen ↔ erledigt)
-        card.style.transition = 'transform 0.2s ease';
-        card.style.transform  = 'translateX(-110%)';
-        vibrate(40);
-        setTimeout(async () => {
-          resetCard(false);
-          try {
-            await toggleTaskStatus(taskId, status);
-            await loadTasks(container);
-          } catch (err) {
-            window.planium.showToast(err.message, 'danger');
-            await loadTasks(container);
-          }
-        }, 200);
-
-      } else if (dx > SWIPE_THRESHOLD) {
-        // Swipe rechts → Bearbeiten-Modal
-        resetCard(true);
-        vibrate(20);
-        try {
-          const task = await loadTaskForEdit(taskId);
-          openTaskModal({ task, users: state.users }, container);
-        } catch (err) {
-          window.planium.showToast(t('tasks.loadError'), 'danger');
-        }
-
-      } else {
-        resetCard(true);
-      }
-    }, { passive: true });
-  });
 }
 
 // --------------------------------------------------------
@@ -1370,11 +1207,11 @@ function wireTaskList(container) {
   listEl.addEventListener('click', (e) => {
     if (!state.selectMode) return;
     if (e.target.closest('[data-action="toggle-select"]')) return;
-    const row = e.target.closest('.swipe-row[data-swipe-id]');
-    if (!row) return;
+    const card = e.target.closest('.task-card[data-task-id]');
+    if (!card) return;
     e.stopImmediatePropagation();
-    const taskId = parseInt(row.dataset.swipeId, 10);
-    toggleSelectId(taskId, row.querySelector('.task-card'));
+    const taskId = parseInt(card.dataset.taskId, 10);
+    toggleSelectId(taskId, card);
     updateBulkBar(container);
   });
 
@@ -1428,6 +1265,22 @@ function wireTaskList(container) {
       } catch (err) {
         window.planium.showToast(t('tasks.loadError'), 'danger');
       }
+    }
+
+    if (action === 'set-task-priority') {
+      const priority = target.dataset.priority;
+      const task = state.tasks.find((tk) => tk.id === parseInt(id, 10));
+      if (!task || !priority) return;
+      task.priority = priority;
+      renderTaskList(container);
+      try {
+        await api.patch(`/tasks/${id}/priority`, { priority });
+      } catch (err) {
+        task.priority = 'none';
+        renderTaskList(container);
+        window.planium.showToast(err.message, 'danger');
+      }
+      return;
     }
 
     if (action === 'delete-task-direct') {
@@ -1491,25 +1344,26 @@ function renderTaskTabsBar(container) {
 
   const householdTab = `
     <button class="task-tab ${state.activeTab === 'household' ? 'task-tab--active' : ''}"
-            data-action="switch-tab" data-tab="household">
-      <i data-lucide="users" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+            data-action="switch-tab" data-tab="household"
+            style="--tab-color:${esc(state.householdColor)}">
+      <i data-lucide="users" style="width:12px;height:12px;pointer-events:none;opacity:0.75;flex-shrink:0" aria-hidden="true"></i>
       ${esc(state.householdName || t('tasks.tabHousehold'))}
     </button>`;
 
   const personalTabs = state.taskLists.map((l) => {
     const isActive = state.activeTab === l.id;
-    const sharedIcon = !l.is_owner
-      ? '<i data-lucide="users" style="width:12px;height:12px;pointer-events:none;opacity:0.75" aria-hidden="true"></i>'
-      : '';
+    const isShared = !l.is_owner || (l.shared_user_ids?.length > 0);
+    const indicator = isShared
+      ? '<i data-lucide="users" style="width:12px;height:12px;pointer-events:none;opacity:0.75;flex-shrink:0" aria-hidden="true"></i>'
+      : '<span class="task-tab__color-dot" aria-hidden="true"></span>';
     return `
       <button class="task-tab ${isActive ? 'task-tab--active' : ''}"
               data-action="switch-tab" data-tab="${l.id}"
               data-list-id="${l.id}" data-owned="${l.is_owner ? '1' : '0'}"
               style="--tab-color: ${esc(l.color)}"
               title="${!l.is_owner && l.owner_name ? esc(t('tasks.sharedByLabel', { name: l.owner_name })) : esc(l.name)}">
-        <span class="task-tab__color-dot" aria-hidden="true"></span>
+        ${indicator}
         ${esc(l.name)}
-        ${sharedIcon}
         ${l.pending_count > 0 ? `<span class="task-tab__count">${l.pending_count}</span>` : ''}
       </button>`;
   }).join('');
@@ -1540,6 +1394,9 @@ function formatPersonalDueDate(iso) {
 function renderPersonalItemRow(item) {
   const due = formatPersonalDueDate(item.due_date);
   const isSelected = state.personalSelectedIds.has(item.id);
+  const list = state.taskLists.find((l) => l.id === state.activeTab);
+  const showPriority = list?.show_priority !== 0;
+  const isShared = list && (!list.is_owner || (list.shared_user_ids?.length > 0));
   return `
     <div class="task-card ${item.done ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}">
       <div class="task-card__main">
@@ -1556,14 +1413,21 @@ function renderPersonalItemRow(item) {
           <div class="task-card__title" data-action="edit-personal-item">
             ${linkify(item.title)}
           </div>
+          ${item.description ? `<div class="task-card__description">${esc(item.description)}</div>` : ''}
           <div class="task-card__meta">
             ${renderPriorityBadge(item.priority ?? 'none')}
             ${due ? `<span class="due-date ${due.cls}">
               <i data-lucide="clock" style="width:11px;height:11px" aria-hidden="true"></i> ${esc(due.label)}
             </span>` : ''}
+            ${item.is_recurring ? `<span class="due-date" aria-label="${t('tasks.recurring')}"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>` : ''}
           </div>
         </div>
-        ${(!item.priority || item.priority === 'none') && state.taskLists.find((l) => l.id === state.activeTab)?.show_priority !== 0 ? `
+        ${isShared && item.assigned_color ? `
+          <div class="task-avatar" style="background-color:${esc(item.assigned_color)}"
+               title="${esc(item.assigned_name)}">
+            ${esc(initials(item.assigned_name ?? ''))}
+          </div>` : ''}
+        ${(!item.priority || item.priority === 'none') && showPriority ? `
         <div class="priority-quick-flags" role="group" aria-label="Set priority">
           <button class="priority-quick-flag priority-quick-flag--urgent" data-action="set-personal-priority" data-priority="urgent" title="Urgent"></button>
           <button class="priority-quick-flag priority-quick-flag--high"   data-action="set-personal-priority" data-priority="high"   title="High"></button>
@@ -1593,12 +1457,23 @@ function renderPersonalItems() {
     return `<div class="task-group">${sortTasksForList(filtered).map(renderPersonalItemRow).join('')}</div>`;
   }
 
-  const pending = sortTasksForList(filtered.filter((i) => !i.done));
-  const done    = sortTasksForList(filtered.filter((i) =>  i.done));
+  const notDone   = filtered.filter((i) => !i.done);
+  const pending   = sortTasksForList(notDone.filter((i) => isRecurringTaskDue(i)));
+  const notYetDue = sortTasksForList(notDone.filter((i) => !isRecurringTaskDue(i)));
+  const done      = sortTasksForList(filtered.filter((i) =>  i.done));
   let html = '';
 
   if (pending.length) {
     html += `<div class="task-group">${pending.map(renderPersonalItemRow).join('')}</div>`;
+  }
+  if (notYetDue.length) {
+    html += `
+      <div class="task-group">
+        <div class="task-group__divider">
+          <span>${t('tasks.notYetDue')}</span>
+        </div>
+        ${notYetDue.map(renderPersonalItemRow).join('')}
+      </div>`;
   }
   if (done.length) {
     html += `
@@ -1624,7 +1499,8 @@ function getFilteredPersonalItems() {
   let items = state.personalItems;
   if (state.personalFilters.status === 'open') items = items.filter((i) => !i.done);
   else if (state.personalFilters.status === 'done') items = items.filter((i) =>  i.done);
-  if (state.personalFilters.priority === 'urgent') items = items.filter((i) => i.priority === 'urgent');
+  if (state.personalFilters.priority) items = items.filter((i) => i.priority === state.personalFilters.priority);
+  if (state.personalFilters.assigned_to) items = items.filter((i) => String(i.assigned_to) === state.personalFilters.assigned_to);
   const query = normalizeSearch(state.personalSearch);
   if (query) items = items.filter((i) => personalItemMatchesSearch(i, query));
   return items;
@@ -1634,8 +1510,10 @@ function renderPersonalFilters(container) {
   const menu = container.querySelector('#personal-filter-menu');
   if (!menu) return;
 
+  const list = state.taskLists.find((l) => l.id === state.activeTab);
+  const isShared = list && (!list.is_owner || (list.shared_user_ids?.length > 0));
+
   const sections = [];
-  const statusLabels   = STATUS_LABELS();
   const priorityLabels = PRIORITY_LABELS();
 
   sections.push(`<div class="filter-dropdown__section">
@@ -1665,6 +1543,22 @@ function renderPersonalFilters(container) {
     <input type="radio" name="personal-priority" value="" ${!state.personalFilters.priority ? 'checked' : ''} data-personal-filter="priority">
     <span class="filter-option__label">${t('tasks.clearFilter')}</span>
   </label></div>`);
+
+  if (isShared && state.users.length > 1) {
+    sections.push(`<div class="filter-dropdown__section">
+      <div class="filter-dropdown__title">${t('tasks.assignedLabel')}</div>`);
+    state.users.forEach((u) => {
+      const isActive = state.personalFilters.assigned_to === String(u.id);
+      sections.push(`<label class="filter-option">
+        <input type="radio" name="personal-assigned" value="${u.id}" ${isActive ? 'checked' : ''} data-personal-filter="assigned_to">
+        <span class="filter-option__label">${u.display_name}</span>
+      </label>`);
+    });
+    sections.push(`<label class="filter-option">
+      <input type="radio" name="personal-assigned" value="" ${!state.personalFilters.assigned_to ? 'checked' : ''} data-personal-filter="assigned_to">
+      <span class="filter-option__label">${t('tasks.clearFilter')}</span>
+    </label></div>`);
+  }
 
   menu.innerHTML = sections.join('');
   wirePersonalFilterDropdown(container);
@@ -1911,6 +1805,9 @@ function renderPersonalView(container) {
 
       <div id="personal-items-container"></div>
     </div>
+    <button class="page-fab" id="fab-new-personal-item" aria-label="${t('tasks.personalListAdd')}">
+      <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+    </button>
   `;
 
   if (window.lucide) window.lucide.createIcons();
@@ -2053,6 +1950,12 @@ function wirePersonalView(container) {
     }
   });
 
+  // FAB — opens a new item modal with just a title, like the quick-add but in a dialog
+  container.querySelector('#fab-new-personal-item')?.addEventListener('click', () => {
+    const addInput = view.querySelector('.personal-list__add-input');
+    if (addInput) addInput.focus();
+  });
+
   // Delegated click handler
   view.addEventListener('click', async (e) => {
     if (e.target.closest('a[href]')) return;
@@ -2148,12 +2051,19 @@ function wirePersonalView(container) {
       const item = state.personalItems.find((i) => i.id === itemId);
       if (!item) return;
       const newDone = !item.done;
+      const wasRecurring = item.is_recurring && item.recurrence_rule;
       item.done = newDone;
       refreshPersonalItems(container);
       const list = state.taskLists.find((l) => l.id === state.activeTab);
       if (list) { list.pending_count += newDone ? -1 : 1; renderTaskTabsBar(container); }
       try {
-        await api.patch(`/personal-lists/${state.activeTab}/items/${itemId}`, { done: newDone });
+        const res = await api.patch(`/personal-lists/${state.activeTab}/items/${itemId}`, { done: newDone });
+        // Server may have rescheduled a recurring item — sync state
+        if (wasRecurring && newDone && res.data?.done === 0) {
+          Object.assign(item, res.data);
+          if (list) { list.pending_count++; renderTaskTabsBar(container); }
+          refreshPersonalItems(container);
+        }
       } catch (err) {
         item.done = !newDone;
         if (list) { list.pending_count += newDone ? 1 : -1; renderTaskTabsBar(container); }
@@ -2207,7 +2117,13 @@ function wirePersonalView(container) {
 // --------------------------------------------------------
 
 function openHouseholdDialog({ container } = {}) {
-  const currentName = state.householdName || t('tasks.tabHousehold');
+  const currentName  = state.householdName || t('tasks.tabHousehold');
+  const currentColor = state.householdColor;
+
+  const swatches = PERSONAL_LIST_COLORS.map((c) => `
+    <button type="button" class="color-swatch ${c === currentColor ? 'color-swatch--active' : ''}"
+            data-color="${c}" style="background-color:${c}" aria-label="${c}"></button>
+  `).join('');
 
   openSharedModal({
     title: t('tasks.renameHousehold'),
@@ -2220,13 +2136,60 @@ function openHouseholdDialog({ container } = {}) {
                  value="${esc(currentName)}"
                  required maxlength="200" autocomplete="off">
         </div>
+
+        <div class="form-group">
+          <label class="label">${t('tasks.personalListColorLabel')}</label>
+          <div class="color-swatches" id="household-swatches">${swatches}</div>
+          <input type="hidden" id="household-color" value="${esc(currentColor)}">
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
+          <label class="label" style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer">
+            <input type="checkbox" id="household-show-priority" ${state.householdShowPriority ? 'checked' : ''}>
+            ${t('tasks.personalListShowPriority')}
+          </label>
+        </div>
+
         <div id="household-form-error" class="login-error" hidden></div>
-        <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
+        <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6);display:flex;justify-content:space-between;align-items:center;gap:var(--space-3)">
+          <button type="button" class="btn btn--ghost" id="household-delete-btn"
+                  style="color:var(--color-danger)">${t('common.delete')}</button>
           <button type="submit" class="btn btn--primary">${t('common.save')}</button>
         </div>
       </form>
     `,
     onSave(panel) {
+      // Color swatches
+      const swatchesEl = panel.querySelector('#household-swatches');
+      const colorInput = panel.querySelector('#household-color');
+      swatchesEl?.addEventListener('click', (e) => {
+        const swatch = e.target.closest('.color-swatch');
+        if (!swatch) return;
+        swatchesEl.querySelectorAll('.color-swatch--active')
+          .forEach((s) => s.classList.remove('color-swatch--active'));
+        swatch.classList.add('color-swatch--active');
+        colorInput.value = swatch.dataset.color;
+      });
+
+      // Delete all tasks
+      panel.querySelector('#household-delete-btn')?.addEventListener('click', async () => {
+        const ok = await showConfirm(
+          t('tasks.deleteHouseholdConfirm') ?? 'Delete ALL household tasks permanently? This cannot be undone.',
+          { danger: true }
+        );
+        if (!ok) return;
+        try {
+          await api.delete('/tasks');
+          state.tasks = [];
+          closeModal();
+          renderTaskList(container);
+          window.planium.showToast(t('tasks.deletedToast'), 'default');
+        } catch (err) {
+          panel.querySelector('#household-form-error').textContent = err.message;
+          panel.querySelector('#household-form-error').hidden = false;
+        }
+      });
+
       panel.querySelector('#household-form')
         ?.addEventListener('submit', (e) => {
           e.preventDefault();
@@ -2237,13 +2200,45 @@ function openHouseholdDialog({ container } = {}) {
             errEl.hidden = false;
             return;
           }
-          state.householdName = name;
-          localStorage.setItem('household-name', name);
+          const color        = colorInput.value;
+          const showPriority = panel.querySelector('#household-show-priority').checked;
+          state.householdName         = name;
+          state.householdColor        = color;
+          state.householdShowPriority = showPriority;
+          localStorage.setItem('household-name',          name);
+          localStorage.setItem('household-color',         color);
+          localStorage.setItem('household-show-priority', showPriority ? '1' : '0');
           renderTaskTabsBar(container);
           renderHouseholdView(container);
           closeModal();
           window.planium.showToast(t('tasks.savedToast'), 'success');
         });
+    },
+  });
+}
+
+function openHouseholdShareDialog({ container } = {}) {
+  const userRows = (state.users || []).map((u) => `
+    <div class="share-user-row">
+      <span class="share-user-row__avatar" style="background-color:${esc(u.avatar_color || '#888')}">
+        ${esc(initials(u.display_name || ''))}
+      </span>
+      <span class="share-user-row__name">${esc(u.display_name)}</span>
+    </div>`).join('') || `<div class="share-empty">${t('tasks.shareDialogEmpty')}</div>`;
+
+  openSharedModal({
+    title: t('tasks.sharePersonalList'),
+    size: 'sm',
+    content: `
+      <p class="share-help">${t('tasks.shareDialogHelp')}</p>
+      <div class="share-user-list">${userRows}</div>
+      <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
+        <button type="button" class="btn btn--primary" id="household-share-close">${t('common.close') ?? 'Close'}</button>
+      </div>
+    `,
+    onSave(panel) {
+      panel.querySelector('#household-share-close')?.addEventListener('click', () => closeModal());
+      if (window.lucide) window.lucide.createIcons();
     },
   });
 }
@@ -2360,13 +2355,20 @@ function openListDialog({ list = null, container } = {}) {
 
 export function openItemEditDialog({ item, container, listId = null, onSaved = null, onDeleted = null }) {
   const targetListId = listId ?? state.activeTab;
+  const list = state.taskLists.find((l) => l.id === targetListId);
+  const isShared = list && (!list.is_owner || (list.shared_user_ids?.length > 0));
+
   const priorityOptions = PRIORITIES().map((p) =>
     `<option value="${p.value}" ${(item.priority ?? 'none') === p.value ? 'selected' : ''}>${p.label}</option>`
   ).join('');
 
+  const assignedOptions = (state.users || []).map((u) =>
+    `<option value="${u.id}" ${item.assigned_to === u.id ? 'selected' : ''}>${esc(u.display_name)}</option>`
+  ).join('');
+
   openSharedModal({
     title: t('tasks.editPersonalItemTitle'),
-    size: 'sm',
+    size: 'lg',
     content: `
       <form id="personal-item-form" novalidate autocomplete="off">
         <div class="form-group">
@@ -2376,23 +2378,48 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         </div>
 
         <div class="form-group">
+          <label class="label" for="pi-description">${t('tasks.descriptionLabel')}</label>
+          <textarea class="input" id="pi-description" name="description"
+                    rows="2" style="resize:vertical"
+                    placeholder="${t('tasks.descriptionPlaceholder')}">${esc(item.description || '')}</textarea>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
           <label class="label" for="pi-priority">${t('tasks.priorityLabel')}</label>
           <select class="input" id="pi-priority" name="priority" style="min-height:44px">
             ${priorityOptions}
           </select>
         </div>
 
-        <div class="form-group">
-          <label class="label" for="pi-due">${t('tasks.dueDateLabel')}</label>
-          <div class="pi-due-row">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-top:var(--space-4)">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="label" for="pi-due">${t('tasks.dueDateLabel')}</label>
             <input class="input" type="date" id="pi-due" name="due_date"
                    value="${esc(item.due_date || '')}">
-            <button type="button" class="btn btn--ghost" id="pi-due-clear"
-                    ${item.due_date ? '' : 'hidden'}>
-              ${t('common.clear') ?? 'Clear'}
-            </button>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="label" for="pi-due-time">${t('tasks.dueTimeLabel')}</label>
+            <input class="input" type="time" id="pi-due-time" name="due_time"
+                   value="${esc(item.due_time || '')}">
           </div>
         </div>
+        <div style="margin-top:var(--space-2)">
+          <button type="button" class="btn btn--ghost" id="pi-due-clear"
+                  ${item.due_date ? '' : 'hidden'}>
+            ${t('common.clear') ?? 'Clear'}
+          </button>
+        </div>
+
+        ${isShared ? `
+        <div class="form-group" style="margin-top:var(--space-4)">
+          <label class="label" for="pi-assigned">${t('tasks.assignedLabel')}</label>
+          <select class="input" id="pi-assigned" name="assigned_to" style="min-height:44px">
+            <option value="">${t('tasks.assignedNobody')}</option>
+            ${assignedOptions}
+          </select>
+        </div>` : ''}
+
+        ${renderRRuleFields('pi', item.recurrence_rule)}
 
         <div id="pi-form-error" class="login-error" hidden></div>
 
@@ -2408,7 +2435,8 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
       </form>
     `,
     onSave(panel) {
-      // Date clear button
+      bindRRuleEvents(document, 'pi');
+
       const dueInput = panel.querySelector('#pi-due');
       const dueClear = panel.querySelector('#pi-due-clear');
       dueInput?.addEventListener('input', () => {
@@ -2419,7 +2447,6 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         dueClear.hidden = true;
       });
 
-      // Delete button
       panel.querySelector('#pi-delete-btn')?.addEventListener('click', async () => {
         const ok = await showConfirm(t('tasks.deleteItemConfirm') ?? 'Delete this item?',
           { danger: true });
@@ -2430,10 +2457,10 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
             onDeleted();
           } else {
             state.personalItems = state.personalItems.filter((i) => i.id !== item.id);
-            const list = state.taskLists.find((l) => l.id === targetListId);
-            if (list) {
-              if (!item.done) list.pending_count = Math.max(0, list.pending_count - 1);
-              list.total_count = Math.max(0, list.total_count - 1);
+            const lst = state.taskLists.find((l) => l.id === targetListId);
+            if (lst) {
+              if (!item.done) lst.pending_count = Math.max(0, lst.pending_count - 1);
+              lst.total_count = Math.max(0, lst.total_count - 1);
               renderTaskTabsBar(container);
             }
             refreshPersonalItems(container);
@@ -2446,7 +2473,6 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         }
       });
 
-      // Form submit
       panel.querySelector('#personal-item-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const errEl = panel.querySelector('#pi-form-error');
@@ -2457,16 +2483,31 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         const title = panel.querySelector('#pi-title').value.trim();
         const priority = panel.querySelector('#pi-priority')?.value ?? 'none';
         const due = dueInput.value || null;
+        const dueTime = panel.querySelector('#pi-due-time')?.value || null;
+        const description = panel.querySelector('#pi-description')?.value.trim() || null;
+        const rrule = getRRuleValues(document, 'pi');
+
         if (!title) {
           errEl.textContent = t('common.required');
           errEl.hidden = false;
           btn.disabled = false;
           return;
         }
+
+        const payload = {
+          title, priority, due_date: due, due_time: dueTime, description,
+          is_recurring: rrule.is_recurring ? 1 : 0,
+          recurrence_rule: rrule.recurrence_rule || null,
+        };
+        if (isShared) {
+          const assignedVal = panel.querySelector('#pi-assigned')?.value;
+          payload.assigned_to = assignedVal ? parseInt(assignedVal, 10) : null;
+        }
+
         try {
           const res = await api.patch(
             `/personal-lists/${targetListId}/items/${item.id}`,
-            { title, priority, due_date: due }
+            payload
           );
           Object.assign(item, res.data);
           if (onSaved) onSaved(res.data);
@@ -2574,7 +2615,7 @@ function wireTaskTabsBar(container) {
       const tab = target.dataset.tab === 'household' ? 'household' : parseInt(target.dataset.tab, 10);
       if (tab === state.activeTab) return;
       state.activeTab = tab;
-      state.personalFilters     = { status: '', priority: '' };
+      state.personalFilters     = { status: '', priority: '', assigned_to: '' };
       state.personalSelectMode  = false;
       state.personalSelectedIds = new Set();
       localStorage.setItem('tasks-active-tab', String(tab));
@@ -2683,56 +2724,74 @@ function renderHouseholdView(container) {
   if (!content) return;
 
   content.innerHTML = `
-    <div class="tasks-toolbar">
-      <div class="tasks-toolbar__heading">
-        <h1 class="tasks-toolbar__title" data-action="edit-household" role="button" tabindex="0"
-           style="cursor:pointer" title="${t('tasks.renameHousehold')}">
-         ${esc(state.householdName || t('tasks.tabHousehold'))}
-       </h1>
-      </div>
-      <div class="tasks-toolbar__actions">
-        ${renderToolbarSearch({
-          scope: 'task',
-          open: state.taskSearchOpen,
-          value: state.taskSearch,
-          label: t('tasks.searchLabel'),
-          placeholder: t('tasks.searchPlaceholder'),
-        })}
-        <div class="group-toggle" id="view-toggle">
-          <button class="group-toggle__btn group-toggle__btn--active" data-view="list"
-                  title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}">
-            <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+    <div class="personal-list" style="--list-color:${esc(state.householdColor)};--module-accent:${esc(state.householdColor)}">
+      <div class="tasks-toolbar">
+        <div class="tasks-toolbar__heading">
+          <span class="personal-list__color-dot" aria-hidden="true"></span>
+          <h1 class="tasks-toolbar__title" data-action="edit-household" role="button" tabindex="0"
+             style="cursor:pointer" title="${t('tasks.renameHousehold')}">
+           ${esc(state.householdName || t('tasks.tabHousehold'))}
+         </h1>
+        </div>
+        <div class="tasks-toolbar__actions">
+          ${renderToolbarSearch({
+            scope: 'task',
+            open: state.taskSearchOpen,
+            value: state.taskSearch,
+            label: t('tasks.searchLabel'),
+            placeholder: t('tasks.searchPlaceholder'),
+          })}
+          <div class="group-toggle" id="view-toggle">
+            <button class="group-toggle__btn group-toggle__btn--active" data-view="list"
+                    title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}">
+              <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+            </button>
+            <button class="group-toggle__btn" data-view="kanban"
+                    title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}">
+              <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="filter-dropdown" id="filter-dropdown">
+            <button class="btn btn--ghost btn--icon filter-dropdown__btn" id="btn-filter"
+                    aria-label="${t('tasks.filterLabel')}" aria-pressed="false"
+                    title="${t('tasks.filterLabel')}">
+              <i data-lucide="filter" style="width:18px;height:18px" aria-hidden="true"></i>
+            </button>
+            <div class="filter-dropdown__menu" id="filter-menu"></div>
+          </div>
+          <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
+                  aria-label="${t('tasks.selectMode')}" aria-pressed="false"
+                  title="${t('tasks.selectMode')}">
+            <i data-lucide="check-square" style="width:18px;height:18px" aria-hidden="true"></i>
           </button>
-          <button class="group-toggle__btn" data-view="kanban"
-                  title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}">
-            <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
+          <button class="btn btn--primary tasks-toolbar__new-btn" id="btn-new-task" style="gap:var(--space-1)">
+            <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i> ${t('tasks.newTask')}
+          </button>
+          <span class="bulk-bar__count tasks-toolbar__bulk-count" id="bulk-count" hidden></span>
+          <button class="btn btn--danger tasks-toolbar__bulk-btn" id="btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
+          <button class="btn btn--ghost btn--icon" id="btn-household-share"
+                  aria-label="${t('tasks.sharePersonalList')}" title="${t('tasks.sharePersonalList')}"
+                  style="color:var(--color-text-secondary)">
+            <i data-lucide="user-plus" style="width:18px;height:18px" aria-hidden="true"></i>
           </button>
         </div>
-        <div class="filter-dropdown" id="filter-dropdown">
-          <button class="btn btn--ghost btn--icon filter-dropdown__btn" id="btn-filter"
-                  aria-label="${t('tasks.filterLabel')}" aria-pressed="false"
-                  title="${t('tasks.filterLabel')}">
-            <i data-lucide="filter" style="width:18px;height:18px" aria-hidden="true"></i>
-          </button>
-          <div class="filter-dropdown__menu" id="filter-menu"></div>
-        </div>
-        <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
-                aria-label="${t('tasks.selectMode')}" aria-pressed="false"
-                title="${t('tasks.selectMode')}">
-          <i data-lucide="check-square" style="width:18px;height:18px" aria-hidden="true"></i>
-        </button>
-        <button class="btn btn--primary tasks-toolbar__new-btn" id="btn-new-task" style="gap:var(--space-1)">
-          <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i> ${t('tasks.newTask')}
-        </button>
-        <span class="bulk-bar__count tasks-toolbar__bulk-count" id="bulk-count" hidden></span>
-        <button class="btn btn--danger tasks-toolbar__bulk-btn" id="btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
       </div>
-    </div>
 
-    <div id="task-list"></div>
-    <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}">
-      <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
-    </button>
+      <form class="personal-list__add" id="household-quick-add" novalidate autocomplete="off">
+        <input class="personal-list__add-input" type="text" name="title"
+               placeholder="${t('tasks.titlePlaceholder')}"
+               maxlength="200" autocomplete="off">
+        <button class="personal-list__add-btn" type="submit"
+                aria-label="${t('tasks.newTask')}">
+          <i data-lucide="plus" style="width:20px;height:20px;pointer-events:none" aria-hidden="true"></i>
+        </button>
+      </form>
+
+      <div id="task-list" style="margin-top:var(--space-3)"></div>
+      <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}">
+        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+      </button>
+    </div>
   `;
 
   if (window.lucide) window.lucide.createIcons();
@@ -2743,6 +2802,23 @@ function renderHouseholdView(container) {
 
   wireViewToggle(container);
   wireNewTaskBtn(container);
+
+  // Household quick-add: creates a task with just a title
+  content.querySelector('#household-quick-add')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = e.currentTarget.querySelector('.personal-list__add-input');
+    const title = input.value.trim();
+    if (!title) return;
+    input.value = '';
+    try {
+      await api.post('/tasks', { title, priority: 'none' });
+      await loadTasks(container);
+      input.focus();
+    } catch (err) {
+      window.planium.showToast(err.message, 'danger');
+    }
+  });
+
   wireSelectMode(container);
   wireToolbarSearch(container, {
     scope: 'task',
@@ -2757,6 +2833,9 @@ function renderHouseholdView(container) {
 
   content.querySelector('[data-action="edit-household"]')
     ?.addEventListener('click', () => openHouseholdDialog({ container }));
+
+  content.querySelector('#btn-household-share')
+    ?.addEventListener('click', () => openHouseholdShareDialog({ container }));
 }
 
 // --------------------------------------------------------

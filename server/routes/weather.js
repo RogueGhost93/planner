@@ -50,24 +50,37 @@ router.get('/', async (req, res) => {
     }
     const currentJson = await currentRes.json();
 
-    // 5-Tage-Forecast (3h-Intervalle → wir nehmen Mittags-Werte für Tagesvorschau)
+    // 5-Tage-Forecast (3h-Intervalle → über alle Einträge eines Tages aggregieren)
     const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&appid=${apiKey}&units=${units}&lang=${lang}&cnt=40`;
     const forecastRes = await fetch(forecastUrl, { signal: AbortSignal.timeout(8000) });
     let forecastDays = [];
     if (forecastRes.ok) {
       const forecastJson = await forecastRes.json();
-      // Ein Eintrag pro Tag: nächstgelegener Mittags-Wert (12:00 Uhr)
-      const seen = new Set();
+      // Tages-Min/Max aus allen 3h-Werten; Icon/Beschreibung vom mittäglichen Eintrag
+      const buckets = new Map();
       for (const item of forecastJson.list ?? []) {
         const dateStr = item.dt_txt.slice(0, 10); // YYYY-MM-DD
-        if (seen.has(dateStr)) continue;
-        seen.add(dateStr);
+        const hour    = parseInt(item.dt_txt.slice(11, 13), 10);
+        let bucket = buckets.get(dateStr);
+        if (!bucket) {
+          bucket = { date: dateStr, min: Infinity, max: -Infinity, noon: null, noonDist: Infinity };
+          buckets.set(dateStr, bucket);
+        }
+        bucket.min = Math.min(bucket.min, item.main.temp_min);
+        bucket.max = Math.max(bucket.max, item.main.temp_max);
+        const dist = Math.abs(hour - 12);
+        if (dist < bucket.noonDist) {
+          bucket.noon = item;
+          bucket.noonDist = dist;
+        }
+      }
+      for (const bucket of buckets.values()) {
         forecastDays.push({
-          date:      dateStr,
-          temp_min:  Math.round(item.main.temp_min),
-          temp_max:  Math.round(item.main.temp_max),
-          icon:      item.weather[0]?.icon,
-          desc:      item.weather[0]?.description,
+          date:     bucket.date,
+          temp_min: Math.round(bucket.min),
+          temp_max: Math.round(bucket.max),
+          icon:     bucket.noon.weather[0]?.icon,
+          desc:     bucket.noon.weather[0]?.description,
         });
         if (forecastDays.length >= 5) break;
       }
