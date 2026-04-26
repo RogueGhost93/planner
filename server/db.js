@@ -750,6 +750,28 @@ const MIGRATIONS = [
         WHERE t.parent_task_id IS NULL;
     `,
   },
+  {
+    version: 26,
+    description: 'Add alarm fields to tasks',
+    up: `
+      ALTER TABLE tasks ADD COLUMN alarm_at TEXT;
+      ALTER TABLE tasks ADD COLUMN alarm_sent INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
+  {
+    version: 27,
+    description: 'Add push_subscriptions table',
+    up: `
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id    INTEGER NOT NULL,
+        endpoint   TEXT    NOT NULL UNIQUE,
+        p256dh     TEXT    NOT NULL,
+        auth       TEXT    NOT NULL,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+      );
+    `,
+  },
 ];
 
 /**

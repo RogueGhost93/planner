@@ -289,6 +289,35 @@ async function checkNotifications(prefs) {
   }
 }
 
+// --------------------------------------------------------
+// Push subscription
+// --------------------------------------------------------
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64  = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw     = atob(base64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+  try {
+    if (!('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) return; // already subscribed
+
+    const { publicKey } = await api.get('/push/vapid-public-key');
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(publicKey),
+    });
+
+    const { endpoint, keys } = sub.toJSON();
+    await api.post('/push/subscribe', { endpoint, keys });
+  } catch { /* push not available or denied */ }
+}
+
 /**
  * Initialise the notification system. Call once after login.
  * @param {Object} user - User object with notification preferences
@@ -304,6 +333,15 @@ export function initNotifications(user) {
     notify_interval: user.notify_interval ?? 4,
     notify_tone:     user.notify_tone  || 'default',
   };
+
+  // Request notification permission and subscribe to push for task alarms
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') subscribeToPush();
+    });
+  } else if ('Notification' in window && Notification.permission === 'granted') {
+    subscribeToPush();
+  }
 
   // Initial check (slight delay to let the page settle)
   setTimeout(() => checkNotifications(prefs), 1500);

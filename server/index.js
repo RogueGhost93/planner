@@ -30,6 +30,8 @@ import freshrssRouter from './routes/freshrss.js';
 import linkdingRouter from './routes/linkding.js';
 import bookmarksRouter from './routes/bookmarks.js';
 import fileboxRouter, { shareRouter as fileboxShareRouter } from './routes/filebox.js';
+import pushRouter from './routes/push.js';
+import { startAlarmScheduler } from './services/alarm-scheduler.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
@@ -182,6 +184,7 @@ app.use('/api/v1/freshrss', freshrssRouter);
 app.use('/api/v1/linkding', linkdingRouter);
 app.use('/api/v1/filebox', fileboxRouter);
 app.use('/api/v1', bookmarksRouter);
+app.use('/api/v1/push', pushRouter);
 
 // --------------------------------------------------------
 // Health-Check (für Docker)
@@ -243,6 +246,8 @@ async function runSync() {
 app.listen(PORT, () => {
   logPlanner.info(`Server laeuft auf Port ${PORT}`);
   logPlanner.info(`Umgebung: ${process.env.NODE_ENV || 'development'}`);
+
+  startAlarmScheduler();
 
   // Erster Sync nach 10 Sekunden (warten bis DB vollständig initialisiert)
   setTimeout(() => {

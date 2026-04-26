@@ -124,6 +124,7 @@
     "categoryLabel": "Category",
     "dueDateLabel": "Due date",
     "dueTimeLabel": "Time",
+    "alarmLabel": "Alarm",
     "assignedLabel": "Assigned to",
     "assignedNobody": "- Nobody -",
     "statusLabel": "Status",

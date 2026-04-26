@@ -60,6 +60,7 @@ function validateTaskInput(body, isCreate = true) {
     v.oneOf(body.category,  VALID_CATEGORIES, 'category'),
     v.date(body.due_date,   'due_date'),
     v.time(body.due_time,   'due_time'),
+    v.datetime(body.alarm_at, 'alarm_at'),
     v.rrule(body.recurrence_rule, 'recurrence_rule'),
   ]);
 }
@@ -207,6 +208,7 @@ router.post('/', (req, res) => {
       priority        = 'none',
       due_date        = null,
       due_time        = null,
+      alarm_at        = null,
       assigned_to     = null,
       parent_task_id  = null,
       is_recurring    = 0,
@@ -225,11 +227,11 @@ router.post('/', (req, res) => {
     const result = db.get().prepare(`
       INSERT INTO tasks
         (title, description, category, priority, due_date, due_time,
-         assigned_to, created_by, parent_task_id, is_recurring, recurrence_rule)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         alarm_at, assigned_to, created_by, parent_task_id, is_recurring, recurrence_rule)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       title.trim(), description, category, priority,
-      due_date, due_time, assigned_to, req.session.userId, parent_task_id,
+      due_date, due_time, alarm_at, assigned_to, req.session.userId, parent_task_id,
       is_recurring ? 1 : 0, recurrence_rule
     );
 
@@ -269,20 +271,26 @@ router.put('/:id', (req, res) => {
       status          = task.status,
       due_date        = task.due_date,
       due_time        = task.due_time,
+      alarm_at        = task.alarm_at,
       assigned_to     = task.assigned_to,
       is_recurring    = task.is_recurring,
       recurrence_rule = task.recurrence_rule,
     } = req.body;
 
+    // Reset alarm_sent when alarm time is changed so it fires again
+    const alarmChanged = (alarm_at ?? null) !== (task.alarm_at ?? null);
+
     db.get().prepare(`
       UPDATE tasks SET
         title = ?, description = ?, category = ?, priority = ?,
-        status = ?, due_date = ?, due_time = ?, assigned_to = ?,
-        is_recurring = ?, recurrence_rule = ?
+        status = ?, due_date = ?, due_time = ?, alarm_at = ?,
+        alarm_sent = CASE WHEN ? THEN 0 ELSE alarm_sent END,
+        assigned_to = ?, is_recurring = ?, recurrence_rule = ?
       WHERE id = ?
     `).run(title.trim(), description, category, priority,
-           status, due_date, due_time, assigned_to,
-           is_recurring ? 1 : 0, recurrence_rule, req.params.id);
+           status, due_date, due_time, alarm_at,
+           alarmChanged ? 1 : 0,
+           assigned_to, is_recurring ? 1 : 0, recurrence_rule, req.params.id);
 
     const updated = db.get().prepare(`
       SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color

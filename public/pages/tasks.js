@@ -383,6 +383,12 @@ function renderModalContent({ task = null, users = [] } = {}) {
         </div>
 
         <div class="form-group" style="margin-top:var(--space-4)">
+          <label class="label" for="task-alarm-at">${t('tasks.alarmLabel')}</label>
+          <input class="input" type="datetime-local" id="task-alarm-at" name="alarm_at"
+                 value="${task?.alarm_at ?? ''}">
+        </div>
+
+        <div class="form-group" style="margin-top:var(--space-4)">
           <label class="label" for="task-assigned">${t('tasks.assignedLabel')}</label>
           <select class="input" id="task-assigned" name="assigned_to" style="min-height:44px">
             <option value="">${t('tasks.assignedNobody')}</option>
@@ -681,6 +687,7 @@ async function handleFormSubmit(e, container) {
     priority:        form.priority.value,
     due_date:        form.due_date?.value || null,
     due_time:        form.due_time?.value || null,
+    alarm_at:        form.alarm_at?.value || null,
     assigned_to:     form.assigned_to.value ? Number(form.assigned_to.value) : null,
     is_recurring:    rrule.is_recurring ? 1 : 0,
     recurrence_rule: rrule.recurrence_rule,
@@ -1342,11 +1349,19 @@ function renderTaskTabsBar(container) {
   const bar = container.querySelector('#task-tabs-bar');
   if (!bar) return;
 
+  const activeList = state.taskLists.find((l) => l.id === state.activeTab);
+  if (activeList?.color) {
+    const c = activeList.color;
+    container.querySelector('.tasks-page')?.style.setProperty('--module-accent', c);
+    container.querySelector('.personal-list')?.style.setProperty('--module-accent', c);
+    document.documentElement.style.setProperty('--active-module-accent', c);
+  }
+
   const personalTabs = state.taskLists.map((l) => {
     const isActive = state.activeTab === l.id;
     const isShared = !l.is_owner || (l.shared_user_ids?.length > 0);
     const indicator = isShared
-      ? '<i data-lucide="users" style="width:12px;height:12px;pointer-events:none;opacity:0.75;flex-shrink:0" aria-hidden="true"></i>'
+      ? `<i data-lucide="users" style="width:12px;height:12px;pointer-events:none;flex-shrink:0;color:${isActive ? '#fff' : 'var(--tab-color)'}" aria-hidden="true"></i>`
       : '<span class="task-tab__color-dot" aria-hidden="true"></span>';
     return `
       <button class="task-tab ${isActive ? 'task-tab--active' : ''}"
@@ -1853,6 +1868,67 @@ function wirePersonalFilterDropdownToggle(container) {
   });
 }
 
+function openFabListMenu(container) {
+  container.querySelector('#fab-list-menu')?.remove();
+
+  const el = document.createElement('div');
+  el.id = 'fab-list-menu';
+  el.innerHTML = `
+    <div class="fab-list-menu__backdrop"></div>
+    <div class="fab-list-menu__panel">
+      ${state.taskLists.map((l) => `
+        <button class="fab-list-menu__item" data-list-id="${l.id}">
+          <span class="fab-list-menu__dot" style="background:${esc(l.color)}"></span>
+          <span class="fab-list-menu__name">${esc(l.name)}</span>
+          ${l.pending_count > 0 ? `<span class="fab-list-menu__count">${l.pending_count}</span>` : ''}
+        </button>
+      `).join('')}
+      <button class="fab-list-menu__item fab-list-menu__new" data-action="new-list">
+        <span class="fab-list-menu__dot fab-list-menu__dot--new">
+          <i data-lucide="plus" style="width:12px;height:12px" aria-hidden="true"></i>
+        </span>
+        <span class="fab-list-menu__name">${t('tasks.newPersonalList')}</span>
+      </button>
+    </div>
+  `;
+
+  container.appendChild(el);
+  if (window.lucide) window.lucide.createIcons({ nodes: [el] });
+
+  el.querySelector('.fab-list-menu__backdrop').addEventListener('click', () => el.remove());
+
+  el.querySelectorAll('[data-list-id]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      el.remove();
+      const listId = parseInt(btn.dataset.listId, 10);
+      openItemEditDialog({
+        item: {},
+        container,
+        listId,
+        onSaved: async () => {
+          const lst = state.taskLists.find((l) => l.id === listId);
+          if (state.activeTab !== listId) {
+            state.activeTab = listId;
+            state.personalFilters = { status: '', priority: '', assigned_to: '' };
+            localStorage.setItem('tasks-active-tab', String(listId));
+            renderTaskTabsBar(container);
+            await loadPersonalItems(listId);
+            renderPersonalView(container);
+          } else {
+            refreshPersonalItems(container);
+          }
+          if (lst) renderTaskTabsBar(container);
+        },
+      });
+    });
+  });
+
+  el.querySelector('[data-action="new-list"]')?.addEventListener('click', () => {
+    el.remove();
+    openListDialog({ container });
+  });
+}
+
 function wirePersonalView(container) {
   const view = container.querySelector('.personal-list');
   if (!view) return;
@@ -1936,10 +2012,9 @@ function wirePersonalView(container) {
     }
   });
 
-  // FAB — opens a new item modal with just a title, like the quick-add but in a dialog
+  // FAB — opens list picker menu
   container.querySelector('#fab-new-personal-item')?.addEventListener('click', () => {
-    const addInput = view.querySelector('.personal-list__add-input');
-    if (addInput) addInput.focus();
+    openFabListMenu(container);
   });
 
   // Delegated click handler
@@ -2000,11 +2075,12 @@ function wirePersonalView(container) {
       try {
         await api.delete(`/personal-lists/${state.activeTab}`);
         state.taskLists = state.taskLists.filter((l) => l.id !== state.activeTab);
-        state.activeTab = 'household';
-        localStorage.setItem('tasks-active-tab', 'household');
+        const householdList = state.taskLists.find((l) => l.is_household) ?? state.taskLists[0];
+        state.activeTab = householdList?.id ?? null;
+        localStorage.setItem('tasks-active-tab', String(state.activeTab));
         renderTaskTabsBar(container);
-        await loadTasks(container);
-        renderHouseholdView(container);
+        if (state.activeTab) await loadPersonalItems(state.activeTab);
+        renderPersonalView(container);
         window.planium.showToast(t('tasks.personalListDeletedToast'), 'default');
       } catch (err) {
         window.planium.showToast(err.message, 'danger');
@@ -2406,12 +2482,10 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         <div id="pi-form-error" class="login-error" hidden></div>
 
         <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6);display:flex;justify-content:space-between;align-items:center;gap:var(--space-3)">
-          <button type="button" class="btn btn--ghost" id="pi-delete-btn"
-                  style="color:var(--color-danger)">
-            ${t('common.delete')}
-          </button>
+          ${item.id ? `<button type="button" class="btn btn--ghost" id="pi-delete-btn"
+                  style="color:var(--color-danger)">${t('common.delete')}</button>` : '<span></span>'}
           <button type="submit" class="btn btn--primary" id="pi-submit">
-            ${t('common.save')}
+            ${item.id ? t('common.save') : (t('common.add') ?? 'Add')}
           </button>
         </div>
       </form>
@@ -2487,11 +2561,18 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         }
 
         try {
-          const res = await api.patch(
-            `/personal-lists/${targetListId}/items/${item.id}`,
-            payload
-          );
-          Object.assign(item, res.data);
+          let res;
+          if (item.id) {
+            res = await api.patch(`/personal-lists/${targetListId}/items/${item.id}`, payload);
+            Object.assign(item, res.data);
+          } else {
+            res = await api.post(`/personal-lists/${targetListId}/items`, payload);
+            const lst = state.taskLists.find((l) => l.id === targetListId);
+            if (lst) { lst.pending_count++; lst.total_count++; renderTaskTabsBar(container); }
+            if (state.activeTab === targetListId) {
+              state.personalItems.push(res.data);
+            }
+          }
           if (onSaved) onSaved(res.data);
           else refreshPersonalItems(container);
           closeModal();

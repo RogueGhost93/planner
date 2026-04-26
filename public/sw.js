@@ -12,9 +12,9 @@
  *   API: Always network (no caching of user data)
  */
 
-const SHELL_CACHE   = 'planium-shell-v136';
-const PAGES_CACHE   = 'planium-pages-v136';
-const ASSETS_CACHE  = 'planium-assets-v136';
+const SHELL_CACHE   = 'planium-shell-v137';
+const PAGES_CACHE   = 'planium-pages-v137';
+const ASSETS_CACHE  = 'planium-assets-v137';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App shell: needed immediately for first render
@@ -237,6 +237,37 @@ async function cacheFirst(request, cacheName) {
     return new Response('', { status: 408 });
   }
 }
+
+// --------------------------------------------------------
+// Push notifications: task alarms
+// --------------------------------------------------------
+self.addEventListener('push', (event) => {
+  let data = { title: 'Planium', body: 'Task alarm', taskId: null };
+  try { data = event.data.json(); } catch {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/favicon-32.png',
+      tag: `task-alarm-${data.taskId ?? 'x'}`,
+      renotify: true,
+      data: { taskId: data.taskId },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) return client.focus();
+      }
+      if (clients.openWindow) return clients.openWindow('/');
+    })
+  );
+});
 
 // --------------------------------------------------------
 // Helper functions
