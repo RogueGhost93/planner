@@ -297,11 +297,21 @@
     justify-content: space-between;
   }
 
+  .news-toolbar__actions {
+    gap: var(--space-1);
+  }
+
   .news-limit-toggle__btn {
     min-width: 32px;
     min-height: 28px;
     padding: var(--space-0h) var(--space-1h);
     font-size: var(--text-xs);
+  }
+
+  .news-font-toggle__btn {
+    min-width: 28px;
+    min-height: 28px;
+    padding: var(--space-0h) var(--space-1h);
   }
 
   .news-item {
