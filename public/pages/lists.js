@@ -70,13 +70,16 @@ function renderHeadBody(container) {
 
   content.innerHTML = `
     <div class="list-header">
-      <span class="list-header__name" data-action="rename-head" role="button" tabindex="0"
-            aria-label="${t('shopping.renameHeadLabel')}">
+      <span class="list-header__name">
         ${state.head.is_private ? `<i data-lucide="lock" style="width:14px;height:14px;opacity:0.6;flex-shrink:0" aria-hidden="true"></i>` : ''}
         ${esc(state.head.name)}
-        <i data-lucide="pencil" class="list-header__edit-icon" aria-hidden="true"></i>
       </span>
       <div class="list-header__actions">
+        <button class="btn btn--ghost btn--icon" data-action="rename-head"
+                aria-label="${t('shopping.renameHeadLabel')}"
+                style="color:var(--color-text-secondary)">
+          <i data-lucide="settings" style="width:18px;height:18px" aria-hidden="true"></i>
+        </button>
         <button class="btn btn--ghost btn--icon" data-action="delete-head"
                 aria-label="${t('shopping.deleteHeadLabel')}"
                 style="color:var(--color-text-secondary)">
