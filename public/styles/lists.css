@@ -146,7 +146,14 @@
 .list-header__edit-icon {
   width: var(--space-4);
   height: var(--space-4);
-  color: var(--color-text-disabled);
+  color: var(--color-text-secondary);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.list-header__name:hover .list-header__edit-icon,
+.list-header__name:focus-visible .list-header__edit-icon {
+  opacity: 1;
 }
 
 .list-header__actions {
