@@ -42,6 +42,16 @@ const INTEGRATIONS = [
       { key: 'token', label: 'API token', type: 'password', placeholder: 'Your Linkding API token', autocomplete: 'off', hint: 'Generate a token in your Linkding account settings' },
     ],
   },
+  {
+    id: 'weather',
+    label: 'Weather',
+    endpoint: '/weather',
+    fields: [
+      { key: 'city',  label: 'City',     type: 'text', placeholder: 'e.g. Berlin' },
+      { key: 'units', label: 'Units',    type: 'text', placeholder: 'metric / imperial / standard' },
+      { key: 'lang',  label: 'Language', type: 'text', placeholder: 'en, de, hr, …' },
+    ],
+  },
 ];
 
 /**
@@ -61,18 +71,20 @@ export async function render(container, { user }) {
   let mealieStatus   = { configured: false, url: null };
   let freshrssStatus = { configured: false };
   let linkdingStatus = { configured: false, url: null };
+  let weatherStatus  = { configured: false };
   let fileboxStatus  = { enabled: false };
   let taskLists      = [];
   const myConfigs    = {};
 
   try {
-    const [usersRes, gStatus, aStatus, mStatus, fStatus, lStatus, fbStatus, tlRes, ...myCfgRes] = await Promise.allSettled([
+    const [usersRes, gStatus, aStatus, mStatus, fStatus, lStatus, wStatus, fbStatus, tlRes, ...myCfgRes] = await Promise.allSettled([
       user.role === 'admin' ? auth.getUsers() : Promise.resolve({ data: [] }),
       api.get('/calendar/google/status'),
       api.get('/calendar/apple/status'),
       api.get('/mealie/status'),
       api.get('/freshrss/status'),
       api.get('/linkding/status'),
+      api.get('/weather/status'),
       api.get('/filebox/status'),
       api.get('/task-lists'),
       ...INTEGRATIONS.map(i => api.get(`${i.endpoint}/my-config`)),
@@ -83,6 +95,7 @@ export async function render(container, { user }) {
     if (mStatus.status  === 'fulfilled')  mealieStatus   = mStatus.value;
     if (fStatus.status  === 'fulfilled')  freshrssStatus = fStatus.value;
     if (lStatus.status  === 'fulfilled')  linkdingStatus = lStatus.value;
+    if (wStatus.status  === 'fulfilled')  weatherStatus  = wStatus.value;
     if (fbStatus.status === 'fulfilled')  fileboxStatus  = fbStatus.value;
     if (tlRes.status    === 'fulfilled')  taskLists      = tlRes.value.data ?? [];
     INTEGRATIONS.forEach((i, idx) => {
@@ -522,6 +535,53 @@ export async function render(container, { user }) {
             </form>
           ` : ''}
           ${renderPersonalOverride(INTEGRATIONS[2], myConfigs.linkding)}
+        </div>
+      </details>
+
+      <!-- Weather Integration -->
+      <details class="settings-section">
+        <summary class="settings-section__title">Weather</summary>
+        <div class="settings-card" id="weather-card">
+          <div class="settings-sync-header">
+            <div class="settings-sync-logo settings-sync-logo--mealie">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+            </div>
+            <div class="settings-sync-info">
+              <div class="settings-sync-info__name">Weather</div>
+              <div class="settings-sync-info__status ${weatherStatus?.configured ? 'settings-sync-info__status--connected' : ''}" id="weather-status-text">
+                ${weatherStatus?.configured ? `Connected — ${esc(weatherStatus.city ?? '')}` : 'Not connected'}
+              </div>
+            </div>
+          </div>
+          ${weatherStatus?.configured ? `
+            ${user?.role === 'admin' ? `
+            <div class="settings-sync-actions" style="margin-top:var(--space-4)">
+              <button class="btn btn--danger-outline" id="weather-disconnect-btn">Disconnect</button>
+            </div>` : ''}
+          ` : user?.role === 'admin' ? `
+            <form id="weather-connect-form" class="settings-form settings-form--compact">
+              <div class="form-group">
+                <label class="form-label" for="weather-api-key">OpenWeatherMap API key</label>
+                <input class="form-input" type="password" id="weather-api-key" autocomplete="off" required />
+                <span class="form-hint">Get a free key at openweathermap.org</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="weather-city">Default city</label>
+                <input class="form-input" type="text" id="weather-city" placeholder="e.g. Berlin" required />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="weather-units">Units</label>
+                <input class="form-input" type="text" id="weather-units" placeholder="metric / imperial / standard" value="metric" />
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="weather-lang">Language</label>
+                <input class="form-input" type="text" id="weather-lang" placeholder="en, de, hr, …" value="en" />
+              </div>
+              <div id="weather-connect-error" class="form-error" hidden></div>
+              <button type="submit" class="btn btn--primary" id="weather-connect-btn">Save</button>
+            </form>
+          ` : ''}
+          ${renderPersonalOverride(INTEGRATIONS[3], myConfigs.weather)}
         </div>
       </details>
 
@@ -1086,6 +1146,46 @@ function bindEvents(container, user) {
       try {
         await api.delete('/linkding/config');
         window.planium?.showToast('Linkding disconnected', 'default');
+        window.planium?.navigate('/settings');
+      } catch (err) {
+        window.planium?.showToast(err.data?.error ?? err.message, 'danger');
+      }
+    });
+  }
+
+  // Weather connect
+  const weatherConnectForm = container.querySelector('#weather-connect-form');
+  if (weatherConnectForm) {
+    weatherConnectForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const errorEl = container.querySelector('#weather-connect-error');
+      errorEl.hidden = true;
+      const api_key = container.querySelector('#weather-api-key').value.trim();
+      const city    = container.querySelector('#weather-city').value.trim();
+      const units   = container.querySelector('#weather-units').value.trim();
+      const lang    = container.querySelector('#weather-lang').value.trim();
+      const btn     = container.querySelector('#weather-connect-btn');
+      btn.disabled  = true;
+      try {
+        await api.post('/weather/config', { api_key, city, units, lang });
+        window.planium?.showToast('Weather connected', 'success');
+        window.planium?.navigate('/settings');
+      } catch (err) {
+        errorEl.textContent = err.data?.error ?? err.message ?? 'Failed to save';
+        errorEl.hidden = false;
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // Weather disconnect
+  const weatherDisconnectBtn = container.querySelector('#weather-disconnect-btn');
+  if (weatherDisconnectBtn) {
+    weatherDisconnectBtn.addEventListener('click', async () => {
+      if (!await showConfirm('Disconnect Weather?', { danger: true })) return;
+      try {
+        await api.delete('/weather/config');
+        window.planium?.showToast('Weather disconnected', 'default');
         window.planium?.navigate('/settings');
       } catch (err) {
         window.planium?.showToast(err.data?.error ?? err.message, 'danger');

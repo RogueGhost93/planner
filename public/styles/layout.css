@@ -1797,3 +1797,37 @@
   will-change: transform;
   backface-visibility: hidden;
 }
+
+/* --------------------------------------------------------
+ * Pull-to-Refresh indicator
+ * -------------------------------------------------------- */
+.ptr-indicator {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  width: 36px;
+  height: 36px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  z-index: var(--z-toast);
+  pointer-events: none;
+}
+
+.ptr-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--color-border-subtle);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: ptr-spin 0.7s linear infinite;
+}
+
+@keyframes ptr-spin {
+  to { transform: rotate(360deg); }
+}

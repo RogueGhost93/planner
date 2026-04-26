@@ -7,6 +7,7 @@
 import { auth, api } from '/api.js';
 import { initI18n, getLocale, t } from '/i18n.js';
 import { initNotifications, stopNotifications } from '/components/task-notifications.js';
+import { init as initPTR } from '/utils/pullToRefresh.js';
 
 // --------------------------------------------------------
 // Route definitions
@@ -253,7 +254,7 @@ async function navigate(path, userOrPushState = true, pushState = true) {
  * @param {{ path: string, page: string }} route
  * @param {string|null} previousPath - Path before navigation (for direction calculation)
  */
-async function renderPage(route, previousPath = null) {
+async function renderPage(route, previousPath = null, { noTransition = false } = {}) {
   const app = document.getElementById('app');
   const loading = document.getElementById('app-loading');
 
@@ -277,6 +278,7 @@ async function renderPage(route, previousPath = null) {
     if (!document.querySelector('.nav-bottom') && currentUser) {
       renderAppShell(app);
       refreshOptionalNavItems();
+      initPTR();
     }
 
     const content = document.getElementById('main-content') || app;
@@ -288,9 +290,11 @@ async function renderPage(route, previousPath = null) {
 
     // Briefly fade out old page, if present
     const oldPage = content.querySelector('.page-transition');
-    if (oldPage) {
+    if (oldPage && !noTransition) {
       oldPage.classList.add(outClass);
       await new Promise(r => setTimeout(r, 120));
+    } else if (oldPage) {
+      oldPage.remove();
     }
 
     // Remove any FABs that were hoisted out of the previous page wrapper.
@@ -317,13 +321,15 @@ async function renderPage(route, previousPath = null) {
 
     // Make visible and start animation only after render() + CSS
     pageWrapper.style.opacity = '';
-    pageWrapper.classList.add(inClass);
-    // Remove animation class after it finishes so that the lingering
-    // transform: translateX(0) from `forwards` fill-mode does not create a
-    // new containing block, which would break position:fixed children (FABs).
-    pageWrapper.addEventListener('animationend', () => {
-      pageWrapper.classList.remove(inClass);
-    }, { once: true });
+    if (!noTransition) {
+      pageWrapper.classList.add(inClass);
+      // Remove animation class after it finishes so that the lingering
+      // transform: translateX(0) from `forwards` fill-mode does not create a
+      // new containing block, which would break position:fixed children (FABs).
+      pageWrapper.addEventListener('animationend', () => {
+        pageWrapper.classList.remove(inClass);
+      }, { once: true });
+    }
 
   } catch (err) {
     console.error('[Router] Page render error:', err);
@@ -633,6 +639,10 @@ window.planium = {
   setThemeColor,
   applyBackground,
   refreshOptionalNavItems,
+  refresh: () => {
+    const route = ROUTES.find(r => r.path === currentPath);
+    if (route) renderPage(route, null, { noTransition: true });
+  },
   restoreThemeColor: () => {
     const route = ROUTES.find((r) => r.path === currentPath);
     updateThemeColorForRoute(route);
