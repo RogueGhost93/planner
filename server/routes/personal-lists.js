@@ -99,14 +99,16 @@ router.post('/', (req, res) => {
     const errs = collectErrors([vName, vColor]);
     if (errs.length) return res.status(400).json({ error: errs.join(' '), code: 400 });
 
+    const show_priority = req.body.show_priority !== undefined ? (req.body.show_priority ? 1 : 0) : 1;
+
     const id = db.transaction(() => {
       const maxOrder = db.get()
         .prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM task_lists WHERE owner_id = ?')
         .get(req.session.userId).m;
       const result = db.get().prepare(`
-        INSERT INTO task_lists (owner_id, name, color, sort_order)
-        VALUES (?, ?, ?, ?)
-      `).run(req.session.userId, vName.value, vColor.value || '#2563EB', maxOrder + 1);
+        INSERT INTO task_lists (owner_id, name, color, sort_order, show_priority)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(req.session.userId, vName.value, vColor.value || '#2563EB', maxOrder + 1, show_priority);
       return result.lastInsertRowid;
     });
 
@@ -167,11 +169,12 @@ router.put('/:id', (req, res) => {
     const errs = collectErrors(checks);
     if (errs.length) return res.status(400).json({ error: errs.join(' '), code: 400 });
 
-    const newName  = req.body.name  !== undefined ? req.body.name.trim() : list.name;
-    const newColor = req.body.color !== undefined ? req.body.color       : list.color;
+    const newName         = req.body.name          !== undefined ? req.body.name.trim() : list.name;
+    const newColor        = req.body.color         !== undefined ? req.body.color       : list.color;
+    const newShowPriority = req.body.show_priority !== undefined ? (req.body.show_priority ? 1 : 0) : list.show_priority;
 
-    db.get().prepare('UPDATE task_lists SET name = ?, color = ? WHERE id = ?')
-      .run(newName, newColor, req.params.id);
+    db.get().prepare('UPDATE task_lists SET name = ?, color = ?, show_priority = ? WHERE id = ?')
+      .run(newName, newColor, newShowPriority, req.params.id);
 
     res.json({ data: db.get().prepare('SELECT * FROM task_lists WHERE id = ?').get(req.params.id) });
   } catch (err) {

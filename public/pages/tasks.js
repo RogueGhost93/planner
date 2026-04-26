@@ -205,7 +205,6 @@ function renderTaskCard(task, opts = {}) {
             ${renderPriorityBadge(task.priority)}
             ${renderDueDate(task.due_date)}
             ${task.is_recurring ? `<span class="due-date" aria-label="${t('tasks.recurring')}"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>` : ''}
-            ${task.category !== 'Other' ? `<span class="due-date">${CATEGORY_LABELS()[task.category] ?? task.category}</span>` : ''}
           </div>
         </div>
 
@@ -1572,7 +1571,7 @@ function renderPersonalItemRow(item) {
             </span>` : ''}
           </div>
         </div>
-        ${!item.priority || item.priority === 'none' ? `
+        ${(!item.priority || item.priority === 'none') && state.taskLists.find((l) => l.id === state.activeTab)?.show_priority !== 0 ? `
         <div class="priority-quick-flags" role="group" aria-label="Set priority">
           <button class="priority-quick-flag priority-quick-flag--urgent" data-action="set-personal-priority" data-priority="urgent" title="Urgent"></button>
           <button class="priority-quick-flag priority-quick-flag--high"   data-action="set-personal-priority" data-priority="high"   title="High"></button>
@@ -2286,6 +2285,13 @@ function openListDialog({ list = null, container } = {}) {
           <input type="hidden" id="personal-list-color" value="${currentColor}">
         </div>
 
+        <div class="form-group" style="margin-bottom:0">
+          <label class="label" style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer">
+            <input type="checkbox" id="personal-list-show-priority" ${(list?.show_priority ?? 1) ? 'checked' : ''}>
+            ${t('tasks.personalListShowPriority')}
+          </label>
+        </div>
+
         <div id="personal-list-form-error" class="login-error" hidden></div>
 
         <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
@@ -2317,8 +2323,9 @@ function openListDialog({ list = null, container } = {}) {
           errEl.hidden = true;
           btn.disabled = true;
 
-          const name  = panel.querySelector('#personal-list-name').value.trim();
-          const color = colorInput.value;
+          const name          = panel.querySelector('#personal-list-name').value.trim();
+          const color         = colorInput.value;
+          const show_priority = panel.querySelector('#personal-list-show-priority').checked ? 1 : 0;
           if (!name) {
             errEl.textContent = t('common.required');
             errEl.hidden = false;
@@ -2328,14 +2335,14 @@ function openListDialog({ list = null, container } = {}) {
 
           try {
             if (isEdit) {
-              const res = await api.put(`/personal-lists/${list.id}`, { name, color });
+              const res = await api.put(`/personal-lists/${list.id}`, { name, color, show_priority });
               const idx = state.taskLists.findIndex((l) => l.id === list.id);
               if (idx >= 0) state.taskLists[idx] = { ...state.taskLists[idx], ...res.data };
               renderTaskTabsBar(container);
               renderPersonalView(container);
               window.planium.showToast(t('tasks.savedToast'), 'success');
             } else {
-              const res = await api.post('/personal-lists', { name, color });
+              const res = await api.post('/personal-lists', { name, color, show_priority });
               state.taskLists.push(res.data);
               state.activeTab = res.data.id;
               localStorage.setItem('tasks-active-tab', String(res.data.id));

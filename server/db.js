@@ -702,6 +702,14 @@ const MIGRATIONS = [
       PRAGMA foreign_keys=ON;
     `,
   },
+  {
+    version: 22,
+    description: 'Add is_private to head_lists, show_priority to task_lists',
+    up: `
+      ALTER TABLE head_lists ADD COLUMN is_private INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE task_lists ADD COLUMN show_priority INTEGER NOT NULL DEFAULT 1;
+    `,
+  },
 ];
 
 /**

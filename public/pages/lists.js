@@ -72,6 +72,7 @@ function renderHeadBody(container) {
     <div class="list-header">
       <span class="list-header__name" data-action="rename-head" role="button" tabindex="0"
             aria-label="${t('shopping.renameHeadLabel')}">
+        ${state.head.is_private ? `<i data-lucide="lock" style="width:14px;height:14px;opacity:0.6;flex-shrink:0" aria-hidden="true"></i>` : ''}
         ${esc(state.head.name)}
         <i data-lucide="pencil" class="list-header__edit-icon" aria-hidden="true"></i>
       </span>
@@ -375,6 +376,65 @@ function rerenderCurrentHead(container) {
   renderHeadBody(container);
 }
 
+function openHeadDialog({ head = null, container } = {}) {
+  const isEdit = !!head;
+  openModal({
+    title: isEdit ? t('shopping.renameHeadPrompt') : t('shopping.newHeadPrompt'),
+    size: 'sm',
+    content: `
+      <form id="head-list-form" novalidate autocomplete="off">
+        <div class="form-group">
+          <label class="label" for="head-list-name">${t('shopping.newHeadPrompt')}</label>
+          <input class="input" type="text" id="head-list-name" name="name"
+                 value="${esc(head?.name ?? '')}"
+                 required maxlength="200" autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="label" style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer">
+            <input type="checkbox" id="head-list-private" ${head?.is_private ? 'checked' : ''}>
+            ${t('shopping.headListPrivate')}
+          </label>
+        </div>
+        <div id="head-list-form-error" class="login-error" hidden></div>
+        <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
+          <button type="submit" class="btn btn--primary">${isEdit ? t('common.save') : t('common.create')}</button>
+        </div>
+      </form>
+    `,
+    onSave(panel) {
+      panel.querySelector('#head-list-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errEl = panel.querySelector('#head-list-form-error');
+        const btn   = panel.querySelector('button[type="submit"]');
+        const name  = panel.querySelector('#head-list-name').value.trim();
+        const is_private = panel.querySelector('#head-list-private').checked ? 1 : 0;
+        if (!name) { errEl.textContent = t('common.required'); errEl.hidden = false; return; }
+        btn.disabled = true;
+        try {
+          if (isEdit) {
+            const res = await api.put(`/lists/heads/${head.id}`, { name, is_private });
+            state.head.name       = res.data.name;
+            state.head.is_private = res.data.is_private;
+            const h = state.heads.find((x) => x.id === head.id);
+            if (h) { h.name = res.data.name; h.is_private = res.data.is_private; }
+            rerenderCurrentHead(container);
+          } else {
+            const res = await api.post('/lists/heads', { name, is_private });
+            state.heads.push(res.data);
+            await switchHead(res.data.id, container);
+          }
+          closeModal();
+        } catch (err) {
+          errEl.textContent = err.message;
+          errEl.hidden = false;
+          btn.disabled = false;
+        }
+      });
+      setTimeout(() => panel.querySelector('#head-list-name')?.focus(), 0);
+    },
+  });
+}
+
 async function switchHead(headId, container) {
   try {
     await loadHead(headId);
@@ -403,25 +463,12 @@ function wireContentEvents(container) {
     }
 
     if (action === 'new-head') {
-      const name = await showPrompt(t('shopping.newHeadPrompt'));
-      if (!name?.trim()) return;
-      try {
-        const res = await api.post('/lists/heads', { name: name.trim() });
-        state.heads.push(res.data);
-        await switchHead(res.data.id, container);
-      } catch (err) { window.planium.showToast(err.message, 'danger'); }
+      openHeadDialog({ container });
       return;
     }
 
     if (action === 'rename-head') {
-      const name = await showPrompt(t('shopping.renameHeadPrompt'), state.head?.name);
-      if (!name?.trim() || name.trim() === state.head.name) return;
-      try {
-        const res = await api.put(`/lists/heads/${state.head.id}`, { name: name.trim() });
-        state.head.name = res.data.name;
-        const h = state.heads.find((x) => x.id === state.head.id); if (h) h.name = res.data.name;
-        rerenderCurrentHead(container);
-      } catch (err) { window.planium.showToast(err.message, 'danger'); }
+      openHeadDialog({ head: state.head, container });
       return;
     }
 
@@ -763,13 +810,7 @@ function wireFabMenu(container) {
     if (!btn) return;
     setOpen(false);
     if (btn.dataset.fabAction === 'new-head') {
-      const name = await showPrompt(t('shopping.newHeadPrompt'));
-      if (!name?.trim()) return;
-      try {
-        const res = await api.post('/lists/heads', { name: name.trim() });
-        state.heads.push(res.data);
-        await switchHead(res.data.id, container);
-      } catch (err) { window.planium.showToast(err.message, 'danger'); }
+      openHeadDialog({ container });
     } else if (btn.dataset.fabAction === 'add-item') {
       openAddItemDialog(container);
     }
