@@ -16,18 +16,19 @@ const router = express.Router();
 // --------------------------------------------------------
 // Helpers
 // --------------------------------------------------------
-function headCounts() {
+function headCounts(userId) {
   return db.get().prepare(`
     SELECT
-      h.id, h.name, h.sort_order, h.created_at, h.updated_at,
+      h.id, h.name, h.sort_order, h.is_private, h.created_by, h.created_at, h.updated_at,
       COALESCE(SUM(CASE WHEN li.id IS NOT NULL AND li.is_checked = 0 THEN 1 ELSE 0 END), 0) AS unchecked_count,
       COALESCE(COUNT(DISTINCT l.id), 0) AS sublist_count
     FROM head_lists h
     LEFT JOIN lists l      ON l.head_list_id = h.id
     LEFT JOIN list_items li ON li.list_id = l.id
+    WHERE h.is_private = 0 OR h.created_by = ?
     GROUP BY h.id
     ORDER BY h.sort_order ASC
-  `).all();
+  `).all(userId);
 }
 
 // --------------------------------------------------------
@@ -55,7 +56,7 @@ router.get('/suggestions', (req, res) => {
 // --------------------------------------------------------
 router.get('/heads', (req, res) => {
   try {
-    res.json({ data: headCounts() });
+    res.json({ data: headCounts(req.session.userId) });
   } catch (err) {
     log.error('GET /heads', err);
     res.status(500).json({ error: 'Interner Serverfehler.', code: 500 });
@@ -66,14 +67,15 @@ router.post('/heads', (req, res) => {
   try {
     const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
     if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
+    const is_private = req.body.is_private ? 1 : 0;
 
     const id = db.transaction(() => {
       const maxOrder = db.get()
         .prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM head_lists')
         .get().m;
       const { lastInsertRowid } = db.get()
-        .prepare('INSERT INTO head_lists (name, sort_order, created_by) VALUES (?, ?, ?)')
-        .run(vName.value, maxOrder + 1, req.session.userId);
+        .prepare('INSERT INTO head_lists (name, sort_order, created_by, is_private) VALUES (?, ?, ?, ?)')
+        .run(vName.value, maxOrder + 1, req.session.userId, is_private);
       return lastInsertRowid;
     });
 
@@ -89,11 +91,14 @@ router.put('/heads/:id', (req, res) => {
   try {
     const head = db.get().prepare('SELECT * FROM head_lists WHERE id = ?').get(req.params.id);
     if (!head) return res.status(404).json({ error: 'Nicht gefunden.', code: 404 });
+    if (head.created_by !== req.session.userId) return res.status(403).json({ error: 'Forbidden.', code: 403 });
 
-    const vName = str(req.body.name, 'Name', { max: MAX_TITLE });
+    const vName = str(req.body.name ?? head.name, 'Name', { max: MAX_TITLE });
     if (vName.error) return res.status(400).json({ error: vName.error, code: 400 });
+    const is_private = req.body.is_private !== undefined ? (req.body.is_private ? 1 : 0) : head.is_private;
 
-    db.get().prepare('UPDATE head_lists SET name = ? WHERE id = ?').run(vName.value, req.params.id);
+    db.get().prepare('UPDATE head_lists SET name = ?, is_private = ? WHERE id = ?')
+      .run(vName.value, is_private, req.params.id);
     res.json({ data: db.get().prepare('SELECT * FROM head_lists WHERE id = ?').get(req.params.id) });
   } catch (err) {
     log.error('PUT /heads/:id', err);
@@ -103,8 +108,10 @@ router.put('/heads/:id', (req, res) => {
 
 router.delete('/heads/:id', (req, res) => {
   try {
-    const result = db.get().prepare('DELETE FROM head_lists WHERE id = ?').run(req.params.id);
-    if (result.changes === 0) return res.status(404).json({ error: 'Nicht gefunden.', code: 404 });
+    const head = db.get().prepare('SELECT * FROM head_lists WHERE id = ?').get(req.params.id);
+    if (!head) return res.status(404).json({ error: 'Nicht gefunden.', code: 404 });
+    if (head.created_by !== req.session.userId) return res.status(403).json({ error: 'Forbidden.', code: 403 });
+    db.get().prepare('DELETE FROM head_lists WHERE id = ?').run(req.params.id);
     res.json({ ok: true });
   } catch (err) {
     log.error('DELETE /heads/:id', err);

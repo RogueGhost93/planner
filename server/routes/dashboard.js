@@ -164,19 +164,22 @@ router.get('/', (req, res) => {
       FROM head_lists h
       LEFT JOIN lists l      ON l.head_list_id = h.id
       LEFT JOIN list_items li ON li.list_id = l.id
+      WHERE h.is_private = 0 OR h.created_by = ?
       GROUP BY h.id
       ORDER BY h.sort_order ASC
-    `).all();
+    `).all(req.session.userId);
 
     result.sublists = d.prepare(`
       SELECT
         l.id, l.name, l.head_list_id, l.sort_order,
         COALESCE(SUM(CASE WHEN li.is_checked = 0 THEN 1 ELSE 0 END), 0) AS unchecked_count
       FROM lists l
+      JOIN head_lists h ON h.id = l.head_list_id
       LEFT JOIN list_items li ON li.list_id = l.id
+      WHERE h.is_private = 0 OR h.created_by = ?
       GROUP BY l.id
       ORDER BY l.sort_order ASC
-    `).all();
+    `).all(req.session.userId);
 
     result.listItems = d.prepare(`
       SELECT li.id, li.list_id, li.name, li.quantity
