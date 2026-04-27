@@ -29,7 +29,7 @@ import mealieRouter from './routes/mealie.js';
 import freshrssRouter from './routes/freshrss.js';
 import linkdingRouter from './routes/linkding.js';
 import bookmarksRouter from './routes/bookmarks.js';
-import fileboxRouter, { shareRouter as fileboxShareRouter } from './routes/filebox.js';
+import fileboxRouter, { shareRouter as fileboxShareRouter, combinedShareRouter } from './routes/filebox.js';
 import pushRouter from './routes/push.js';
 import { startAlarmScheduler } from './services/alarm-scheduler.js';
 
@@ -160,9 +160,11 @@ app.use('/api/', apiLimiter);
 // --------------------------------------------------------
 app.use('/api/v1/auth', authRouter);
 
-// Web Share Target endpoint — mounted OUTSIDE /api/v1 because Android share
-// intents can't add the X-CSRF-Token header. Origin check inside provides
-// CSRF protection.
+// Web Share Target endpoints — mounted OUTSIDE /api/v1 (no CSRF header from
+// Android share intents). Origin check inside provides CSRF protection.
+// /share      = new combined router: links → tasks, files → filebox
+// /filebox/share = legacy path kept for existing PWA installs
+app.use('/share', combinedShareRouter);
 app.use('/filebox/share', fileboxShareRouter);
 
 // Alle weiteren API-Routen erfordern Authentifizierung + CSRF-Schutz

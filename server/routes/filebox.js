@@ -302,15 +302,10 @@ router.use((err, req, res, next) => {
 });
 
 // --------------------------------------------------------
-// Share router — handles Web Share Target POSTs from the OS share sheet.
-// Mounted at /filebox/share (NOT under /api/v1) because Android share intents
-// can't add the X-CSRF-Token header. CSRF protection is provided by:
-//   1. Origin header check — must be empty/null/own-origin (blocks cross-site
-//      form POSTs from a malicious page; share intents have a null Origin).
-//   2. Session auth — only logged-in users save files.
-// Files default to the user's PRIVATE folder.
+// Share routers — handle Web Share Target POSTs from the OS share sheet.
+// Mounted OUTSIDE /api/v1 because Android share intents can't add
+// X-CSRF-Token. CSRF protection: Origin header check + session auth.
 // --------------------------------------------------------
-const shareRouter = express.Router();
 
 function originCheck(req, res, next) {
   const origin = req.headers.origin;
@@ -321,19 +316,15 @@ function originCheck(req, res, next) {
   res.status(403).send('Forbidden');
 }
 
-function requireAuthOrLogin(req, res, next) {
-  if (req.session?.userId) return next();
-  res.redirect('/login?next=/filebox');
-}
+// Legacy file-only router — kept for PWA installs that still have the old
+// manifest pointing at /filebox/share.
+const shareRouter = express.Router();
 
 shareRouter.post('/',
   originCheck,
-  requireAuthOrLogin,
   (req, res, next) => {
-    if (!isFileboxEnabled(req.session.userId)) {
-      return res.redirect('/filebox?shared=disabled');
-    }
-    // Shared files land in the user's private folder by default.
+    if (!req.session?.userId) return res.redirect('/login?next=/filebox');
+    if (!isFileboxEnabled(req.session.userId)) return res.redirect('/filebox?shared=disabled');
     req.query.scope = 'private';
     next();
   },
@@ -350,5 +341,58 @@ shareRouter.use((err, req, res, next) => {
   res.redirect('/filebox?shared=error');
 });
 
+// Combined share router at /share — files go to filebox, URLs go to tasks.
+// Uses a dedicated multer storage that checks filebox-enabled inside
+// destination() so files are never written when the feature is off.
+const shareStorage = multer.diskStorage({
+  destination(req, _file, cb) {
+    if (!isFileboxEnabled(req.session.userId)) {
+      return cb(Object.assign(new Error('Filebox disabled'), { code: 'FILEBOX_DISABLED' }));
+    }
+    const userSlug = lookupUsername(req.session.userId);
+    const dir = dirForScope('private', userSlug);
+    if (!dir) return cb(new Error('Invalid user.'));
+    try { ensureDir(dir); cb(null, dir); } catch (e) { cb(e); }
+  },
+  filename(_req, file, cb) {
+    const safe = sanitizeFilename(file.originalname);
+    if (!safe) return cb(new Error('Invalid filename.'));
+    cb(null, safe);
+  },
+});
+const shareUpload = multer({ storage: shareStorage, limits: { fileSize: MAX_FILE_BYTES } });
+
+const combinedShareRouter = express.Router();
+
+combinedShareRouter.post('/',
+  originCheck,
+  (req, res, next) => {
+    if (!req.session?.userId) return res.redirect('/login');
+    next();
+  },
+  shareUpload.array('files', 50),
+  (req, res) => {
+    const files = req.files || [];
+    if (files.length > 0) {
+      log.info('share files', { user: req.session.userId, count: files.length });
+      return res.redirect(`/filebox?shared=${files.length}`);
+    }
+    // URL/text-only share → open new task pre-filled with the link.
+    const url   = req.body?.url || req.body?.text || '';
+    const title = req.body?.title || '';
+    const params = new URLSearchParams();
+    if (url)   params.set('shared_url',   url);
+    if (title) params.set('shared_title', title);
+    log.info('share link', { user: req.session.userId, url });
+    res.redirect(`/tasks?${params.toString()}`);
+  },
+);
+
+combinedShareRouter.use((err, req, res, next) => {
+  if (err.code === 'FILEBOX_DISABLED') return res.redirect('/filebox?shared=disabled');
+  log.error('share error', err.message || err);
+  res.redirect('/filebox?shared=error');
+});
+
 export default router;
-export { shareRouter };
+export { shareRouter, combinedShareRouter };

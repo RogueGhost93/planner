@@ -263,43 +263,13 @@ function renderGreeting(user, stats = {}, headlines = null, weather = null) {
 
 function readWidgetActiveTab(personalLists) {
   const stored = localStorage.getItem('dashboard-tasks-tab');
-  if (stored === 'household') return 'household';
-  if (stored != null) {
+  if (stored != null && stored !== 'household') {
     const id = Number(stored);
     if (personalLists.some((l) => l.id === id)) return id;
   }
-  return 'household';
+  return personalLists.length > 0 ? personalLists[0].id : null;
 }
 
-function renderHouseholdTaskItems(tasks) {
-  if (!tasks.length) {
-    return `<div class="widget__empty">
-      <i data-lucide="check-circle" class="empty-state__icon" style="color:var(--color-success)" aria-hidden="true"></i>
-      <div>${t('dashboard.allDone')}</div>
-    </div>`;
-  }
-  return tasks.map((tk) => {
-    const due = formatDueDate(tk.due_date);
-    const isUrgent = tk.priority === 'urgent';
-    return `
-      <div class="task-item ${isUrgent ? 'task-item--urgent' : ''}" data-route="/tasks" data-task-id="${tk.id}" role="button" tabindex="0">
-        ${isUrgent ? '<div class="task-item__bar" aria-hidden="true"></div>' : ''}
-        <button class="task-widget-check" data-action="check-task" data-id="${tk.id}"
-                aria-label="Mark as done" title="Mark as done">
-          <i data-lucide="circle" style="width:16px;height:16px" aria-hidden="true"></i>
-        </button>
-        <div class="task-item__content">
-          <div class="task-item__title">${linkify(tk.title)}</div>
-          ${due ? `<div class="task-item__meta ${due.overdue ? 'task-item__meta--overdue' : ''}">${due.html}</div>` : ''}
-        </div>
-        ${tk.assigned_color ? `
-          <div class="task-item__avatar" style="background-color:${esc(tk.assigned_color)}"
-               title="${esc(tk.assigned_name)}">${esc(initials(tk.assigned_name || ''))}</div>` : ''}
-        ${deleteBtnHtml('delete-task', `data-id="${tk.id}"`, t('common.delete'))}
-      </div>
-    `;
-  }).join('');
-}
 
 function personalDueLabel(iso) {
   if (!iso) return null;
@@ -313,8 +283,25 @@ function personalDueLabel(iso) {
   return { cls: '', label: formatDate(target) };
 }
 
+function filterWidgetItems(items) {
+  return items.filter((i) => {
+    if (i.done) return false;
+    if (!i.due_date) return true;
+    const diff = diffCalendarDays(i.due_date);
+    if (diff < 0) return true;
+    if (i.is_recurring) {
+      const rrule = (i.recurrence_rule || '').toUpperCase();
+      if (rrule.includes('FREQ=YEARLY'))  return diff <= 30;
+      if (rrule.includes('FREQ=MONTHLY')) return diff <= 7;
+      if (rrule.includes('FREQ=WEEKLY'))  return diff <= 1;
+      if (rrule.includes('FREQ=DAILY'))   return diff <= 1;
+    }
+    return true;
+  });
+}
+
 function renderPersonalListBody(list, items) {
-  const pending = items.filter((i) => !i.done);
+  const pending = filterWidgetItems(items);
   const itemsHtml = pending.length
     ? pending.map((it) => {
         const isUrgent = it.priority === 'urgent';
@@ -363,47 +350,42 @@ function renderPersonalListBody(list, items) {
   `;
 }
 
-function renderTasksWidgetBody(activeTab, widgetTasks, personalLists, personalItems) {
-  if (activeTab === 'household') return renderHouseholdTaskItems(widgetTasks);
+function renderTasksWidgetBody(activeTab, personalLists, personalItems) {
   const list = personalLists.find((l) => l.id === activeTab);
   const items = personalItems.filter((i) => i.list_id === activeTab);
-  return list ? renderPersonalListBody(list, items) : renderHouseholdTaskItems(widgetTasks);
+  if (!list) return `<div class="widget__empty"><div>${t('dashboard.personalListEmpty')}</div></div>`;
+  return renderPersonalListBody(list, items);
 }
 
-function renderTasksWidget(widgetTasks, personalLists, personalItems) {
+function renderTasksWidget(personalLists, personalItems) {
   const activeTab = readWidgetActiveTab(personalLists);
-
-  const householdCount = widgetTasks.length;
-  const householdName  = localStorage.getItem('household-name') || t('tasks.tabHousehold');
-  const householdTab = `
-    <button class="tasks-widget__tab ${activeTab === 'household' ? 'tasks-widget__tab--active' : ''}"
-            data-action="switch-widget-tab" data-tab="household">
-      <i data-lucide="users" style="width:12px;height:12px;pointer-events:none" aria-hidden="true"></i>
-      <span>${esc(householdName)}</span>
-      ${householdCount > 0 ? `<span class="tasks-widget__tab-count">${householdCount}</span>` : ''}
-    </button>`;
 
   const personalTabs = personalLists.map((l) => {
     const isActive = activeTab === l.id;
-    const pending = personalItems.filter((i) => i.list_id === l.id && !i.done).length;
+    const isShared = !l.is_owner || l.has_shares;
+    const pending = filterWidgetItems(personalItems.filter((i) => i.list_id === l.id)).length;
+    const indicator = isShared
+      ? `<svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="flex-shrink:0;pointer-events:none;color:var(--tab-color)">
+           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+           <circle cx="9" cy="7" r="4"/>
+           <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+           <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+         </svg>`
+      : '<span class="tasks-widget__tab-dot" aria-hidden="true"></span>';
     return `
       <button class="tasks-widget__tab ${isActive ? 'tasks-widget__tab--active' : ''}"
               data-action="switch-widget-tab" data-tab="${l.id}"
               style="--tab-color:${esc(l.color)}">
-        <span class="tasks-widget__tab-dot" aria-hidden="true"></span>
+        ${indicator}
         <span>${esc(l.name)}</span>
-        ${!l.is_owner ? '<i data-lucide="users" style="width:11px;height:11px;pointer-events:none;opacity:0.7" aria-hidden="true"></i>' : ''}
         ${pending > 0 ? `<span class="tasks-widget__tab-count">${pending}</span>` : ''}
       </button>`;
   }).join('');
 
-  const body = renderTasksWidgetBody(activeTab, widgetTasks, personalLists, personalItems);
-
-  // Header count = active tab count
-  let headerCount = householdCount;
-  if (activeTab !== 'household') {
-    headerCount = personalItems.filter((i) => i.list_id === activeTab && !i.done).length;
-  }
+  const body = renderTasksWidgetBody(activeTab, personalLists, personalItems);
+  const headerCount = filterWidgetItems(personalItems.filter((i) => i.list_id === activeTab)).length;
 
   return `<div class="widget" id="tasks-widget" data-active-tab="${activeTab}">
     ${widgetHeader('check-square', t('nav.tasks'), headerCount, '/tasks', undefined, '/tasks', 'tasks-create-new')}
@@ -412,7 +394,7 @@ function renderTasksWidget(widgetTasks, personalLists, personalItems) {
         <i data-lucide="chevron-left" style="width:14px;height:14px" aria-hidden="true"></i>
       </button>
       <div class="tasks-widget__tabs" id="tasks-widget-tabs">
-        ${householdTab}${personalTabs}
+        ${personalTabs}
       </div>
       <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="1" aria-label="Scroll right" hidden>
         <i data-lucide="chevron-right" style="width:14px;height:14px" aria-hidden="true"></i>
@@ -873,6 +855,7 @@ function initFab(container, signal) {
 function wireLinks(container) {
   container.querySelectorAll('[data-route]').forEach((el) => {
     if (el.id === 'fab-main' || el.closest('#fab-actions')) return;
+    if (el.classList.contains('widget__add-btn') && el.closest('#tasks-widget')) return;
     const go = () => {
       // Widget + button → set create flag then navigate
       if (el.dataset.createFlag) {
@@ -917,43 +900,6 @@ function wireLinks(container) {
 }
 
 function wireTasksWidgetBody(root, dashData, refreshWidget) {
-  // Household task check-off
-  root.querySelectorAll('[data-action="check-task"]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const id = Number(btn.dataset.id);
-      const itemEl = btn.closest('.task-item');
-      itemEl.classList.add('task-widget-item--checking');
-      setTimeout(() => itemEl.remove(), 300);
-      try {
-        await api.patch(`/tasks/${id}/status`, { status: 'done' });
-      } catch {
-        window.planium?.showToast('Could not update task', 'danger');
-      }
-    });
-  });
-
-  // Household task delete
-  root.querySelectorAll('[data-action="delete-task"]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      if (!await showConfirm(t('tasks.deleteConfirm'), { danger: true })) return;
-      const id = Number(btn.dataset.id);
-      const itemEl = btn.closest('.task-item');
-      itemEl.classList.add('task-widget-item--checking');
-      setTimeout(() => itemEl.remove(), 250);
-      try {
-        await api.delete(`/tasks/${id}`);
-        if (Array.isArray(dashData.widgetTasks)) {
-          dashData.widgetTasks = dashData.widgetTasks.filter((tk) => tk.id !== id);
-        }
-      } catch {
-        window.planium?.showToast('Could not delete task', 'danger');
-        refreshWidget();
-      }
-    });
-  });
-
   // Personal item delete
   root.querySelectorAll('[data-action="delete-personal-widget-item"]').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
@@ -1081,6 +1027,26 @@ function wireTasksWidget(container, dashData, refreshWidget) {
   const bodyEl = container.querySelector('#tasks-widget-body');
   if (bodyEl) wireTasksWidgetBody(bodyEl, dashData, refreshWidget);
 
+  // Plus button: open full create dialog for the currently selected personal list
+  const addBtn = widgetEl?.querySelector('.widget__add-btn');
+  if (addBtn) {
+    addBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const listId = Number(widgetEl.dataset.activeTab);
+      if (!listId) return;
+      openItemEditDialog({
+        item: { id: null, title: '', priority: 'none', due_date: null, due_time: null,
+                alarm_at: null, description: null, recurrence_rule: null },
+        container,
+        listId,
+        onSaved: (saved) => {
+          dashData.personalItems = [...(dashData.personalItems ?? []), saved];
+          refreshWidget();
+        },
+      });
+    });
+  }
+
   // Tab horizontal scroll arrows + wheel
   const tabsEl = container.querySelector('#tasks-widget-tabs');
   const leftArrow  = container.querySelector('[data-action="tasks-tabs-scroll"][data-dir="-1"]');
@@ -1101,11 +1067,9 @@ function wireTasksWidget(container, dashData, refreshWidget) {
     });
     const body = container.querySelector('#tasks-widget-body');
     if (body) {
-      const widgetTasksLocal = dashData.widgetTasks ?? [];
-      const activeTab = tab === 'household' ? 'household' : Number(tab);
+      const activeTab = Number(tab);
       body.innerHTML = renderTasksWidgetBody(
         activeTab,
-        widgetTasksLocal,
         dashData.personalLists ?? [],
         dashData.personalItems ?? [],
       );
@@ -1388,22 +1352,6 @@ export async function render(container, { user }) {
   const urgentTasks = [...householdUrgent, ...personalUrgent];
   const stats = { urgentTasks };
 
-  const widgetTasks = (data.urgentTasks ?? []).filter((t) => {
-    if (t.priority === 'urgent') return true;
-    if (!t.due_date) return true;
-    const diff = diffCalendarDays(t.due_date);
-    if (diff < 0) return true;
-    if (t.is_recurring) {
-      const rrule = (t.recurrence_rule || '').toUpperCase();
-      if (rrule.includes('FREQ=YEARLY'))  return diff <= 30;
-      if (rrule.includes('FREQ=MONTHLY')) return diff <= 7;
-      if (rrule.includes('FREQ=WEEKLY'))  return diff <= 1;
-      if (rrule.includes('FREQ=DAILY'))   return diff <= 1;
-      return diff <= 14;
-    }
-    return diff <= 14;
-  });
-  data.widgetTasks = widgetTasks;
 
   container.innerHTML = `
     <div class="dashboard">
@@ -1412,7 +1360,7 @@ export async function render(container, { user }) {
         ${renderGreeting(user, stats, headlines, weather)}
         ${renderQuoteWidget(quote)}
         ${renderWeatherWidget(weather)}
-        ${renderTasksWidget(widgetTasks, data.personalLists ?? [], data.personalItems ?? [])}
+        ${renderTasksWidget(data.personalLists ?? [], data.personalItems ?? [])}
         ${renderUpcomingEvents(data.upcomingEvents ?? [])}
         ${renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? [])}
         ${renderQuickNotes(getQNMode())}
@@ -1433,7 +1381,7 @@ export async function render(container, { user }) {
   function refreshTasksWidget() {
     const widgetEl = container.querySelector('#tasks-widget');
     if (!widgetEl) return;
-    const html = renderTasksWidget(widgetTasks, data.personalLists ?? [], data.personalItems ?? []);
+    const html = renderTasksWidget(data.personalLists ?? [], data.personalItems ?? []);
     widgetEl.outerHTML = html;
     if (window.lucide) window.lucide.createIcons();
     wireTasksWidget(container, data, refreshTasksWidget);

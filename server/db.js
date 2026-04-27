@@ -759,14 +759,6 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 27,
-    description: 'Add alarm fields to personal_tasks',
-    up: `
-      ALTER TABLE personal_tasks ADD COLUMN alarm_at TEXT;
-      ALTER TABLE personal_tasks ADD COLUMN alarm_sent INTEGER NOT NULL DEFAULT 0;
-    `,
-  },
-  {
     version: 28,
     description: 'Add push_subscriptions table',
     up: `
@@ -778,6 +770,14 @@ const MIGRATIONS = [
         auth       TEXT    NOT NULL,
         created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
       );
+    `,
+  },
+  {
+    version: 29,
+    description: 'Add alarm fields to personal_tasks',
+    up: `
+      ALTER TABLE personal_tasks ADD COLUMN alarm_at TEXT;
+      ALTER TABLE personal_tasks ADD COLUMN alarm_sent INTEGER NOT NULL DEFAULT 0;
     `,
   },
 ];

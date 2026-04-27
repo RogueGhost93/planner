@@ -535,13 +535,20 @@ async function loadTaskForEdit(id) {
 // Modal-Verwaltung (delegiert an Shared Modal-System)
 // --------------------------------------------------------
 
-function openTaskModal({ task = null, users = [] } = {}, container) {
+function openTaskModal({ task = null, users = [], prefill = null } = {}, container) {
   const isEdit = !!task;
   openSharedModal({
     title: isEdit ? t('tasks.editTask') : t('tasks.newTask'),
     content: renderModalContent({ task, users }),
     size: 'lg',
     onSave(panel) {
+      if (prefill) {
+        const titleEl = panel.querySelector('#task-title');
+        const descEl  = panel.querySelector('#task-description');
+        if (titleEl) titleEl.value = prefill.title || '';
+        if (descEl)  descEl.value  = prefill.description || '';
+      }
+
       // RRULE-Events binden
       bindRRuleEvents(document, 'task');
 
@@ -2971,4 +2978,16 @@ export async function render(container, { user }) {
   // Clean up stale dashboard hints
   localStorage.removeItem('tasks-create-new');
   localStorage.removeItem('tasks-open-task');
+
+  // Web Share Target: URL shared from another app → open pre-filled task modal.
+  const shareParams = new URLSearchParams(window.location.search);
+  const sharedUrl   = shareParams.get('shared_url');
+  if (sharedUrl) {
+    history.replaceState({}, '', '/tasks');
+    const sharedTitle = shareParams.get('shared_title') || '';
+    openTaskModal({
+      users: state.users,
+      prefill: { title: sharedTitle || sharedUrl, description: sharedUrl },
+    }, container);
+  }
 }

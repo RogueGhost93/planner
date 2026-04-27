@@ -126,17 +126,19 @@ router.get('/', (req, res) => {
       SELECT
         l.id, l.name, l.color, l.owner_id, l.sort_order,
         u.display_name AS owner_name,
-        (l.owner_id = ?) AS is_owner
+        (l.owner_id = ?) AS is_owner,
+        EXISTS (SELECT 1 FROM task_list_shares s WHERE s.list_id = l.id) AS has_shares
       FROM task_lists l
       LEFT JOIN users u ON u.id = l.owner_id
       WHERE l.owner_id = ?
          OR EXISTS (SELECT 1 FROM task_list_shares s
                     WHERE s.list_id = l.id AND s.user_id = ?)
       ORDER BY l.sort_order ASC, l.created_at ASC
-    `).all(uid, uid, uid).map((l) => ({ ...l, is_owner: !!l.is_owner }));
+    `).all(uid, uid, uid).map((l) => ({ ...l, is_owner: !!l.is_owner, has_shares: !!l.has_shares }));
 
     result.personalItems = d.prepare(`
-      SELECT t.id, t.list_id, t.title, t.done, t.sort_order, t.priority, t.due_date
+      SELECT t.id, t.list_id, t.title, t.done, t.sort_order, t.priority, t.due_date,
+             t.is_recurring, t.recurrence_rule
       FROM personal_tasks t
       JOIN task_lists l ON l.id = t.list_id
       WHERE (l.owner_id = ?
