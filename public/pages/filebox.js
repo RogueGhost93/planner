@@ -423,7 +423,7 @@ export async function render(container, _context) {
             <i data-lucide="upload" aria-hidden="true"></i><span>Upload</span>
           </button>
           <input type="file" id="filebox-file-input" multiple hidden
-                 accept="image/*,video/*,audio/*,application/*,text/*,font/*,.iso,.kdbx,.dmg,.apk,.epub,.mobi" />
+                 accept=".iso,.kdbx,.kdb,.dmg,.apk,.epub,.mobi,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.ods,.zip,.tar,.gz,.7z,.rar,.txt,.log,.json,.xml,.yaml,.yml,.md,.ics,.vcf,.mp3,.mp4,.mov,.webm,.mkv,.avi,.wav,.flac,.ogg,.m4a,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.ico,.ttf,.otf,.woff,.woff2,.key,.pem,.der,.p12,.pfx,.p8,.gpg,.asc,.crt,.cer,.jks,.keystore,.1pif,.opvault,.psafe3,.psafe,.rfo,.enpass,.lpass,.dcvault" />
         </div>
       </div>
 

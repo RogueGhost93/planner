@@ -1940,7 +1940,7 @@ a.price-ticker:hover {
 }
 
 @media (hover: none) {
-  .personal-widget-item__edit { opacity: 0.6; }
+  .personal-widget-item__edit { opacity: 0.6; padding: 10px; }
 }
 
 .personal-widget-item__due {
@@ -1995,5 +1995,5 @@ a.price-ticker:hover {
 
 /* Touch devices have no hover — keep the X visible (dimmed) so delete stays reachable */
 @media (hover: none) {
-  .widget-delete-btn { opacity: 0.55; }
+  .widget-delete-btn { opacity: 0.55; padding: 10px; }
 }
