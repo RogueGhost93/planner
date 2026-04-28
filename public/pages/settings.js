@@ -54,6 +54,66 @@ const INTEGRATIONS = [
   },
 ];
 
+function dashboardWidgetRows() {
+  return [
+    { id: 'quote-widget', label: t('dashboard.quoteOfTheDay') },
+    { id: 'tasks-widget', label: t('nav.tasks') },
+    { id: 'events-widget', label: t('nav.calendar') },
+    { id: 'shopping-widget', label: t('nav.lists') },
+    { id: 'quick-notes-widget', label: t('dashboard.quickNotesTitle') },
+  ];
+}
+
+function defaultDashboardLayout() {
+  return {
+    order: ['quote-widget', 'tasks-widget', 'events-widget', 'shopping-widget', 'quick-notes-widget'],
+    hidden: [],
+    spans: {
+      'quote-widget': 'full',
+      'tasks-widget': '2',
+      'events-widget': '1',
+      'shopping-widget': '2',
+      'quick-notes-widget': '1',
+    },
+  };
+}
+
+function normalizeDashboardLayout(layout) {
+  const defaults = defaultDashboardLayout();
+  const raw = layout && typeof layout === 'object' ? layout : {};
+  const order = Array.isArray(raw.order) ? raw.order : [];
+  const hidden = Array.isArray(raw.hidden) ? raw.hidden : [];
+  const spans = raw.spans && typeof raw.spans === 'object' ? raw.spans : {};
+  const seen = new Set();
+  const normalizedOrder = [];
+  for (const id of order) {
+    if (!defaults.order.includes(id) || seen.has(id)) continue;
+    seen.add(id);
+    normalizedOrder.push(id);
+  }
+  for (const id of defaults.order) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    normalizedOrder.push(id);
+  }
+  const hiddenSeen = new Set();
+  const normalizedHidden = [];
+  for (const id of hidden) {
+    if (!defaults.order.includes(id) || hiddenSeen.has(id)) continue;
+    hiddenSeen.add(id);
+    normalizedHidden.push(id);
+  }
+  return {
+    order: normalizedOrder,
+    hidden: normalizedHidden,
+    spans: defaults.order.reduce((acc, id) => {
+      const value = String(spans[id] ?? defaults.spans[id] ?? '1');
+      acc[id] = ['1', '2', 'full'].includes(value) ? value : defaults.spans[id];
+      return acc;
+    }, {}),
+  };
+}
+
 /**
  * @param {HTMLElement} container
  * @param {{ user: object }} context
@@ -73,11 +133,13 @@ export async function render(container, { user }) {
   let linkdingStatus = { configured: false, url: null };
   let weatherStatus  = { configured: false };
   let fileboxStatus  = { enabled: false };
+  let webviewStatus  = { configured: false, url: null };
   let taskLists      = [];
+  let dashboardLayout = defaultDashboardLayout();
   const myConfigs    = {};
 
   try {
-    const [usersRes, gStatus, aStatus, mStatus, fStatus, lStatus, wStatus, fbStatus, tlRes, ...myCfgRes] = await Promise.allSettled([
+    const [usersRes, gStatus, aStatus, mStatus, fStatus, lStatus, wStatus, fbStatus, webStatus, tlRes, dashLayoutRes, ...myCfgRes] = await Promise.allSettled([
       user.role === 'admin' ? auth.getUsers() : Promise.resolve({ data: [] }),
       api.get('/calendar/google/status'),
       api.get('/calendar/apple/status'),
@@ -86,7 +148,9 @@ export async function render(container, { user }) {
       api.get('/linkding/status'),
       api.get('/weather/status'),
       api.get('/filebox/status'),
+      api.get('/webview/config'),
       api.get('/task-lists'),
+      api.get('/dashboard/layout'),
       ...INTEGRATIONS.map(i => api.get(`${i.endpoint}/my-config`)),
     ]);
     if (usersRes.status === 'fulfilled')  users          = usersRes.value.data ?? [];
@@ -97,7 +161,9 @@ export async function render(container, { user }) {
     if (lStatus.status  === 'fulfilled')  linkdingStatus = lStatus.value;
     if (wStatus.status  === 'fulfilled')  weatherStatus  = wStatus.value;
     if (fbStatus.status === 'fulfilled')  fileboxStatus  = fbStatus.value;
+    if (webStatus.status === 'fulfilled')  webviewStatus  = webStatus.value;
     if (tlRes.status    === 'fulfilled')  taskLists      = tlRes.value.data ?? [];
+    if (dashLayoutRes.status === 'fulfilled') dashboardLayout = normalizeDashboardLayout(dashLayoutRes.value.data?.layout);
     INTEGRATIONS.forEach((i, idx) => {
       if (myCfgRes[idx]?.status === 'fulfilled') myConfigs[i.id] = myCfgRes[idx].value;
     });
@@ -187,6 +253,26 @@ export async function render(container, { user }) {
               <span class="toggle-switch__slider"></span>
             </label>
           </div>
+
+          <div style="margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--color-border-subtle)">
+            <h3 class="settings-card__title">${t('settings.dashboardWidgetsTitle')}</h3>
+            <p class="settings-card__label" style="margin-bottom:var(--space-3)">${t('settings.dashboardWidgetsHelp')}</p>
+            <div data-dashboard-widget-visibility>
+              ${dashboardWidgetRows().map((widget) => {
+                const isVisible = !dashboardLayout.hidden.includes(widget.id);
+                return `
+                  <div class="settings-toggle-row">
+                    <label class="settings-toggle-label" for="dashboard-widget-${widget.id}">${widget.label}</label>
+                    <label class="toggle-switch">
+                      <input type="checkbox" id="dashboard-widget-${widget.id}" data-dashboard-widget="${widget.id}" ${isVisible ? 'checked' : ''} />
+                      <span class="toggle-switch__slider"></span>
+                    </label>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+
           <p class="settings-card__label" style="margin-top:var(--space-4);margin-bottom:var(--space-2)">BTC ticker link <span class="form-hint" style="display:inline;margin:0">(this device only)</span></p>
           <div class="settings-quick-link" style="display:flex;gap:var(--space-2)">
             <input class="form-input" type="url" id="ticker-link-input"
@@ -707,6 +793,27 @@ function bindEvents(container, user) {
   if (showTickers) {
     showTickers.addEventListener('change', () => {
       localStorage.setItem('planium-show-tickers', showTickers.checked ? 'true' : 'false');
+    });
+  }
+
+  const dashboardWidgetVisibility = container.querySelector('[data-dashboard-widget-visibility]');
+  if (dashboardWidgetVisibility) {
+    dashboardWidgetVisibility.addEventListener('change', async (e) => {
+      const input = e.target.closest('[data-dashboard-widget]');
+      if (!input) return;
+      const widgetId = input.dataset.dashboardWidget;
+      const nextLayout = normalizeDashboardLayout(dashboardLayout);
+      const hidden = new Set(nextLayout.hidden);
+      if (input.checked) hidden.delete(widgetId); else hidden.add(widgetId);
+      const payload = { ...nextLayout, hidden: [...hidden] };
+      try {
+        const res = await api.put('/dashboard/layout', { layout: payload });
+        dashboardLayout = normalizeDashboardLayout(res.data?.layout ?? payload);
+        window.planium?.showToast(t('settings.dashboardWidgetsSavedToast'), 'success');
+      } catch (err) {
+        input.checked = !input.checked;
+        window.planium?.showToast(err.message, 'danger');
+      }
     });
   }
 

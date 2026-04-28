@@ -37,6 +37,7 @@
     "tasks": "Tasks",
     "calendar": "Calendar",
     "news": "News",
+    "web": "Web",
     "meals": "Meals",
     "lists": "Lists",
     "notes": "Board",
@@ -110,6 +111,15 @@
     "emptyDescription": "FreshRSS did not return any articles.",
     "notConnectedTitle": "FreshRSS is not connected",
     "notConnectedDescription": "Connect FreshRSS in Settings to show this tab."
+  },
+
+  "webview": {
+    "title": "Website",
+    "loadingTitle": "Loading website",
+    "loadingDescription": "Preparing the embedded page.",
+    "notConfiguredTitle": "Website not configured",
+    "notConfiguredDescription": "Set PLANIUM_WEBVIEW_URL on the server to enable this page.",
+    "openInNewTab": "Open in new tab"
   },
 
   "tasks": {
@@ -664,6 +674,9 @@
     "themeDark": "Dark",
     "themeDarkLabel": "Dark mode",
     "showQuotesLabel": "Show quote of the day on dashboard",
+    "dashboardWidgetsTitle": "Dashboard widgets",
+    "dashboardWidgetsHelp": "Show or hide dashboard widgets. Hidden widgets keep their saved order and size.",
+    "dashboardWidgetsSavedToast": "Dashboard widgets updated.",
     "changePassword": "Change password",
     "currentPasswordLabel": "Current password",
     "newPasswordLabel": "New password",

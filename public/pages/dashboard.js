@@ -136,25 +136,113 @@ function initials(name = '') {
   return name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 }
 
-function widgetHeader(icon, title, count, linkHref, linkLabel, addRoute, addFlag) {
-  linkLabel = linkLabel ?? t('dashboard.allLink');
+const DASHBOARD_WIDGET_ORDER = [
+  'quote-widget',
+  'tasks-widget',
+  'events-widget',
+  'shopping-widget',
+  'quick-notes-widget',
+];
+const DASHBOARD_WIDGET_DEFAULT_SPANS = {
+  'quote-widget': 'full',
+  'tasks-widget': '2',
+  'events-widget': '1',
+  'shopping-widget': '2',
+  'quick-notes-widget': '1',
+};
+
+function normalizeDashboardLayout(layout) {
+  const order = Array.isArray(layout?.order) ? layout.order : [];
+  const hidden = Array.isArray(layout?.hidden) ? layout.hidden : [];
+  const spans = layout?.spans && typeof layout.spans === 'object' ? layout.spans : {};
+  const seen = new Set();
+  const normalizedOrder = [];
+  for (const id of order) {
+    if (!DASHBOARD_WIDGET_ORDER.includes(id) || seen.has(id)) continue;
+    seen.add(id);
+    normalizedOrder.push(id);
+  }
+  for (const id of DASHBOARD_WIDGET_ORDER) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    normalizedOrder.push(id);
+  }
+  const normalizedHidden = [];
+  const hiddenSeen = new Set();
+  for (const id of hidden) {
+    if (!DASHBOARD_WIDGET_ORDER.includes(id) || hiddenSeen.has(id)) continue;
+    hiddenSeen.add(id);
+    normalizedHidden.push(id);
+  }
+  const normalizedSpans = {};
+  for (const id of DASHBOARD_WIDGET_ORDER) {
+    const value = String(spans[id] ?? DASHBOARD_WIDGET_DEFAULT_SPANS[id] ?? '1');
+    normalizedSpans[id] = ['1', '2', 'full'].includes(value) ? value : (DASHBOARD_WIDGET_DEFAULT_SPANS[id] ?? '1');
+  }
+  return { order: normalizedOrder, hidden: normalizedHidden, spans: normalizedSpans };
+}
+
+function widgetSpanClass(span = '1') {
+  return `widget-layout--span-${span}`;
+}
+
+function nextWidgetSpan(span = '1') {
+  if (span === '1') return '2';
+  if (span === '2') return 'full';
+  return '1';
+}
+
+function widgetSizeButton(widgetId, span = '1') {
+  const nextSpan = nextWidgetSpan(span);
+  const label = span === 'full' ? 'Full' : `${span}`;
+  const nextLabel = nextSpan === 'full' ? 'Full width' : `${nextSpan} column${nextSpan === '1' ? '' : 's'}`;
+  return `
+    <button class="widget__size-btn" type="button"
+            data-action="cycle-widget-span" data-widget-id="${widgetId}"
+            data-next-span="${nextSpan}"
+            aria-label="Resize widget to ${nextLabel}"
+            title="Resize widget">
+      <span class="widget__size-btn-label">${label}</span>
+    </button>
+  `;
+}
+
+function widgetDragHandle(widgetId) {
+  return `
+    <button class="widget__drag-handle" type="button"
+            data-action="drag-widget" data-widget-id="${widgetId}"
+            aria-label="Reorder widget" title="Drag to reorder">
+      <i data-lucide="grip-vertical" aria-hidden="true"></i>
+    </button>
+  `;
+}
+
+function widgetHeader(icon, title, count, linkHref, linkLabel, addRoute, addFlag, { widgetId = null, span = '1' } = {}) {
+  linkLabel = linkHref ? (linkLabel ?? t('dashboard.allLink')) : null;
   const addBtn = addRoute
     ? `<button class="widget__add-btn" data-route="${addRoute}"${addFlag ? ` data-create-flag="${addFlag}"` : ''}
                aria-label="${t('common.add')}">
          <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
        </button>`
     : '';
+  const linkBtn = linkHref
+    ? `<button data-route="${linkHref}" class="widget__link">
+         ${linkLabel}
+       </button>`
+    : '';
+  const dragHandle = widgetId ? widgetDragHandle(widgetId) : '';
+  const sizeBtn = widgetId ? widgetSizeButton(widgetId, span) : '';
   return `
     <div class="widget__header">
       <span class="widget__title">
+        ${dragHandle}
         <i data-lucide="${icon}" class="widget__title-icon" aria-hidden="true"></i>
         ${title}
       </span>
       <div class="widget__header-actions">
+        ${sizeBtn}
         ${addBtn}
-        <button data-route="${linkHref}" class="widget__link">
-          ${linkLabel}
-        </button>
+        ${linkBtn}
       </div>
     </div>
   `;
@@ -412,7 +500,7 @@ function renderTasksWidgetBody(activeTab, personalLists, personalItems) {
   return renderPersonalListBody(list, items);
 }
 
-function renderTasksWidget(personalLists, personalItems) {
+function renderTasksWidget(personalLists, personalItems, span = '2') {
   const activeTab = readWidgetActiveTab(personalLists);
 
   const personalTabs = personalLists.map((l) => {
@@ -442,8 +530,8 @@ function renderTasksWidget(personalLists, personalItems) {
   const body = renderTasksWidgetBody(activeTab, personalLists, personalItems);
   const headerCount = filterWidgetItems(personalItems.filter((i) => i.list_id === activeTab)).length;
 
-  return `<div class="widget" id="tasks-widget" data-active-tab="${activeTab}">
-    ${widgetHeader('check-square', t('nav.tasks'), headerCount, '/tasks', undefined, '/tasks', 'tasks-create-new')}
+  return `<div class="widget ${widgetSpanClass(span)}" id="tasks-widget" data-widget-id="tasks-widget" data-widget-span="${span}" data-active-tab="${activeTab}">
+    ${widgetHeader('check-square', t('nav.tasks'), headerCount, '/tasks', undefined, '/tasks', 'tasks-create-new', { widgetId: 'tasks-widget', span })}
     <div class="tasks-widget__tabs-wrap">
       <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="-1" aria-label="Scroll left" hidden>
         <i data-lucide="chevron-left" style="width:14px;height:14px" aria-hidden="true"></i>
@@ -459,10 +547,10 @@ function renderTasksWidget(personalLists, personalItems) {
   </div>`;
 }
 
-function renderUpcomingEvents(events) {
+function renderUpcomingEvents(events, span = '1') {
   if (!events.length) {
-    return `<div class="widget" id="events-widget">
-      ${widgetHeader('calendar', t('nav.calendar'), 0, '/calendar', undefined, '/calendar', 'calendar-create-new')}
+    return `<div class="widget ${widgetSpanClass(span)}" id="events-widget" data-widget-id="events-widget" data-widget-span="${span}">
+      ${widgetHeader('calendar', t('nav.calendar'), 0, '/calendar', undefined, '/calendar', 'calendar-create-new', { widgetId: 'events-widget', span })}
       <div class="widget__empty">
         <i data-lucide="calendar-check" class="empty-state__icon" aria-hidden="true"></i>
         <div>${t('dashboard.noEvents')}</div>
@@ -494,8 +582,8 @@ function renderUpcomingEvents(events) {
     `;
   }).join('');
 
-  return `<div class="widget" id="events-widget">
-    ${widgetHeader('calendar', t('nav.calendar'), events.length, '/calendar', undefined, '/calendar', 'calendar-create-new')}
+  return `<div class="widget ${widgetSpanClass(span)}" id="events-widget" data-widget-id="events-widget" data-widget-span="${span}">
+    ${widgetHeader('calendar', t('nav.calendar'), events.length, '/calendar', undefined, '/calendar', 'calendar-create-new', { widgetId: 'events-widget', span })}
     <div class="widget__body">${items}</div>
   </div>`;
 }
@@ -537,13 +625,13 @@ const SHOPPING_COLLAPSE_AT = 6;
 
 let _widgetActiveHeadId = null;
 
-function renderShoppingWidget(heads, sublists, allItems) {
+function renderShoppingWidget(heads, sublists, allItems, span = '2') {
   const items = allItems.filter((i) => !i.is_checked);
   const totalUnchecked = heads.reduce((s, h) => s + (h.unchecked_count || 0), 0);
 
   if (!heads.length) {
-    return `<div class="widget">
-      ${widgetHeader('list-checks', t('nav.lists'), 0, '/lists', undefined, '/lists', 'lists-create-new')}
+    return `<div class="widget ${widgetSpanClass(span)}" id="shopping-widget" data-widget-id="shopping-widget" data-widget-span="${span}">
+      ${widgetHeader('list-checks', t('nav.lists'), 0, '/lists', undefined, '/lists', 'lists-create-new', { widgetId: 'shopping-widget', span })}
       <div class="widget__empty">
         <i data-lucide="list-checks" class="empty-state__icon" aria-hidden="true"></i>
         <div>${t('dashboard.noShoppingItems')}</div>
@@ -614,8 +702,8 @@ function renderShoppingWidget(heads, sublists, allItems) {
     ? activeSubs.map(renderSub).join('')
     : `<div class="widget__empty" style="padding:var(--space-4)">${t('dashboard.noShoppingItems')}</div>`;
 
-  return `<div class="widget" id="shopping-widget">
-    ${widgetHeader('list-checks', t('nav.lists'), totalUnchecked, '/lists', undefined, '/lists', 'lists-add-item')}
+  return `<div class="widget ${widgetSpanClass(span)}" id="shopping-widget" data-widget-id="shopping-widget" data-widget-span="${span}">
+    ${widgetHeader('list-checks', t('nav.lists'), totalUnchecked, '/lists', undefined, '/lists', 'lists-add-item', { widgetId: 'shopping-widget', span })}
     ${tabsHtml}
     <div class="widget__body" id="shopping-widget-body">${body}</div>
   </div>`;
@@ -640,16 +728,18 @@ const QN_LEGACY_KEY = 'planium-quick-note-text';
 
 function getQNMode() { return localStorage.getItem(QN_MODE_KEY) === 'public' ? 'public' : 'private'; }
 
-function renderQuickNotes(mode = 'private') {
+function renderQuickNotes(mode = 'private', span = '1') {
   const isPublic = mode === 'public';
   return `
-    <div class="widget" id="quick-notes-widget">
+    <div class="widget ${widgetSpanClass(span)}" id="quick-notes-widget" data-widget-id="quick-notes-widget" data-widget-span="${span}">
       <div class="widget__header">
         <span class="widget__title qn-expand-trigger" title="Click to expand" style="cursor:pointer">
+          ${widgetDragHandle('quick-notes-widget')}
           <i data-lucide="sticky-note" class="widget__title-icon" aria-hidden="true"></i>
           ${t('dashboard.quickNotesTitle')}
         </span>
         <div class="widget__header-actions">
+          ${widgetSizeButton('quick-notes-widget', span)}
           <button class="btn btn--ghost btn--icon qn-mode-btn ${isPublic ? 'qn-mode-btn--active' : ''}"
                   title="${isPublic ? 'Switch to private note' : 'Switch to shared note (visible to all)'}">
             <i data-lucide="${isPublic ? 'globe' : 'lock'}" style="width:15px;height:15px;" aria-hidden="true"></i>
@@ -742,7 +832,8 @@ async function wireQuickNotes(container) {
   // Expand to large dialog on desktop only
   const expandTrigger = widget.querySelector('.qn-expand-trigger');
   if (expandTrigger) {
-    expandTrigger.addEventListener('click', () => {
+    expandTrigger.addEventListener('click', (e) => {
+      if (e.target.closest('[data-action="drag-widget"], [data-action="cycle-widget-span"]')) return;
       if (window.innerWidth < 768) return;
       openModal({
         title: t('dashboard.quickNotesTitle'),
@@ -789,11 +880,12 @@ function isTickersEnabled() {
   return localStorage.getItem(TICKERS_LS_KEY) !== 'false';
 }
 
-function renderQuoteWidget(quote) {
+function renderQuoteWidget(quote, span = 'full') {
   if (!quote || !isQuoteEnabled()) return '';
   const author = quote.author ? `<span class="quote-widget__author">\u2014 ${esc(quote.author)}</span>` : '';
   return `
-    <div class="widget quote-widget" id="quote-widget" style="grid-column:1/-1">
+    <div class="widget quote-widget ${widgetSpanClass(span)}" id="quote-widget" data-widget-id="quote-widget" data-widget-span="${span}">
+      ${widgetHeader('quote', t('dashboard.quoteOfTheDay'), null, null, null, null, null, { widgetId: 'quote-widget', span })}
       <div class="widget__body quote-widget__body">
         <i data-lucide="quote" class="quote-widget__icon" aria-hidden="true"></i>
         <blockquote class="quote-widget__text">${esc(quote.quote)}</blockquote>
@@ -815,7 +907,7 @@ function scheduleMidnightQuoteRefresh(container, signal) {
       const fresh = await api.get('/quotes/today').catch(() => null);
       const el = container.querySelector('#quote-widget');
       if (el && fresh) {
-        el.outerHTML = renderQuoteWidget(fresh);
+        el.outerHTML = renderQuoteWidget(fresh, el.dataset.widgetSpan || 'full');
         const newEl = container.querySelector('#quote-widget');
         if (newEl && window.lucide) window.lucide.createIcons({ el: newEl });
       }
@@ -823,6 +915,133 @@ function scheduleMidnightQuoteRefresh(container, signal) {
   }, msUntilMidnight);
 
   signal.addEventListener('abort', () => clearTimeout(timerId));
+}
+
+function wireDashboardLayout(container, layoutState) {
+  const grid = container.querySelector('.dashboard__grid');
+  if (!grid) return;
+
+  const desktopQuery = window.matchMedia('(min-width: 1024px)');
+  let dragging = null;
+  let dragPtrId = null;
+  let didDrag = false;
+  let startX = 0;
+  let startY = 0;
+
+  const widgetNodes = () => [...grid.querySelectorAll('.widget[data-widget-id]')];
+  const widgetOrder = () => widgetNodes().map((el) => el.dataset.widgetId).filter(Boolean);
+
+  const applyOrder = (order) => {
+    const nodeById = new Map(widgetNodes().map((el) => [el.dataset.widgetId, el]));
+    for (const id of order) {
+      const node = nodeById.get(id);
+      if (node) grid.appendChild(node);
+    }
+  };
+
+  let saveTimer = null;
+  const saveLayout = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      api.put('/dashboard/layout', { layout: layoutState }).catch((err) => {
+        window.planium?.showToast(err.message, 'danger');
+      });
+    }, 120);
+  };
+
+  container.addEventListener('click', (e) => {
+    const sizeBtn = e.target.closest('[data-action="cycle-widget-span"]');
+    if (!sizeBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (!desktopQuery.matches) return;
+    const widgetId = sizeBtn.dataset.widgetId;
+    const widget = container.querySelector(`[data-widget-id="${widgetId}"]`);
+    if (!widget) return;
+    const current = widget.dataset.widgetSpan || '1';
+    const next = nextWidgetSpan(current);
+    layoutState.spans[widgetId] = next;
+    widget.dataset.widgetSpan = next;
+    widget.classList.remove('widget-layout--span-1', 'widget-layout--span-2', 'widget-layout--span-full');
+    widget.classList.add(widgetSpanClass(next));
+    sizeBtn.querySelector('.widget__size-btn-label').textContent = next === 'full' ? 'Full' : next;
+    sizeBtn.setAttribute('aria-label', `Resize widget to ${next === 'full' ? 'full width' : `${next} column${next === '1' ? '' : 's'}`}`);
+    saveLayout();
+  });
+
+  grid.addEventListener('pointerdown', (e) => {
+    const handle = e.target.closest('[data-action="drag-widget"]');
+    if (!handle || !desktopQuery.matches || e.pointerType === 'touch') return;
+    const widget = handle.closest('.widget[data-widget-id]');
+    if (!widget) return;
+    dragging = widget;
+    dragPtrId = e.pointerId;
+    didDrag = false;
+    startX = e.clientX;
+    startY = e.clientY;
+    try { handle.setPointerCapture(e.pointerId); } catch {}
+  });
+
+  grid.addEventListener('pointermove', (e) => {
+    if (!dragging || e.pointerId !== dragPtrId || !desktopQuery.matches) return;
+    const dx = e.clientX - startX;
+    const dy = Math.abs(e.clientY - startY);
+    if (!didDrag) {
+      if (Math.max(Math.abs(dx), dy) < 8) return;
+      didDrag = true;
+      dragging.classList.add('widget--dragging');
+      try { grid.setPointerCapture(e.pointerId); } catch {}
+    }
+
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.widget[data-widget-id]');
+    if (!over || over === dragging) return;
+    const widgets = widgetNodes();
+    const dragIdx = widgets.indexOf(dragging);
+    const overIdx = widgets.indexOf(over);
+    if (dragIdx === -1 || overIdx === -1) return;
+
+    const overRect = over.getBoundingClientRect();
+    const insertAfter = e.clientY > overRect.top + (overRect.height / 2);
+    if (dragIdx < overIdx) {
+      if (insertAfter) over.after(dragging); else over.before(dragging);
+    } else if (insertAfter) {
+      over.after(dragging);
+    } else {
+      over.before(dragging);
+    }
+  });
+
+  const finishDrag = async () => {
+    if (!dragging || !desktopQuery.matches) return;
+    const wasDragged = didDrag;
+    const oldOrder = layoutState.order.slice();
+    dragging.classList.remove('widget--dragging');
+    const visibleOrder = widgetOrder();
+    const hiddenOrder = layoutState.order.filter((id) => !visibleOrder.includes(id));
+    const newOrder = [...hiddenOrder, ...visibleOrder];
+    dragging = null;
+    dragPtrId = null;
+    didDrag = false;
+    if (!wasDragged) return;
+    if (JSON.stringify(newOrder) === JSON.stringify(oldOrder)) return;
+    layoutState.order = newOrder;
+    try {
+      await api.put('/dashboard/layout', { layout: layoutState });
+    } catch (err) {
+      layoutState.order = oldOrder;
+      applyOrder(oldOrder);
+      window.planium?.showToast(err.message, 'danger');
+    }
+  };
+
+  grid.addEventListener('pointerup', finishDrag);
+  grid.addEventListener('pointercancel', () => {
+    if (!dragging) return;
+    dragging.classList.remove('widget--dragging');
+    dragging = null;
+    dragPtrId = null;
+    didDrag = false;
+  });
 }
 
 // --------------------------------------------------------
@@ -851,6 +1070,9 @@ function renderFab() {
     <div class="fab-container" id="fab-container">
       <button class="fab-main" id="fab-main" aria-label="${t('nav.quickActions')}" aria-expanded="false">
         <i data-lucide="plus" aria-hidden="true"></i>
+      </button>
+      <button class="fab-settings" id="fab-settings" data-route="/settings" aria-label="${t('nav.settings')}">
+        <i data-lucide="settings" aria-hidden="true"></i>
       </button>
       <div class="fab-actions" id="fab-actions" aria-hidden="true">
         ${actionsHtml}
@@ -1463,7 +1685,7 @@ export async function render(container, { user }) {
     ${renderFab()}
   `;
 
-  let data      = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], lists: [], listItems: [] };
+  let data      = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], lists: [], listItems: [], layout: null };
   let weather   = null;
   let quote     = null;
   let headlines = null;
@@ -1493,19 +1715,28 @@ export async function render(container, { user }) {
     .map((it) => ({ id: it.id, title: it.title, kind: 'personal', list_id: it.list_id }));
   const urgentTasks = [...householdUrgent, ...personalUrgent];
   const stats = { urgentTasks };
-
+  const layoutState = normalizeDashboardLayout(data.layout);
+  const hiddenWidgets = new Set(layoutState.hidden ?? []);
+  const widgetHtmlById = {
+    'quote-widget': renderQuoteWidget(quote, layoutState.spans['quote-widget']),
+    'tasks-widget': renderTasksWidget(data.personalLists ?? [], data.personalItems ?? [], layoutState.spans['tasks-widget']),
+    'events-widget': renderUpcomingEvents(data.upcomingEvents ?? [], layoutState.spans['events-widget']),
+    'shopping-widget': renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? [], layoutState.spans['shopping-widget']),
+    'quick-notes-widget': renderQuickNotes(getQNMode(), layoutState.spans['quick-notes-widget']),
+  };
+  const orderedWidgets = layoutState.order
+    .filter((id) => !hiddenWidgets.has(id))
+    .map((id) => widgetHtmlById[id])
+    .filter(Boolean)
+    .join('');
 
   container.innerHTML = `
     <div class="dashboard">
       <h1 class="sr-only">${t('dashboard.title')}</h1>
       <div class="dashboard__grid">
         ${renderGreeting(user, stats, headlines, weather)}
-        ${renderQuoteWidget(quote)}
+        ${orderedWidgets}
         ${renderWeatherWidget(weather)}
-        ${renderTasksWidget(data.personalLists ?? [], data.personalItems ?? [])}
-        ${renderUpcomingEvents(data.upcomingEvents ?? [])}
-        ${renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? [])}
-        ${renderQuickNotes(getQNMode())}
         ${renderBoardNotes(data.pinnedNotes ?? [])}
       </div>
     </div>
@@ -1516,6 +1747,7 @@ export async function render(container, { user }) {
   wireGreetingLink(container);
   wireWeatherChip(container, weather);
   wireNewsRotation(container, headlines, _fabController.signal);
+  wireDashboardLayout(container, layoutState, data);
   if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
   scheduleMidnightQuoteRefresh(container, _fabController.signal);
   initFab(container, _fabController.signal);
@@ -1523,7 +1755,7 @@ export async function render(container, { user }) {
   function refreshTasksWidget() {
     const widgetEl = container.querySelector('#tasks-widget');
     if (!widgetEl) return;
-    const html = renderTasksWidget(data.personalLists ?? [], data.personalItems ?? []);
+    const html = renderTasksWidget(data.personalLists ?? [], data.personalItems ?? [], widgetEl.dataset.widgetSpan ?? layoutState.spans['tasks-widget']);
     widgetEl.outerHTML = html;
     if (window.lucide) window.lucide.createIcons();
     wireTasksWidget(container, data, refreshTasksWidget);

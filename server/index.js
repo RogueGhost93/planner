@@ -31,7 +31,9 @@ import linkdingRouter from './routes/linkding.js';
 import bookmarksRouter from './routes/bookmarks.js';
 import fileboxRouter, { shareRouter as fileboxShareRouter, combinedShareRouter } from './routes/filebox.js';
 import pushRouter from './routes/push.js';
+import webviewRouter from './routes/webview.js';
 import { startAlarmScheduler } from './services/alarm-scheduler.js';
+import { getWebviewOrigin } from './services/webview.js';
 
 const log     = createLogger('Server');
 const logSync = createLogger('Sync');
@@ -44,37 +46,40 @@ const PORT = process.env.PORT || 3000;
 // Security-Middleware
 // --------------------------------------------------------
 const isSecure = process.env.SESSION_SECURE !== 'false';
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: [
-        "'self'",
-        // Inline-Script: Theme-Detection (Flash-Prevention)
-        "'sha256-vqqBNo1oitnzIntwkG83UaYqkUAnV/oZ/RkvcA41Y6A='",
-        // Alpine.js CDN (optional, falls verwendet)
-        'https://cdn.jsdelivr.net',
-      ],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'https:', 'http:'],
-      connectSrc: ["'self'", 'https://api.coingecko.com'],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      frameSrc: ["'none'"],
-      frameAncestors: ["'self'", "https://homarr.letsflyhi.com", "https://homarr.luka.letsflyhi.com"],
-      // upgrade-insecure-requests nur mit HTTPS aktivieren
-      upgradeInsecureRequests: isSecure ? [] : null,
+app.use((req, res, next) => {
+  const webviewOrigin = getWebviewOrigin();
+  return helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          // Inline-Script: Theme-Detection (Flash-Prevention)
+          "'sha256-vqqBNo1oitnzIntwkG83UaYqkUAnV/oZ/RkvcA41Y6A='",
+          // Alpine.js CDN (optional, falls verwendet)
+          'https://cdn.jsdelivr.net',
+        ],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'https:', 'http:'],
+        connectSrc: ["'self'", 'https://api.coingecko.com'],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: webviewOrigin ? [webviewOrigin] : ["'none'"],
+        frameAncestors: ["'self'", "https://homarr.letsflyhi.com", "https://homarr.luka.letsflyhi.com"],
+        // upgrade-insecure-requests nur mit HTTPS aktivieren
+        upgradeInsecureRequests: isSecure ? [] : null,
+      },
     },
-  },
-  // X-Frame-Options deaktivieren — frame-ancestors in CSP übernimmt die Kontrolle
-  frameguard: false,
-  // HSTS nur mit HTTPS aktivieren
-  hsts: isSecure ? {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true,
-  } : false,
-}));
+    // X-Frame-Options deaktivieren — frame-ancestors in CSP übernimmt die Kontrolle
+    frameguard: false,
+    // HSTS nur mit HTTPS aktivieren
+    hsts: isSecure ? {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true,
+    } : false,
+  })(req, res, next);
+});
 
 // Trust Proxy: nur aktivieren wenn ein Reverse Proxy vorgeschaltet ist (TRUST_PROXY env var).
 // Default 'loopback' akzeptiert nur X-Forwarded-For von localhost - verhindert IP-Spoofing.
@@ -187,6 +192,7 @@ app.use('/api/v1/linkding', linkdingRouter);
 app.use('/api/v1/filebox', fileboxRouter);
 app.use('/api/v1', bookmarksRouter);
 app.use('/api/v1/push', pushRouter);
+app.use('/api/v1/webview', webviewRouter);
 
 // --------------------------------------------------------
 // Health-Check (für Docker)

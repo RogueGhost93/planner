@@ -24,6 +24,7 @@ const ROUTES = [
   { path: '/calendar', page: '/pages/calendar.js',  requiresAuth: true, module: 'calendar'  },
   { path: '/meals',    page: '/pages/meals.js',     requiresAuth: true, module: 'meals'     },
   { path: '/news',     page: '/pages/news.js',      requiresAuth: true, module: 'news'      },
+  { path: '/web',      page: '/pages/webview.js',   requiresAuth: true, module: 'webview'   },
   { path: '/bookmarks', page: '/pages/bookmarks.js', requiresAuth: true, module: 'bookmarks' },
   { path: '/filebox',  page: '/pages/filebox.js',   requiresAuth: true, module: 'filebox'   },
   { path: '/contacts', page: '/pages/contacts.js',  requiresAuth: true, module: 'contacts'  },
@@ -178,7 +179,7 @@ let isNavigating = false;
 // --------------------------------------------------------
 
 const ROUTE_ORDER = ['/', '/tasks', '/lists', '/notes', '/notebook', '/calendar', '/news',
-                     '/meals', '/contacts', '/settings'];
+                     '/web', '/meals', '/contacts', '/settings'];
 
 function getDirection(fromPath, toPath) {
   const fromIdx = ROUTE_ORDER.indexOf(fromPath ?? '/');
@@ -378,6 +379,7 @@ function renderAppShell(container) {
 
   // Bottom nav: scroll-snap + dot indicator
   initBottomNavSwipe(container);
+  initRouteSwipe(container);
   scrollNavToActive();
 }
 
@@ -408,6 +410,94 @@ function scrollNavToActive() {
   }
 }
 
+function isRouteSwipeExcludedTarget(target) {
+  return !!target?.closest([
+    'a',
+    'button',
+    'input',
+    'textarea',
+    'select',
+    'label',
+    '[contenteditable="true"]',
+    '.nav-sidebar',
+    '.nav-bottom',
+    '.shopping-page',
+    '#tasks-widget',
+    '#shopping-widget',
+    '#list-content',
+  ].join(', '));
+}
+
+/**
+ * Lets mobile users swipe left/right to move between routes.
+ * Content areas that already own horizontal swipes opt out via selectors above.
+ */
+function initRouteSwipe(container) {
+  const main = container.querySelector('#main-content');
+  if (!main) return;
+
+  const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
+  const SWIPE_THRESHOLD = 50;
+  const LOCK_DELTA = 10;
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let locked = null;
+
+  main.addEventListener('touchstart', (e) => {
+    if (!isMobile()) return;
+    if (e.touches.length !== 1) { tracking = false; return; }
+    if (isRouteSwipeExcludedTarget(e.target)) { tracking = false; return; }
+    if (ROUTE_ORDER.indexOf(currentPath ?? '') === -1) { tracking = false; return; }
+
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+    locked = null;
+  }, { passive: true });
+
+  main.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    if (locked === null) {
+      if (Math.abs(dx) > LOCK_DELTA && Math.abs(dx) > Math.abs(dy)) locked = 'h';
+      else if (Math.abs(dy) > LOCK_DELTA) locked = 'v';
+    }
+
+    if (locked === 'h') {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  main.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    if (locked !== 'h') return;
+
+    const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
+    if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+
+    const currentIdx = ROUTE_ORDER.indexOf(currentPath ?? '');
+    if (currentIdx === -1) return;
+
+    const nextIdx = dx < 0
+      ? Math.min(ROUTE_ORDER.length - 1, currentIdx + 1)
+      : Math.max(0, currentIdx - 1);
+    if (nextIdx === currentIdx) return;
+
+    navigate(ROUTE_ORDER[nextIdx]);
+  });
+
+  main.addEventListener('touchcancel', () => {
+    tracking = false;
+    locked = null;
+  });
+}
+
 function setNavRouteHidden(path, hidden) {
   document.querySelectorAll(`a.nav-item[data-route="${path}"]`).forEach(el => {
     el.hidden = hidden;
@@ -415,20 +505,23 @@ function setNavRouteHidden(path, hidden) {
 }
 
 async function refreshOptionalNavItems() {
-  const [mealieStatus, freshrssStatus, linkdingStatus, fileboxStatus] = await Promise.allSettled([
+  const [mealieStatus, freshrssStatus, linkdingStatus, fileboxStatus, webviewStatus] = await Promise.allSettled([
     api.get('/mealie/status'),
     api.get('/freshrss/status'),
     api.get('/linkding/status'),
     api.get('/filebox/status'),
+    api.get('/webview/config'),
   ]);
 
   const mealieConfigured = mealieStatus.status === 'fulfilled' && mealieStatus.value?.configured;
   const freshrssConfigured = freshrssStatus.status === 'fulfilled' && freshrssStatus.value?.configured;
   const linkdingConfigured = linkdingStatus.status === 'fulfilled' && linkdingStatus.value?.configured;
   const fileboxEnabled = fileboxStatus.status === 'fulfilled' && fileboxStatus.value?.enabled;
+  const webviewConfigured = webviewStatus.status === 'fulfilled' && webviewStatus.value?.configured;
 
   setNavRouteHidden('/meals', !mealieConfigured);
   setNavRouteHidden('/news', !freshrssConfigured);
+  setNavRouteHidden('/web', !webviewConfigured);
   setNavRouteHidden('/bookmarks', !linkdingConfigured);
   setNavRouteHidden('/filebox', !fileboxEnabled);
   renderBottomNavPages();
@@ -444,6 +537,7 @@ function navItems() {
     { path: '/notebook', label: t('nav.notebook'),  icon: 'book-open'        },
     { path: '/calendar', label: t('nav.calendar'),  icon: 'calendar'         },
     { path: '/news',     label: t('nav.news'),      icon: 'newspaper', optional: true },
+    { path: '/web',      label: t('nav.web'),       icon: 'globe',     optional: true },
     { path: '/bookmarks', label: 'Bookmarks',       icon: 'link',            optional: true },
     { path: '/filebox',  label: 'Filebox',          icon: 'folder',          optional: true },
     { path: '/meals',    label: t('nav.meals'),     icon: 'utensils'         },
@@ -471,15 +565,16 @@ function getBottomNavPages(hiddenResolver = (item) => isNavRouteHidden(item.path
     hidden: hiddenResolver(item),
   }));
 
-  const visibleCount = items.reduce((count, item) => count + (item.hidden ? 0 : 1), 0);
-  const splitIndex = Math.ceil(visibleCount / 2);
+  const visibleItems = items.filter((item) => !item.hidden);
+  const splitIndex = Math.ceil(visibleItems.length / 2);
   const pages = [[], []];
   let visibleSeen = 0;
 
   for (const item of items) {
+    if (item.hidden) continue;
     const pageIndex = visibleSeen < splitIndex ? 0 : 1;
     pages[pageIndex].push(item);
-    if (!item.hidden) visibleSeen++;
+    visibleSeen++;
   }
 
   return pages;

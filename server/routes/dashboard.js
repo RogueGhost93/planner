@@ -12,6 +12,89 @@ const log = createLogger('Dashboard');
 
 const router = express.Router();
 
+const DASHBOARD_LAYOUT_KEY = 'dashboard_layout';
+const DEFAULT_DASHBOARD_WIDGET_ORDER = [
+  'quote-widget',
+  'tasks-widget',
+  'events-widget',
+  'shopping-widget',
+  'quick-notes-widget',
+];
+const DASHBOARD_WIDGET_SPANS = new Set(['1', '2', 'full']);
+
+function defaultDashboardLayout() {
+  return {
+    order: DEFAULT_DASHBOARD_WIDGET_ORDER.slice(),
+    hidden: [],
+    spans: {
+      'quote-widget': 'full',
+      'tasks-widget': '2',
+      'events-widget': '1',
+      'shopping-widget': '2',
+      'quick-notes-widget': '1',
+    },
+  };
+}
+
+function normalizeDashboardLayout(value) {
+  const defaults = defaultDashboardLayout();
+  const layout = value && typeof value === 'object' ? value : {};
+  const order = Array.isArray(layout.order) ? layout.order : [];
+  const hidden = Array.isArray(layout.hidden) ? layout.hidden : [];
+  const spans = layout.spans && typeof layout.spans === 'object' ? layout.spans : {};
+  const seen = new Set();
+  const normalizedOrder = [];
+  for (const id of order) {
+    if (!DEFAULT_DASHBOARD_WIDGET_ORDER.includes(id) || seen.has(id)) continue;
+    seen.add(id);
+    normalizedOrder.push(id);
+  }
+  for (const id of DEFAULT_DASHBOARD_WIDGET_ORDER) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    normalizedOrder.push(id);
+  }
+  const normalizedHidden = [];
+  const hiddenSeen = new Set();
+  for (const id of hidden) {
+    if (!DEFAULT_DASHBOARD_WIDGET_ORDER.includes(id) || hiddenSeen.has(id)) continue;
+    hiddenSeen.add(id);
+    normalizedHidden.push(id);
+  }
+
+  return {
+    order: normalizedOrder,
+    hidden: normalizedHidden,
+    spans: DEFAULT_DASHBOARD_WIDGET_ORDER.reduce((acc, id) => {
+      const span = String(spans[id] ?? defaults.spans[id] ?? '1');
+      acc[id] = DASHBOARD_WIDGET_SPANS.has(span) ? span : (defaults.spans[id] ?? '1');
+      return acc;
+    }, {}),
+  };
+}
+
+function readDashboardLayout(userId) {
+  try {
+    const row = db.get()
+      .prepare(`SELECT value FROM user_settings WHERE user_id = ? AND key = ?`)
+      .get(userId, DASHBOARD_LAYOUT_KEY);
+    if (!row?.value) return defaultDashboardLayout();
+    return normalizeDashboardLayout(JSON.parse(row.value));
+  } catch (err) {
+    log.error('dashboard layout load:', err.message);
+    return defaultDashboardLayout();
+  }
+}
+
+function saveDashboardLayout(userId, layout) {
+  const normalized = normalizeDashboardLayout(layout);
+  db.get().prepare(`
+    INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
+    ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+  `).run(userId, DASHBOARD_LAYOUT_KEY, JSON.stringify(normalized));
+  return normalized;
+}
+
 /**
  * GET /api/v1/dashboard
  * Liefert aggregierte Daten für alle Dashboard-Widgets.
@@ -196,10 +279,35 @@ router.get('/', (req, res) => {
     result.listItems = [];
   }
 
+  result.layout = readDashboardLayout(req.session.userId);
+
   res.json(result);
   } catch (err) {
     log.error('Kritischer Fehler:', err.message);
     res.status(500).json({ error: 'Dashboard konnte nicht geladen werden.', code: 500 });
+  }
+});
+
+router.get('/layout', (req, res) => {
+  try {
+    res.json({ data: { layout: readDashboardLayout(req.session.userId) } });
+  } catch (err) {
+    log.error('dashboard layout GET:', err.message);
+    res.status(500).json({ error: 'Layout konnte nicht geladen werden.', code: 500 });
+  }
+});
+
+/**
+ * PUT /api/v1/dashboard/layout
+ * Saves the widget order and span layout for the current user.
+ */
+router.put('/layout', (req, res) => {
+  try {
+    const normalized = saveDashboardLayout(req.session.userId, req.body?.layout ?? req.body ?? {});
+    res.json({ ok: true, data: { layout: normalized } });
+  } catch (err) {
+    log.error('dashboard layout save:', err.message);
+    res.status(500).json({ error: 'Layout konnte nicht gespeichert werden.', code: 500 });
   }
 });
 
