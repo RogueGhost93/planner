@@ -115,12 +115,40 @@
 
   "webview": {
     "title": "Website",
+    "pageTitle": "Websites",
+    "pageSubtitle": "{{count}} websites shown",
     "loadingTitle": "Loading website",
     "loadingDescription": "Preparing the embedded page.",
     "notConfiguredTitle": "Website not configured",
-    "notConfiguredDescription": "Set PLANIUM_WEBVIEW_URL on the server to enable this page.",
+    "notConfiguredDescription": "Add a website in Settings or with the + button on the dashboard.",
+    "emptyTitle": "No websites configured",
+    "emptyDescription": "Add a website iframe in Settings or with the + button on the dashboard.",
+    "emptyHint": "Use the dashboard + button to add a website, or toggle one back into tabs in Settings.",
+    "tabsHiddenTitle": "Websites are widget-only",
+    "tabsHiddenDescription": "All configured websites are currently hidden from the /web tab and shown on the dashboard instead.",
+    "addTitle": "Add website",
+    "editTitle": "Edit website",
+    "addWebsite": "Add website",
+    "addWebsiteFab": "Website",
+    "nameLabel": "Name",
+    "urlLabel": "Website URL",
+    "urlPlaceholder": "https://example.com",
+    "defaultName": "Website",
+    "editorIntroTitle": "Website details",
+    "editorIntroText": "Name it once and Planium will use that label in tabs and widgets.",
+    "showInTabsLabel": "Show in tabs",
+    "showInTabsHelp": "Turn this off to keep the website as a dashboard widget only.",
+    "configuredCount": "{{count}} website shown in tabs",
+    "configuredCountPlural": "{{count}} websites shown in tabs",
     "openInNewTab": "Open in new tab",
-    "openPage": "Open"
+    "openPage": "Open",
+    "deleteTitle": "Remove website",
+    "deleteConfirm": "Remove \"{{name}}\"?",
+    "clearConfirm": "Remove all website iframes?",
+    "savedToast": "Website iframe updated.",
+    "createdToast": "Website iframe added.",
+    "deletedToast": "Website iframe removed.",
+    "configured": "Configured"
   },
 
   "tasks": {
@@ -758,7 +786,9 @@
     "webviewClearBtn": "Remove website",
     "webviewAdminOnly": "Only admins can configure the website iframe.",
     "webviewSavedToast": "Website iframe updated.",
-    "webviewClearedToast": "Website iframe removed."
+    "webviewClearedToast": "Website iframe removed.",
+    "webviewCreatedToast": "Website iframe added.",
+    "webviewDeletedToast": "Website iframe removed."
   },
 
   "login": {

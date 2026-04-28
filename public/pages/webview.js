@@ -21,6 +21,16 @@ function renderMissing() {
   `;
 }
 
+function renderTabsHidden() {
+  return `
+    <div class="empty-state webview-empty">
+      <div class="empty-state__title">${t('webview.tabsHiddenTitle')}</div>
+      <div class="empty-state__description">${t('webview.tabsHiddenDescription')}</div>
+      <div class="webview-empty__hint">${t('webview.emptyHint')}</div>
+    </div>
+  `;
+}
+
 function renderPage(items) {
   const visibleItems = items.filter((item) => item?.show_in_tabs !== false && item?.url);
   const pageTitle = visibleItems.length === 1 ? webviewItemLabel(visibleItems[0]) : t('webview.pageTitle');
@@ -58,9 +68,15 @@ export async function render(container) {
     return;
   }
 
-  const items = Array.isArray(config?.data?.items) ? config.data.items : [];
+  const items = Array.isArray(config?.items) ? config.items : [];
   if (!items.length) {
     container.innerHTML = renderMissing();
+    return;
+  }
+
+  const visibleItems = items.filter((item) => item?.show_in_tabs !== false && item?.url);
+  if (!visibleItems.length) {
+    container.innerHTML = renderTabsHidden();
     return;
   }
 
@@ -72,6 +88,6 @@ export async function render(container) {
     });
   });
 
-  document.title = `${items.length === 1 ? webviewItemLabel(items[0]) : t('webview.pageTitle')} · Planium`;
+  document.title = `${visibleItems.length === 1 ? webviewItemLabel(visibleItems[0]) : t('webview.pageTitle')} · Planium`;
   window.lucide?.createIcons();
 }

@@ -2,66 +2,112 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  height: calc(100dvh - var(--nav-bottom-height) - var(--safe-area-inset-bottom) - var(--space-4));
-  min-height: 0;
-  padding: var(--space-2) var(--space-2) 0;
+  min-height: calc(100dvh - var(--nav-bottom-height) - var(--safe-area-inset-bottom));
+  padding: var(--space-3);
   --module-webview: var(--color-accent);
 }
 
-.webview-toolbar {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-4);
+.webview-page-header {
+  margin: 0 var(--space-1);
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border-subtle);
-  border-left: 4px solid var(--module-accent, var(--color-accent));
-  border-radius: var(--radius-xl);
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 96%, transparent), color-mix(in srgb, var(--color-surface) 90%, transparent)),
-    radial-gradient(circle at top right, color-mix(in srgb, var(--module-accent, var(--color-accent)) 10%, transparent), transparent 45%);
+  border-left: 3px solid var(--module-webview);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
   box-shadow: var(--shadow-sm);
 }
 
-.webview-toolbar__meta {
+.webview-page-header__meta {
   min-width: 0;
 }
 
-.webview-title {
+.webview-page-title {
+  margin-bottom: 0;
   font-size: var(--text-lg);
   font-weight: var(--font-weight-semibold);
-  margin-bottom: 0;
 }
 
-.webview-url {
+.webview-page-subtitle {
+  margin-top: var(--space-1);
   font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.webview-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+}
+
+.webview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 520px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.webview-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: color-mix(in srgb, var(--color-surface) 97%, transparent);
+}
+
+.webview-card__meta {
+  min-width: 0;
+}
+
+.webview-card__title,
+.webview-widget__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.webview-card__icon {
+  width: 16px;
+  height: 16px;
+  color: var(--module-webview);
+  flex-shrink: 0;
+}
+
+.webview-card__subtitle {
+  margin-top: 2px;
+  font-size: var(--text-xs);
   color: var(--color-text-secondary);
   word-break: break-all;
 }
 
-.webview-toolbar__actions {
+.webview-card__actions {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
 }
 
-.webview-frame-wrap {
+.webview-card__body {
   flex: 1;
   min-height: 0;
-  height: 100%;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-xl);
   overflow: hidden;
-  background: var(--color-surface);
-  box-shadow: var(--shadow-sm);
 }
 
-.webview-frame {
+.webview-card__frame,
+.webview-widget__frame {
   display: block;
   width: 100%;
   height: 100%;
-  min-height: 0;
+  min-height: 520px;
   border: 0;
   background: var(--color-surface);
 }
@@ -71,6 +117,7 @@
   align-items: center;
   justify-content: center;
   text-align: center;
+  margin: var(--space-3);
 }
 
 .webview-empty__hint {
@@ -87,28 +134,34 @@
 }
 
 @media (max-width: 767px) {
-  .webview-toolbar {
+  .webview-shell {
+    padding: var(--space-2);
+    min-height: calc(100dvh - var(--nav-bottom-height) - var(--safe-area-inset-bottom));
+  }
+
+  .webview-page-header,
+  .webview-card {
+    border-radius: var(--radius-sm);
+  }
+
+  .webview-card__header {
     flex-direction: column;
   }
 
-  .webview-toolbar__actions {
+  .webview-card__actions {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
   }
 
-  .webview-shell {
-    height: calc(100dvh - var(--nav-bottom-height) - var(--safe-area-inset-bottom) - var(--space-3));
-  }
-
-  .webview-frame {
-    min-height: 0;
+  .webview-card__frame,
+  .webview-widget__frame {
+    min-height: 460px;
   }
 }
 
 @media (min-width: 1024px) {
   .webview-shell {
-    height: calc(100dvh - var(--safe-area-inset-bottom) - var(--space-8));
-    padding: var(--space-2) var(--space-4) 0;
+    padding: var(--space-4);
   }
 }

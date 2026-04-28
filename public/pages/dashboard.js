@@ -1105,7 +1105,7 @@ function initFab(container, signal, user) {
       openWebviewEditor({
         onSubmit: async (item) => {
           const res = await loadWebviewConfig();
-          const items = Array.isArray(res.data?.items) ? res.data.items.slice() : [];
+          const items = Array.isArray(res?.items) ? res.items.slice() : [];
           items.push(item);
           await saveWebviewConfig(items);
           window.location.reload();
@@ -1698,7 +1698,7 @@ export async function render(container, { user }) {
     weather   = weatherRes.data ?? null;
     quote     = quoteRes;
     headlines = newsRes?.data ?? null;
-    webview   = webviewRes?.data ?? { configured: false, items: [] };
+    webview   = webviewRes ?? { configured: false, items: [] };
   } catch (err) {
     console.error('[Dashboard] Ladefehler:', err.message);
     window.planium?.showToast(t('dashboard.loadError'), 'warning');
@@ -1744,7 +1744,7 @@ export async function render(container, { user }) {
         ${renderBoardNotes(data.pinnedNotes ?? [])}
       </div>
     </div>
-    ${renderFab()}
+    ${renderFab(user)}
   `;
 
   wireLinks(container);
@@ -1769,6 +1769,7 @@ export async function render(container, { user }) {
   wireShoppingWidget(container, data);
   wireEventsWidget(container, data);
   wireQuickNotes(container);
+  wireWebviewCards(container);
   if (window.lucide) window.lucide.createIcons();
 
   // Wetter: 30-Minuten-Hintergrund-Refresh — aktualisiert nur die Greeting-Chips

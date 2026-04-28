@@ -91,7 +91,11 @@ function persistItems(items) {
   `);
 
   if (!normalized.length) {
-    db.get().prepare('DELETE FROM app_settings WHERE key IN (?, ?)').run(SETTINGS_KEY, LEGACY_KEY);
+    db.get().prepare(`
+      INSERT INTO app_settings (key, value) VALUES (?, '[]')
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run(SETTINGS_KEY);
+    db.get().prepare('DELETE FROM app_settings WHERE key = ?').run(LEGACY_KEY);
     return [];
   }
 

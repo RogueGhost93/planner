@@ -90,13 +90,13 @@ function renderWebviewSettingsRows(items = []) {
           <div class="webview-settings-row__url">${esc(item.url ?? '')}</div>
         </div>
         <div class="webview-settings-row__actions">
-          <label class="settings-toggle-row webview-settings-row__toggle" style="margin:0">
+          <div class="webview-settings-row__toggle">
             <span class="settings-toggle-label">${t('webview.showInTabsLabel')}</span>
             <label class="toggle-switch">
               <input type="checkbox" data-webview-tabs-toggle="${esc(item.id ?? '')}" ${enabled ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
             </label>
-          </label>
+          </div>
           <button class="btn btn--ghost btn--icon" type="button" data-webview-edit="${esc(item.id ?? '')}" aria-label="${t('common.edit')}" title="${t('common.edit')}">
             <i data-lucide="pencil" aria-hidden="true"></i>
           </button>
@@ -155,7 +155,7 @@ export async function render(container, { user }) {
     if (lStatus.status  === 'fulfilled')  linkdingStatus = lStatus.value;
     if (wStatus.status  === 'fulfilled')  weatherStatus  = wStatus.value;
     if (fbStatus.status === 'fulfilled')  fileboxStatus  = fbStatus.value;
-    if (webStatus.status === 'fulfilled')  webviewStatus  = webStatus.value.data ?? { configured: false, items: [] };
+    if (webStatus.status === 'fulfilled')  webviewStatus  = webStatus.value ?? { configured: false, items: [] };
     if (tlRes.status    === 'fulfilled')  taskLists      = tlRes.value.data ?? [];
     INTEGRATIONS.forEach((i, idx) => {
       if (myCfgRes[idx]?.status === 'fulfilled') myConfigs[i.id] = myCfgRes[idx].value;
@@ -411,7 +411,11 @@ export async function render(container, { user }) {
             <div class="settings-sync-info">
               <div class="settings-sync-info__name">${t('settings.webviewTitle')}</div>
               <div class="settings-sync-info__status ${webviewStatus?.configured ? 'settings-sync-info__status--connected' : ''}" id="webview-status-text">
-                ${webviewStatus?.configured ? t('webview.configuredCount', { count: webviewStatus.items?.filter((item) => item?.show_in_tabs !== false).length ?? 0 }) : t('settings.webviewNotConfigured')}
+                ${webviewStatus?.configured ? (
+                  (webviewStatus.items?.filter((item) => item?.show_in_tabs !== false).length ?? 0) === 1
+                    ? t('webview.configuredCount', { count: webviewStatus.items?.filter((item) => item?.show_in_tabs !== false).length ?? 0 })
+                    : t('webview.configuredCountPlural', { count: webviewStatus.items?.filter((item) => item?.show_in_tabs !== false).length ?? 0 })
+                ) : t('settings.webviewNotConfigured')}
               </div>
             </div>
           </div>
@@ -840,8 +844,11 @@ function bindEvents(container, user, webviewStatus) {
       webviewStatus.items = Array.isArray(nextConfig.items) ? nextConfig.items : [];
     }
     if (webviewStatusText) {
+      const count = webviewStatus.items.filter((item) => item?.show_in_tabs !== false).length;
       webviewStatusText.textContent = webviewStatus.configured
-        ? t('webview.configuredCount', { count: webviewStatus.items.filter((item) => item?.show_in_tabs !== false).length })
+        ? (count === 1
+          ? t('webview.configuredCount', { count })
+          : t('webview.configuredCountPlural', { count }))
         : t('settings.webviewNotConfigured');
     }
     if (webviewClearBtn) {
@@ -855,9 +862,9 @@ function bindEvents(container, user, webviewStatus) {
 
   const saveWebviewItems = async (items, successToastKey = 'settings.webviewSavedToast') => {
     const res = await saveWebviewConfig(items);
-    syncWebviewUI(res.data);
+    syncWebviewUI(res);
     window.planium?.showToast(t(successToastKey), 'success');
-    return res.data;
+    return res;
   };
 
   const webviewAddBtn = container.querySelector('#webview-add-btn');

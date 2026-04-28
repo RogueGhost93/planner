@@ -7,9 +7,11 @@ function normalizeWebviewItemInput(item = {}, fallbackIndex = 0) {
   const name = String(item.name ?? '').trim() || t('webview.defaultName');
   const url = String(item.url ?? '').trim();
   const showInTabs = item.show_in_tabs !== false && item.showInTabs !== false;
-  const id = String(item.id ?? '').trim() || `webview-${fallbackIndex + 1}`;
 
-  return { id, name, url, show_in_tabs: showInTabs };
+  const result = { name, url, show_in_tabs: showInTabs };
+  const id = String(item.id ?? '').trim();
+  if (id) result.id = id;
+  return result;
 }
 
 export async function loadWebviewConfig() {
@@ -41,7 +43,7 @@ export function renderWebviewCard(item, {
   const url = esc(webviewItemUrl(item));
   const titleAttr = esc(webviewItemLabel(item));
   const cardClass = variant === 'widget'
-    ? 'widget widget--webview'
+    ? 'widget widget--webview widget-layout--span-full'
     : 'webview-card';
   const bodyClass = variant === 'widget'
     ? 'widget__body webview-widget__body'
@@ -65,6 +67,10 @@ export function renderWebviewCard(item, {
     ? 'widget__title-icon'
     : 'webview-card__icon';
 
+  const subtitleHtml = variant !== 'widget' && showSubtitle
+    ? `<div class="${subtitleClass}">${url}</div>`
+    : '';
+
   return `
     <article class="${cardClass}" data-webview-item-id="${id}">
       <div class="${headerClass}">
@@ -73,7 +79,7 @@ export function renderWebviewCard(item, {
             <i data-lucide="globe" class="${iconClass}" aria-hidden="true"></i>
             <span>${name}</span>
           </div>
-          ${showSubtitle ? `<div class="${subtitleClass}">${url}</div>` : ''}
+          ${subtitleHtml}
         </div>
         <div class="${actionsClass}">
           <button class="btn btn--ghost btn--icon" type="button"
@@ -130,25 +136,33 @@ function editorHtml(item = {}) {
   const url = esc(item.url ?? '');
   const showInTabs = item.show_in_tabs !== false && item.showInTabs !== false;
   return `
-    <form class="webview-editor" data-webview-editor>
-      <div class="form-group">
-        <label class="form-label" for="webview-name">${t('webview.nameLabel')}</label>
-        <input class="form-input" type="text" id="webview-name" value="${name}" required />
+    <form class="webview-editor dashboard-widget-picker" data-webview-editor>
+      <div class="webview-editor__intro">
+        <div class="webview-editor__title">${t('webview.editorIntroTitle')}</div>
+        <div class="webview-editor__subtitle">${t('webview.editorIntroText')}</div>
       </div>
-      <div class="form-group">
-        <label class="form-label" for="webview-url">${t('webview.urlLabel')}</label>
-        <input class="form-input" type="url" id="webview-url" value="${url}" placeholder="${t('webview.urlPlaceholder')}" required />
+      <div class="dashboard-widget-picker__card webview-editor__card">
+        <div class="webview-editor__field">
+          <label class="form-label" for="webview-name">${t('webview.nameLabel')}</label>
+          <input class="form-input" type="text" id="webview-name" value="${name}" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+        </div>
+        <div class="webview-editor__field">
+          <label class="form-label" for="webview-url">${t('webview.urlLabel')}</label>
+          <input class="form-input" type="url" id="webview-url" value="${url}" placeholder="${t('webview.urlPlaceholder')}" autocomplete="off" autocapitalize="off" spellcheck="false" required />
+        </div>
+        <div class="webview-editor__toggle">
+          <div class="dashboard-widget-picker__text">
+            <span class="dashboard-widget-picker__label">${t('webview.showInTabsLabel')}</span>
+            <span class="dashboard-widget-picker__meta">${t('webview.showInTabsHelp')}</span>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="webview-show-in-tabs" ${showInTabs ? 'checked' : ''} />
+            <span class="toggle-switch__slider"></span>
+          </label>
+        </div>
       </div>
-      <div class="settings-toggle-row webview-editor__toggle">
-        <label class="settings-toggle-label" for="webview-show-in-tabs">${t('webview.showInTabsLabel')}</label>
-        <label class="toggle-switch">
-          <input type="checkbox" id="webview-show-in-tabs" ${showInTabs ? 'checked' : ''} />
-          <span class="toggle-switch__slider"></span>
-        </label>
-      </div>
-      <span class="form-hint">${t('webview.showInTabsHelp')}</span>
       <div class="webview-editor__status" hidden></div>
-      <div class="modal-panel__footer">
+      <div class="dashboard-widget-picker__footer">
         <button class="btn btn--ghost" type="button" data-webview-editor-cancel>${t('common.cancel')}</button>
         <button class="btn btn--primary" type="submit">${t('common.save')}</button>
       </div>
@@ -159,7 +173,7 @@ function editorHtml(item = {}) {
 export function openWebviewEditor({ item = {}, title, onSubmit } = {}) {
   openModal({
     title: title ?? (item?.id ? t('webview.editTitle') : t('webview.addTitle')),
-    size: 'sm',
+    size: 'md',
     content: editorHtml(item),
     onSave(panel) {
       const form = panel.querySelector('[data-webview-editor]');
