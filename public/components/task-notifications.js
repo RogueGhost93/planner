@@ -216,6 +216,7 @@ function showPopup(todayTasks, tomorrowTasks, notifyTime) {
 // --------------------------------------------------------
 
 let checkInterval = null;
+let alarmInterval = null;
 
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
@@ -300,6 +301,18 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+async function checkDueAlarms(tone) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const { alarms } = await api.get('/push/due-alarms');
+    if (!alarms?.length) return;
+    for (const alarm of alarms) {
+      new Notification('⏰ Task alarm', { body: alarm.title, icon: '/icons/icon-192.png', tag: `alarm-${alarm.id}` });
+    }
+    playNotificationSound(tone);
+  } catch { /* ignore network errors */ }
+}
+
 async function subscribeToPush() {
   try {
     if (!('PushManager' in window)) return;
@@ -323,8 +336,8 @@ async function subscribeToPush() {
  * @param {Object} user - User object with notification preferences
  */
 export function initNotifications(user) {
-  // Stop any previous interval
   if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
+  if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
 
   const prefs = {
     notify_popup:    user.notify_popup ?? 1,
@@ -334,14 +347,21 @@ export function initNotifications(user) {
     notify_tone:     user.notify_tone  || 'default',
   };
 
-  // Request notification permission and subscribe to push for task alarms
+  // Request notification permission, then subscribe to push and start alarm polling
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission().then((permission) => {
-      if (permission === 'granted') subscribeToPush();
+      if (permission === 'granted') {
+        subscribeToPush();
+        checkDueAlarms(prefs.notify_tone);
+      }
     });
   } else if ('Notification' in window && Notification.permission === 'granted') {
     subscribeToPush();
+    checkDueAlarms(prefs.notify_tone);
   }
+
+  // Poll for due alarms every 60s (works even without push subscription)
+  alarmInterval = setInterval(() => checkDueAlarms(prefs.notify_tone), 60_000);
 
   // Initial check (slight delay to let the page settle)
   setTimeout(() => checkNotifications(prefs), 1500);
@@ -355,4 +375,5 @@ export function initNotifications(user) {
  */
 export function stopNotifications() {
   if (checkInterval) { clearInterval(checkInterval); checkInterval = null; }
+  if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
 }

@@ -309,7 +309,7 @@ function renderModalContent({ task = null, users = [] } = {}) {
         <label class="label" for="new-list-name">${t('tasks.personalListNameLabel')}</label>
         <input class="input" type="text" id="new-list-name" name="list_name"
                placeholder="${t('tasks.personalListNamePlaceholder')}"
-               maxlength="200" autocomplete="off">
+               maxlength="600" autocomplete="off">
       </div>
 
       <div class="form-group">
@@ -1412,7 +1412,7 @@ function renderPersonalItemRow(item) {
   const showPriority = list?.show_priority !== 0;
   const isShared = list && (!list.is_owner || (list.shared_user_ids?.length > 0));
   return `
-    <div class="task-card ${item.done ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}">
+    <div class="task-card ${item.done ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}" data-action="open-personal-item">
       <div class="task-card__main">
         <button class="task-select-cb" data-action="toggle-personal-select" data-item-id="${item.id}"
                 aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
@@ -1427,7 +1427,7 @@ function renderPersonalItemRow(item) {
           <div class="task-card__title" data-action="edit-personal-item">
             ${linkify(item.title)}
           </div>
-          ${item.description ? `<div class="task-card__description">${esc(item.description)}</div>` : ''}
+          ${item.description ? `<div class="task-card__description">${linkify(item.description)}</div>` : ''}
           <div class="task-card__meta">
             ${renderPriorityBadge(item.priority ?? 'none')}
             ${due ? `<span class="due-date ${due.cls}">
@@ -1595,14 +1595,15 @@ function renderPersonalKanbanCard(item) {
   const icon = item.done ? 'check-circle' : 'circle';
   return `
     <div class="kanban-card ${item.done ? 'kanban-card--done' : ''}"
-         data-item-id="${item.id}" draggable="true">
+         data-item-id="${item.id}" draggable="true" data-action="open-personal-item">
       <div class="kanban-card__header">
-        <div class="kanban-card__title">${esc(item.title)}</div>
+        <div class="kanban-card__title">${linkify(item.title)}</div>
         <button class="kanban-card__status-btn" data-action="toggle-personal-item"
                 aria-label="Toggle status">
           <i data-lucide="${icon}" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
         </button>
       </div>
+      ${item.description ? `<div class="kanban-card__description">${linkify(item.description)}</div>` : ''}
       <div class="kanban-card__meta">
         ${renderPriorityBadge(item.priority ?? 'none')}
         ${due ? `<span class="due-date ${due.cls}">
@@ -1804,7 +1805,7 @@ function renderPersonalView(container) {
       <form class="personal-list__add" data-action="add-personal-item" novalidate autocomplete="off">
         <input class="personal-list__add-input" type="text" name="title"
                placeholder="${t('tasks.personalListAddPlaceholder')}"
-               maxlength="200" autocomplete="off">
+               maxlength="600" autocomplete="off">
         <button class="personal-list__add-btn" type="submit"
                 aria-label="${t('tasks.personalListAdd')}">
           <i data-lucide="plus" style="width:20px;height:20px;pointer-events:none" aria-hidden="true"></i>
@@ -2154,6 +2155,11 @@ function wirePersonalView(container) {
       }
       return;
     }
+    if (action === 'open-personal-item') {
+      const item = state.personalItems.find((i) => i.id === itemId);
+      if (item) openItemEditDialog({ item, container });
+      return;
+    }
     if (action === 'edit-personal-item') {
       const item = state.personalItems.find((i) => i.id === itemId);
       if (item) openItemEditDialog({ item, container });
@@ -2199,7 +2205,7 @@ function openHouseholdDialog({ container } = {}) {
           <label class="label" for="household-name">${t('tasks.personalListNameLabel')}</label>
           <input class="input" type="text" id="household-name" name="name"
                  value="${esc(currentName)}"
-                 required maxlength="200" autocomplete="off">
+                 required maxlength="600" autocomplete="off">
         </div>
 
         <div class="form-group">
@@ -2328,7 +2334,7 @@ function openListDialog({ list = null, container } = {}) {
           <input class="input" type="text" id="personal-list-name" name="name"
                  value="${esc(list?.name ?? '')}"
                  placeholder="${t('tasks.personalListNamePlaceholder')}"
-                 required maxlength="200" autocomplete="off">
+                 required maxlength="600" autocomplete="off">
         </div>
 
         <div class="form-group">
@@ -2439,7 +2445,7 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         <div class="form-group">
           <label class="label" for="pi-title">${t('tasks.titleLabel')}</label>
           <input class="input" type="text" id="pi-title" name="title"
-                 value="${esc(item.title)}" required maxlength="200" autocomplete="off">
+                 value="${esc(item.title)}" required maxlength="600" autocomplete="off">
         </div>
 
         <div class="form-group">
@@ -2852,7 +2858,7 @@ function renderHouseholdView(container) {
       <form class="personal-list__add" id="household-quick-add" novalidate autocomplete="off">
         <input class="personal-list__add-input" type="text" name="title"
                placeholder="${t('tasks.titlePlaceholder')}"
-               maxlength="200" autocomplete="off">
+               maxlength="600" autocomplete="off">
         <button class="personal-list__add-btn" type="submit"
                 aria-label="${t('tasks.newTask')}">
           <i data-lucide="plus" style="width:20px;height:20px;pointer-events:none" aria-hidden="true"></i>

@@ -387,7 +387,7 @@ function openHeadDialog({ head = null, container } = {}) {
           <label class="label" for="head-list-name">${t('shopping.newHeadPrompt')}</label>
           <input class="input" type="text" id="head-list-name" name="name"
                  value="${esc(head?.name ?? '')}"
-                 required maxlength="200" autocomplete="off">
+                 required maxlength="600" autocomplete="off">
         </div>
         <div class="form-group" style="margin-bottom:0">
           <label class="label" style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer">

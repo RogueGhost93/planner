@@ -311,16 +311,16 @@ function renderPersonalListBody(list, items) {
         const meta = (priority || hasNote || due) ? `
           <div class="personal-widget-item__meta">
             ${priority ? `<span class="priority-badge priority-badge--${priority}"><span class="priority-dot priority-dot--${priority}"></span>${esc(priorityLabel)}</span>` : ''}
+            ${due ? `<span class="personal-widget-item__due ${due.cls}">${esc(due.label)}</span>` : ''}
             ${hasNote ? `<button class="personal-widget-item__note"
                 data-action="view-personal-widget-item-note"
                 data-item-id="${it.id}"
-                aria-label="View note" title="View note">
-              <i data-lucide="file-text" style="width:11px;height:11px;pointer-events:none" aria-hidden="true"></i>
+                aria-label="View note">
+              <i data-lucide="sticky-note" style="width:12px;height:12px;pointer-events:none" aria-hidden="true"></i>
             </button>` : ''}
-            ${due ? `<span class="personal-widget-item__due ${due.cls}">${esc(due.label)}</span>` : ''}
           </div>` : '';
         return `
-        <div class="personal-widget-item ${priority === 'urgent' ? 'personal-widget-item--urgent' : ''}" data-item-id="${it.id}">
+        <div class="personal-widget-item ${priority === 'urgent' ? 'personal-widget-item--urgent' : ''}" data-item-id="${it.id}" data-action="open-personal-widget-item" data-list-id="${list.id}">
           <button class="personal-widget-item__check"
                   data-action="toggle-personal-widget-item"
                   data-list-id="${list.id}" data-item-id="${it.id}"
@@ -349,7 +349,7 @@ function renderPersonalListBody(list, items) {
     <form class="personal-widget-add" data-action="add-personal-widget-item" data-list-id="${list.id}" novalidate autocomplete="off">
       <input class="personal-widget-add__input" type="text" name="title"
              placeholder="${t('dashboard.personalListAddPlaceholder')}"
-             maxlength="200" autocomplete="off">
+             maxlength="600" autocomplete="off">
       <button class="personal-widget-add__btn" type="submit" aria-label="${t('tasks.personalListAdd')}">
         <i data-lucide="plus" style="width:16px;height:16px;pointer-events:none" aria-hidden="true"></i>
       </button>
@@ -931,27 +931,42 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
   });
 
   // Personal item: open edit dialog
+  const openPersonalItemEdit = (itemId, listId) => {
+    const item = (dashData.personalItems || []).find((i) => i.id === itemId);
+    if (!item) return;
+    openItemEditDialog({
+      item,
+      container: root,
+      listId,
+      onSaved: (updated) => {
+        const idx = dashData.personalItems.findIndex((i) => i.id === itemId);
+        if (idx >= 0) dashData.personalItems[idx] = { ...dashData.personalItems[idx], ...updated };
+        refreshWidget();
+      },
+      onDeleted: () => {
+        dashData.personalItems = (dashData.personalItems || []).filter((i) => i.id !== itemId);
+        refreshWidget();
+      },
+    });
+  };
+
+  // Personal item: open edit dialog on item click
+  root.querySelectorAll('[data-action="open-personal-widget-item"]').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return; // don't open if clicked on a link
+      e.stopPropagation();
+      const listId = Number(item.dataset.listId);
+      const itemId = Number(item.dataset.itemId);
+      openPersonalItemEdit(itemId, listId);
+    });
+  });
+
   root.querySelectorAll('[data-action="edit-personal-widget-item"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const listId = Number(btn.dataset.listId);
       const itemId = Number(btn.dataset.itemId);
-      const item = (dashData.personalItems || []).find((i) => i.id === itemId);
-      if (!item) return;
-      openItemEditDialog({
-        item,
-        container: root,
-        listId,
-        onSaved: (updated) => {
-          const idx = dashData.personalItems.findIndex((i) => i.id === itemId);
-          if (idx >= 0) dashData.personalItems[idx] = { ...dashData.personalItems[idx], ...updated };
-          refreshWidget();
-        },
-        onDeleted: () => {
-          dashData.personalItems = (dashData.personalItems || []).filter((i) => i.id !== itemId);
-          refreshWidget();
-        },
-      });
+      openPersonalItemEdit(itemId, listId);
     });
   });
 
@@ -988,15 +1003,21 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
       const close = () => panel.remove();
+      const saveBtn = panel.querySelector('.item-note-panel__save');
       panel.querySelector('.item-note-panel__backdrop').addEventListener('click', close);
       panel.querySelector('.item-note-panel__close').addEventListener('click', close);
-      panel.querySelector('.item-note-panel__save').addEventListener('click', async () => {
-        const description = textarea.value;
-        await api.patch(`/personal-lists/${item.list_id}/items/${itemId}`, { description });
-        const idx = dashData.personalItems.findIndex((i) => i.id === itemId);
-        if (idx >= 0) dashData.personalItems[idx] = { ...dashData.personalItems[idx], description };
-        refreshWidget();
-        close();
+      saveBtn.addEventListener('click', async () => {
+        saveBtn.disabled = true;
+        try {
+          const description = textarea.value || null;
+          const res = await api.patch(`/personal-lists/${item.list_id}/items/${itemId}`, { description });
+          const idx = dashData.personalItems.findIndex((i) => i.id === itemId);
+          if (idx >= 0) dashData.personalItems[idx] = { ...dashData.personalItems[idx], ...res.data };
+          close();
+          refreshWidget();
+        } catch {
+          saveBtn.disabled = false;
+        }
       });
     });
   });

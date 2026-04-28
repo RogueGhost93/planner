@@ -26,6 +26,16 @@ function hide() {
   indicator.style.transform = `translateX(-50%) translateY(${-MAX_TRANSLATE}px) scale(0.7)`;
 }
 
+function insideScrollable(el, boundary) {
+  let node = el;
+  while (node && node !== boundary) {
+    const oy = window.getComputedStyle(node).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+
 export function init() {
   const content = document.getElementById('main-content');
   if (!content || content._ptr) return;
@@ -36,6 +46,7 @@ export function init() {
 
   content.addEventListener('touchstart', (e) => {
     if (window.scrollY > 0) return;
+    if (insideScrollable(e.target, content)) return;
     startY = e.touches[0].clientY;
     pulling = true;
     pullDelta = 0;

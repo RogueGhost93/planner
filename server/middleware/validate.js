@@ -5,7 +5,7 @@
  */
 
 // Globale Längengrenzen
-const MAX_TITLE    = 200;
+const MAX_TITLE    = 600;
 const MAX_TEXT     = 5000;
 const MAX_SHORT    = 100;
 const MAX_RRULE    = 300;

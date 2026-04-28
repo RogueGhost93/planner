@@ -69,6 +69,10 @@
     grid-column: span 2;
   }
 
+  #tasks-widget {
+    grid-column: span 2;
+  }
+
   /* Fixed widget height — sized for 6 calendar event rows */
   .widget:not(#quote-widget):not(.widget--meals) {
     height: 410px;
@@ -1846,6 +1850,7 @@ a.price-ticker:hover {
   border-bottom: 1px solid var(--color-border-subtle);
   transition: opacity var(--transition-fast), transform var(--transition-fast),
               background-color var(--transition-fast);
+  cursor: pointer;
 }
 
 .personal-widget-item:last-child { border-bottom: none; }
@@ -1901,6 +1906,41 @@ a.price-ticker:hover {
   line-height: 1.4;
 }
 
+.personal-widget-item__title a {
+  color: #0066cc;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 102, 204, 0.5);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.personal-widget-item__title a:hover {
+  color: #0052a3;
+  text-decoration-color: #0052a3;
+}
+
+.personal-widget-item__notes {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.personal-widget-item__notes a {
+  color: #0066cc;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 102, 204, 0.5);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.personal-widget-item__notes a:hover {
+  color: #0052a3;
+  text-decoration-color: #0052a3;
+}
+
 /* Priority dots for widget (tasks.css not loaded on dashboard) */
 .priority-dot {
   width: var(--space-1);
@@ -1940,7 +1980,6 @@ a.price-ticker:hover {
   box-shadow: inset 3px 0 0 var(--color-priority-urgent);
 }
 
-.personal-widget-item__note,
 .personal-widget-item__edit {
   flex-shrink: 0;
   background: transparent;
@@ -1956,17 +1995,6 @@ a.price-ticker:hover {
   transition: all var(--transition-fast);
 }
 
-.personal-widget-item:hover > .personal-widget-item__note,
-.personal-widget-item__note:focus-visible {
-  opacity: 0.6;
-}
-
-.personal-widget-item__note:hover {
-  color: var(--color-accent);
-  background: var(--color-glass);
-  opacity: 1;
-}
-
 .personal-widget-item:hover > .personal-widget-item__edit,
 .personal-widget-item__edit:focus-visible {
   opacity: 0.6;
@@ -1979,7 +2007,6 @@ a.price-ticker:hover {
 }
 
 @media (hover: none) {
-  .personal-widget-item__note { opacity: 0.6; padding: 10px; }
   .personal-widget-item__edit { opacity: 0.6; padding: 10px; }
 }
 
@@ -1999,19 +2026,23 @@ a.price-ticker:hover {
 }
 
 /* --------------------------------------------------------
- * Note icon in meta row — always visible (small, inline)
+ * Note icon in meta row — badge-style indicator matching priority flags
  * -------------------------------------------------------- */
 .personal-widget-item__note {
-  background: transparent;
-  border: none;
-  padding: 0;
-  color: var(--color-text-secondary);
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-xs);
+  background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+  border: none;
+  cursor: pointer;
   line-height: 1;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
 }
-.personal-widget-item__note:hover { color: var(--color-accent); }
+.personal-widget-item__note:hover {
+  background-color: color-mix(in srgb, var(--color-accent) 22%, transparent);
+}
 
 /* --------------------------------------------------------
  * Item note floating panel

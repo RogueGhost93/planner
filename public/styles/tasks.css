@@ -318,6 +318,7 @@
   margin-bottom: var(--space-1);
   overflow: hidden;
   transition: box-shadow var(--transition-fast);
+  cursor: pointer;
 }
 
 .task-card:hover {
@@ -398,6 +399,46 @@
 .task-card--done .task-card__title {
   text-decoration: line-through;
   color: var(--color-text-secondary);
+}
+
+.task-card__title a {
+  color: #0066cc;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 102, 204, 0.5);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.task-card__title a:hover {
+  color: #0052a3;
+  text-decoration-color: #0052a3;
+}
+
+.task-card__description {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.task-card__description a {
+  color: #0066cc;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 102, 204, 0.5);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.task-card__description a:hover {
+  color: #0052a3;
+  text-decoration-color: #0052a3;
+}
+
+.task-card--done .task-card__description {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
 }
 
 @media (max-width: 480px) {
@@ -727,6 +768,46 @@
   word-break: break-word;
   overflow-wrap: break-word;
   flex: 1;
+}
+
+.kanban-card__title a {
+  color: #0066cc;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 102, 204, 0.5);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.kanban-card__title a:hover {
+  color: #0052a3;
+  text-decoration-color: #0052a3;
+}
+
+.kanban-card__description {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-2);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.kanban-card__description a {
+  color: #0066cc;
+  text-decoration: underline;
+  text-decoration-color: rgba(0, 102, 204, 0.5);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.kanban-card__description a:hover {
+  color: #0052a3;
+  text-decoration-color: #0052a3;
+}
+
+.kanban-card--done .kanban-card__description {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
 }
 
 .kanban-card__status-btn {

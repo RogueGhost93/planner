@@ -1,7 +1,7 @@
 import { createLogger } from '../logger.js';
 import express from 'express';
 import * as db from '../db.js';
-import { getVapidKeys } from '../services/alarm-scheduler.js';
+import { getVapidKeys, fetchAndMarkDueAlarms } from '../services/alarm-scheduler.js';
 
 const log = createLogger('Push');
 const router = express.Router();
@@ -48,6 +48,17 @@ router.delete('/unsubscribe', (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     log.error('DELETE /unsubscribe error:', err);
+    res.status(500).json({ error: 'Internal error', code: 500 });
+  }
+});
+
+// GET /api/v1/push/due-alarms
+// Client polls this every 60s. Returns alarms due now and marks them sent atomically.
+router.get('/due-alarms', (req, res) => {
+  try {
+    res.json({ alarms: fetchAndMarkDueAlarms() });
+  } catch (err) {
+    log.error('GET /due-alarms error:', err);
     res.status(500).json({ error: 'Internal error', code: 500 });
   }
 });
