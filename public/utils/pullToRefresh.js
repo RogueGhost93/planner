@@ -47,6 +47,7 @@ export function init() {
   content.addEventListener('touchstart', (e) => {
     if (window.scrollY > 0) return;
     if (insideScrollable(e.target, content)) return;
+    if (e.target.closest('button, a, input, textarea, select, label, [role="button"]')) return;
     startY = e.touches[0].clientY;
     pulling = true;
     pullDelta = 0;

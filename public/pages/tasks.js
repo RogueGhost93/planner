@@ -2792,14 +2792,7 @@ function wirePersonalTabsReorder(container) {
   });
 }
 
-// --------------------------------------------------------
-// Household View (the original full-featured tasks UI)
-// Extracted so we can swap between household and personal views.
-// --------------------------------------------------------
-
-function renderHouseholdView(container) {
-  const content = container.querySelector('#tasks-content');
-  if (!content) return;
+// DELETED_MARKER_START
 
   content.innerHTML = `
     <div class="personal-list" style="--list-color:${esc(state.householdColor)};--module-accent:${esc(state.householdColor)}">
@@ -2921,8 +2914,6 @@ function renderHouseholdView(container) {
 // --------------------------------------------------------
 
 export async function render(container, { user }) {
-  // Re-read view preference on each render (handles "All" button from dashboard)
-  state.viewMode  = localStorage.getItem('tasks-view') || 'list';
   state.activeTab = readActiveTab();
   state.currentUser = user || null;
 
@@ -2946,7 +2937,7 @@ export async function render(container, { user }) {
   // Daten laden (parallel)
   try {
     const [metaData, listsData] = await Promise.all([
-      api.get('/tasks/meta/options'),
+      api.get('/personal-lists/users'),
       api.get('/personal-lists'),
     ]);
     state.users     = metaData.users ?? [];
@@ -2958,10 +2949,9 @@ export async function render(container, { user }) {
     state.taskLists = [];
   }
 
-  // Resolve stored 'household' string or missing list → is_household list ID
-  if (state.activeTab === 'household' || !state.taskLists.some((l) => l.id === state.activeTab)) {
-    const householdList = state.taskLists.find((l) => l.is_household) ?? state.taskLists[0];
-    state.activeTab = householdList?.id ?? null;
+  // Resolve missing or unknown tab → first available list
+  if (!state.activeTab || !state.taskLists.some((l) => l.id === state.activeTab)) {
+    state.activeTab = state.taskLists[0]?.id ?? null;
     localStorage.setItem('tasks-active-tab', String(state.activeTab));
   }
 
@@ -2970,8 +2960,6 @@ export async function render(container, { user }) {
   }
 
   // Reset select state on page load
-  state.selectMode         = false;
-  state.selectedIds.clear();
   state.personalSelectMode  = false;
   state.personalSelectedIds = new Set();
 
@@ -2985,15 +2973,4 @@ export async function render(container, { user }) {
   localStorage.removeItem('tasks-create-new');
   localStorage.removeItem('tasks-open-task');
 
-  // Web Share Target: URL shared from another app → open pre-filled task modal.
-  const shareParams = new URLSearchParams(window.location.search);
-  const sharedUrl   = shareParams.get('shared_url');
-  if (sharedUrl) {
-    history.replaceState({}, '', '/tasks');
-    const sharedTitle = shareParams.get('shared_title') || '';
-    openTaskModal({
-      users: state.users,
-      prefill: { title: sharedTitle || sharedUrl, description: sharedUrl },
-    }, container);
-  }
 }

@@ -503,4 +503,54 @@ router.put('/:id/shares', (req, res) => {
   }
 });
 
+// --------------------------------------------------------
+// GET /api/v1/personal-lists/users
+// Returns all users for assigned_to dropdowns and share dialogs.
+// --------------------------------------------------------
+router.get('/users', (req, res) => {
+  try {
+    const users = db.get().prepare(
+      'SELECT id, display_name, avatar_color FROM users ORDER BY display_name'
+    ).all();
+    res.json({ users });
+  } catch (err) {
+    log.error('GET /users', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// GET /api/v1/personal-lists/due-notifications
+// Returns personal tasks due today and tomorrow for the current user.
+// --------------------------------------------------------
+router.get('/due-notifications', (req, res) => {
+  try {
+    const uid = req.session.userId;
+    const now      = new Date();
+    const today    = now.toISOString().slice(0, 10);
+    const tomorrow = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
+
+    const query = `
+      SELECT pt.id, pt.title, pt.priority, pt.due_date, pt.due_time,
+             u.display_name AS assigned_name, u.avatar_color AS assigned_color
+      FROM personal_tasks pt
+      JOIN task_lists l ON l.id = pt.list_id
+      LEFT JOIN users u ON u.id = pt.assigned_to
+      WHERE pt.due_date = ? AND pt.done = 0
+        AND (l.owner_id = ?
+             OR EXISTS (SELECT 1 FROM task_list_shares s
+                        WHERE s.list_id = l.id AND s.user_id = ?))
+      ORDER BY CASE pt.priority WHEN 'urgent' THEN 0 ELSE 1 END, pt.due_time ASC, pt.id ASC
+    `;
+
+    res.json({
+      today:    db.get().prepare(query).all(today,    uid, uid),
+      tomorrow: db.get().prepare(query).all(tomorrow, uid, uid),
+    });
+  } catch (err) {
+    log.error('GET /due-notifications', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
 export default router;

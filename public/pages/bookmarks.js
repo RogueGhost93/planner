@@ -10,7 +10,7 @@ import { showConfirm } from '/components/modal.js';
 
 let currentSearch = '';
 let currentTags = []; // Array of selected tags (AND logic)
-let currentStatusFilter = 'all'; // 'all', 'unread', 'read', 'untagged', 'archived'
+let currentStatusFilter = 'unread'; // 'all', 'unread', 'read', 'untagged', 'archived'
 let currentOffset = 0;
 let bookmarks = [];
 let totalCount = 0;
@@ -43,7 +43,7 @@ function restoreFiltersFromStorage() {
       const filters = JSON.parse(stored);
       currentSearch = filters.search || '';
       currentTags = Array.isArray(filters.tags) ? filters.tags : [];
-      currentStatusFilter = filters.statusFilter || 'all';
+      currentStatusFilter = filters.statusFilter || 'unread';
       currentLimit = filters.limit || 50;
     } catch (e) {
       console.error('Failed to restore filters:', e);

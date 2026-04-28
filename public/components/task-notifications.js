@@ -245,7 +245,7 @@ async function checkNotifications(prefs) {
 
   let data;
   try {
-    data = await api.get('/tasks/due-notifications');
+    data = await api.get('/personal-lists/due-notifications');
   } catch { return; }
 
   // Popup: show once per day (first time after the configured notify_time)

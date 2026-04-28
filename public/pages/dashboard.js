@@ -300,8 +300,25 @@ function filterWidgetItems(items) {
   });
 }
 
+const PRIORITY_RANK = { urgent: 0, high: 1, medium: 2, low: 3, none: 4 };
+
+function sortWidgetItems(items) {
+  return items.slice().sort((a, b) => {
+    const aUrgent = a.priority === 'urgent';
+    const bUrgent = b.priority === 'urgent';
+    if (aUrgent !== bUrgent) return aUrgent ? -1 : 1;
+    const ad = a.due_date ? new Date(a.due_date).setHours(0, 0, 0, 0) : Infinity;
+    const bd = b.due_date ? new Date(b.due_date).setHours(0, 0, 0, 0) : Infinity;
+    if (ad !== bd) return ad - bd;
+    const ap = PRIORITY_RANK[a.priority] ?? 4;
+    const bp = PRIORITY_RANK[b.priority] ?? 4;
+    if (ap !== bp) return ap - bp;
+    return a.id - b.id;
+  });
+}
+
 function renderPersonalListBody(list, items) {
-  const pending = filterWidgetItems(items);
+  const pending = sortWidgetItems(filterWidgetItems(items));
   const itemsHtml = pending.length
     ? pending.map((it) => {
         const priority = it.priority && it.priority !== 'none' ? it.priority : null;
