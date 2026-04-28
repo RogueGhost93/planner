@@ -9,6 +9,7 @@ import readline from 'node:readline';
 import bcrypt from 'bcrypt';
 import * as db from './server/db.js';
 import os from 'node:os';
+import { ensureHouseholdTaskList } from './server/services/task-lists.js';
 
 function getLocalIP() {
   const interfaces = os.networkInterfaces();
@@ -118,6 +119,8 @@ async function main() {
         VALUES (?, ?, ?, ?, 'admin')
       `)
       .run(username, displayName, hash, avatarColor);
+
+    ensureHouseholdTaskList(result.lastInsertRowid);
 
     const port = process.env.PORT || 3000;
     const host = getLocalIP();

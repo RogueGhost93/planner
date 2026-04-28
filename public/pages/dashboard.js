@@ -317,6 +317,18 @@ function sortWidgetItems(items) {
   });
 }
 
+function selectionIsInsideElement(element) {
+  const selection = window.getSelection?.();
+  if (!selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) {
+    return false;
+  }
+
+  return [selection.anchorNode, selection.focusNode].some((node) => {
+    const container = node.nodeType === 1 ? node : node.parentElement;
+    return container ? element.contains(container) : false;
+  });
+}
+
 function renderPersonalListBody(list, items) {
   const pending = sortWidgetItems(filterWidgetItems(items));
   const itemsHtml = pending.length
@@ -970,7 +982,9 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
   // Personal item: open edit dialog on item click
   root.querySelectorAll('[data-action="open-personal-widget-item"]').forEach((item) => {
     item.addEventListener('click', (e) => {
-      if (e.target.closest('a')) return; // don't open if clicked on a link
+      if (e.target.closest('a[href]')) return; // don't open if clicked on a link
+      if (e.target.closest('button, input, textarea, select, [contenteditable="true"]')) return;
+      if (selectionIsInsideElement(item)) return;
       e.stopPropagation();
       const listId = Number(item.dataset.listId);
       const itemId = Number(item.dataset.itemId);

@@ -23,13 +23,19 @@ const PRIORITIES = () => [
   { value: 'low',    label: t('tasks.priorityLow'),    color: 'var(--color-priority-low)'    },
 ];
 
-const STATUSES = () => [
+const TASK_STATUSES = () => [
+  { value: 'open',        label: t('tasks.statusOpen') },
+  { value: 'in_progress', label: t('tasks.statusInProgress') },
+  { value: 'done',        label: t('tasks.statusDone') },
+];
+
+const PERSONAL_STATUSES = () => [
   { value: 'open', label: t('tasks.statusOpen') },
   { value: 'done', label: t('tasks.statusDone') },
 ];
 
 const PRIORITY_LABELS = () => Object.fromEntries(PRIORITIES().map((p) => [p.value, p.label]));
-const STATUS_LABELS   = () => Object.fromEntries(STATUSES().map((s)  => [s.value, s.label]));
+const STATUS_LABELS   = () => Object.fromEntries(TASK_STATUSES().map((s) => [s.value, s.label]));
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -41,6 +47,18 @@ function initials(name = '') {
 
 function normalizeSearch(value = '') {
   return value == null ? '' : String(value).trim().toLowerCase();
+}
+
+function selectionIsInsideElement(element) {
+  const selection = window.getSelection?.();
+  if (!selection || selection.isCollapsed || !selection.anchorNode || !selection.focusNode) {
+    return false;
+  }
+
+  return [selection.anchorNode, selection.focusNode].some((node) => {
+    const container = node.nodeType === 1 ? node : node.parentElement;
+    return container ? element.contains(container) : false;
+  });
 }
 
 function formatDueDate(dateStr) {
@@ -82,7 +100,7 @@ function isRecurringTaskDue(task) {
 
 // Urgent always first (overrides date). Everything else sorted by due date,
 // with priority as tiebreaker for same date (or both undated).
-function sortTasksForList(tasks) {
+export function sortTasksForList(tasks) {
   return tasks.slice().sort((a, b) => {
     const aUrgent = a.priority === 'urgent';
     const bUrgent = b.priority === 'urgent';
@@ -153,7 +171,7 @@ function renderTaskCard(task, opts = {}) {
     : '';
 
   return `
-    <div class="task-card ${isDone ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-task-id="${task.id}">
+    <div class="task-card ${isDone ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-task-id="${task.id}" data-action="open-task">
       <div class="task-card__main">
         <button class="task-select-cb" data-action="toggle-select" data-id="${task.id}"
                 aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
@@ -166,7 +184,7 @@ function renderTaskCard(task, opts = {}) {
         </button>
 
         <div class="task-card__body">
-          <div class="task-card__title" data-action="open-task" data-id="${task.id}">
+          <div class="task-card__title">
             ${linkify(task.title)}
           </div>
           <div class="task-card__meta">
@@ -400,7 +418,7 @@ function renderModalContent({ task = null, users = [] } = {}) {
           <div class="form-group">
             <label class="label" for="task-status">${t('tasks.statusLabel')}</label>
             <select class="input" id="task-status" name="status" style="min-height:44px">
-              ${STATUSES().map((s) =>
+              ${TASK_STATUSES().map((s) =>
                 `<option value="${s.value}" ${task.status === s.value ? 'selected' : ''}>${s.label}</option>`
               ).join('')}
             </select>
@@ -749,17 +767,19 @@ async function handleAddSubtask(parentId, container) {
 // --------------------------------------------------------
 
 const KANBAN_COLS = () => [
-  { status: 'open', label: t('tasks.kanbanOpen'), colorVar: '--color-text-secondary' },
-  { status: 'done', label: t('tasks.kanbanDone'), colorVar: '--color-success'        },
+  { status: 'open',        label: t('tasks.kanbanOpen'),        colorVar: '--color-text-secondary' },
+  { status: 'in_progress', label: t('tasks.kanbanInProgress'), colorVar: '#c2410c' },
+  { status: 'done',        label: t('tasks.kanbanDone'),        colorVar: '--color-success'        },
 ];
 
-const KANBAN_STATUS_CYCLE = { open: 'done', done: 'open' };
-const KANBAN_STATUS_ICON  = { open: 'circle', done: 'check-circle' };
+const KANBAN_STATUS_CYCLE = { open: 'in_progress', in_progress: 'done', done: 'open' };
+const KANBAN_STATUS_ICON  = { open: 'circle', in_progress: 'circle-dot', done: 'check-circle' };
 
 function renderKanbanCard(task) {
   const due = formatDueDate(task.due_date);
   const nextStatus = KANBAN_STATUS_CYCLE[task.status] ?? 'open';
   const icon = KANBAN_STATUS_ICON[task.status] ?? 'circle';
+  const nextStatusLabel = STATUS_LABELS()[nextStatus] ?? nextStatus.replace('_', ' ');
   const isSelected = state.selectedIds.has(task.id);
   return `
     <div class="kanban-card ${task.status === 'done' ? 'kanban-card--done' : ''} ${isSelected ? 'kanban-card--selected' : ''}"
@@ -774,7 +794,7 @@ function renderKanbanCard(task) {
         <div class="kanban-card__title">${esc(task.title)}</div>
         <button class="kanban-card__status-btn" data-action="cycle-status"
                 data-id="${task.id}" data-next-status="${nextStatus}"
-                title="Move to ${nextStatus.replace('_', ' ')}" aria-label="Cycle status">
+                title="Move to ${nextStatusLabel}" aria-label="${t('tasks.cycleStatus')}">
           <i data-lucide="${icon}" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
         </button>
       </div>
@@ -978,7 +998,7 @@ function renderFilters(container) {
 
   sections.push(`<div class="filter-dropdown__section">
     <div class="filter-dropdown__title">${t('tasks.statusLabel')}</div>`);
-  STATUSES().forEach((s) => {
+  TASK_STATUSES().forEach((s) => {
     const isActive = state.filters.status === s.value;
     sections.push(`<label class="filter-option">
       <input type="radio" name="status" value="${s.value}" ${isActive ? 'checked' : ''} data-filter="status">
@@ -1272,13 +1292,26 @@ function wireTaskList(container) {
       }
     }
 
-    if (action === 'edit-task' || action === 'open-task') {
+    if (action === 'edit-task') {
       try {
         const task = await loadTaskForEdit(id);
         openTaskModal({ task, users: state.users }, container);
       } catch (err) {
         window.planium.showToast(t('tasks.loadError'), 'danger');
       }
+      return;
+    }
+
+    if (action === 'open-task') {
+      const card = target.closest('.task-card[data-task-id]');
+      if (card && selectionIsInsideElement(card)) return;
+      try {
+        const task = await loadTaskForEdit(id);
+        openTaskModal({ task, users: state.users }, container);
+      } catch (err) {
+        window.planium.showToast(t('tasks.loadError'), 'danger');
+      }
+      return;
     }
 
     if (action === 'set-task-priority') {
@@ -1424,7 +1457,7 @@ function renderPersonalItemRow(item) {
           <i data-lucide="check" class="task-status-btn__check" aria-hidden="true"></i>
         </button>
         <div class="task-card__body">
-          <div class="task-card__title" data-action="edit-personal-item">
+          <div class="task-card__title">
             ${linkify(item.title)}
           </div>
           ${item.description ? `<div class="task-card__description">${linkify(item.description)}</div>` : ''}
@@ -1532,7 +1565,7 @@ function renderPersonalFilters(container) {
 
   sections.push(`<div class="filter-dropdown__section">
     <div class="filter-dropdown__title">${t('tasks.statusLabel')}</div>`);
-  STATUSES().forEach((s) => {
+  PERSONAL_STATUSES().forEach((s) => {
     const isActive = state.personalFilters.status === s.value;
     sections.push(`<label class="filter-option">
       <input type="radio" name="personal-status" value="${s.value}" ${isActive ? 'checked' : ''} data-personal-filter="status">
@@ -2156,6 +2189,8 @@ function wirePersonalView(container) {
       return;
     }
     if (action === 'open-personal-item') {
+      const card = target.closest('.task-card[data-item-id]');
+      if (card && selectionIsInsideElement(card)) return;
       const item = state.personalItems.find((i) => i.id === itemId);
       if (item) openItemEditDialog({ item, container });
       return;
@@ -2790,123 +2825,6 @@ function wirePersonalTabsReorder(container) {
     dragging = null; dragPtrId = null; didDrag = false;
     renderTaskTabsBar(container);
   });
-}
-
-// DELETED_MARKER_START
-
-  content.innerHTML = `
-    <div class="personal-list" style="--list-color:${esc(state.householdColor)};--module-accent:${esc(state.householdColor)}">
-      <div class="tasks-toolbar">
-        <div class="tasks-toolbar__heading">
-          <span class="personal-list__color-dot" aria-hidden="true"></span>
-          <h1 class="tasks-toolbar__title" data-action="edit-household" role="button" tabindex="0"
-             style="cursor:pointer" title="${t('tasks.renameHousehold')}">
-           ${esc(state.householdName || t('tasks.tabHousehold'))}
-         </h1>
-        </div>
-        <div class="tasks-toolbar__actions">
-          ${renderToolbarSearch({
-            scope: 'task',
-            open: state.taskSearchOpen,
-            value: state.taskSearch,
-            label: t('tasks.searchLabel'),
-            placeholder: t('tasks.searchPlaceholder'),
-          })}
-          <div class="group-toggle" id="view-toggle">
-            <button class="group-toggle__btn group-toggle__btn--active" data-view="list"
-                    title="${t('tasks.listView')}" aria-label="${t('tasks.listView')}">
-              <i data-lucide="list" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-            </button>
-            <button class="group-toggle__btn" data-view="kanban"
-                    title="${t('tasks.kanbanView')}" aria-label="${t('tasks.kanbanView')}">
-              <i data-lucide="columns" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-            </button>
-          </div>
-          <div class="filter-dropdown" id="filter-dropdown">
-            <button class="btn btn--ghost btn--icon filter-dropdown__btn" id="btn-filter"
-                    aria-label="${t('tasks.filterLabel')}" aria-pressed="false"
-                    title="${t('tasks.filterLabel')}">
-              <i data-lucide="filter" style="width:18px;height:18px" aria-hidden="true"></i>
-            </button>
-            <div class="filter-dropdown__menu" id="filter-menu"></div>
-          </div>
-          <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="btn-select"
-                  aria-label="${t('tasks.selectMode')}" aria-pressed="false"
-                  title="${t('tasks.selectMode')}">
-            <i data-lucide="check-square" style="width:18px;height:18px" aria-hidden="true"></i>
-          </button>
-          <button class="btn btn--primary tasks-toolbar__new-btn" id="btn-new-task" style="gap:var(--space-1)">
-            <i data-lucide="plus" style="width:18px;height:18px" aria-hidden="true"></i> ${t('tasks.newTask')}
-          </button>
-          <span class="bulk-bar__count tasks-toolbar__bulk-count" id="bulk-count" hidden></span>
-          <button class="btn btn--danger tasks-toolbar__bulk-btn" id="btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
-          <button class="btn btn--ghost btn--icon" id="btn-household-share"
-                  aria-label="${t('tasks.sharePersonalList')}" title="${t('tasks.sharePersonalList')}"
-                  style="color:var(--color-text-secondary)">
-            <i data-lucide="user-plus" style="width:18px;height:18px" aria-hidden="true"></i>
-          </button>
-        </div>
-      </div>
-
-      <form class="personal-list__add" id="household-quick-add" novalidate autocomplete="off">
-        <input class="personal-list__add-input" type="text" name="title"
-               placeholder="${t('tasks.titlePlaceholder')}"
-               maxlength="600" autocomplete="off">
-        <button class="personal-list__add-btn" type="submit"
-                aria-label="${t('tasks.newTask')}">
-          <i data-lucide="plus" style="width:20px;height:20px;pointer-events:none" aria-hidden="true"></i>
-        </button>
-      </form>
-
-      <div id="task-list" style="margin-top:var(--space-3)"></div>
-      <button class="page-fab" id="fab-new-task" aria-label="${t('tasks.newTask')}">
-        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
-      </button>
-    </div>
-  `;
-
-  if (window.lucide) window.lucide.createIcons();
-
-  // Reset select state when entering household view
-  state.selectMode = false;
-  state.selectedIds.clear();
-
-  wireViewToggle(container);
-  wireNewTaskBtn(container);
-
-  // Household quick-add: creates a task with just a title
-  content.querySelector('#household-quick-add')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const input = e.currentTarget.querySelector('.personal-list__add-input');
-    const title = input.value.trim();
-    if (!title) return;
-    input.value = '';
-    try {
-      await api.post('/tasks', { title, priority: 'none' });
-      await loadTasks(container);
-      input.focus();
-    } catch (err) {
-      window.planium.showToast(err.message, 'danger');
-    }
-  });
-
-  wireSelectMode(container);
-  wireToolbarSearch(container, {
-    scope: 'task',
-    valueKey: 'taskSearch',
-    openKey: 'taskSearchOpen',
-    refresh: () => renderTaskList(container),
-  });
-  wireTaskList(container);
-  renderFilters(container);
-  wireFilterDropdownToggle(container);
-  renderTaskList(container);
-
-  content.querySelector('[data-action="edit-household"]')
-    ?.addEventListener('click', () => openHouseholdDialog({ container }));
-
-  content.querySelector('#btn-household-share')
-    ?.addEventListener('click', () => openHouseholdShareDialog({ container }));
 }
 
 // --------------------------------------------------------

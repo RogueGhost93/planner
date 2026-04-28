@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit';
 import * as db from './db.js';
 import { generateToken, csrfMiddleware } from './middleware/csrf.js';
 import { createLogger } from './logger.js';
+import { ensureHouseholdTaskList, shareHouseholdTaskListWithUser } from './services/task-lists.js';
 
 const log = createLogger('Auth');
 const router = express.Router();
@@ -224,6 +225,8 @@ router.post('/setup', loginLimiter, async (req, res) => {
       `)
       .run(username, display_name, hash, avatarColor);
 
+    ensureHouseholdTaskList(result.lastInsertRowid);
+
     res.status(201).json({
       user: {
         id: result.lastInsertRowid,
@@ -398,6 +401,8 @@ router.post('/users', requireAuth, requireAdmin, csrfMiddleware, async (req, res
         VALUES (?, ?, ?, ?, ?)
       `)
       .run(username, display_name, hash, avatar_color, role);
+
+    shareHouseholdTaskListWithUser(result.lastInsertRowid);
 
     res.status(201).json({
       user: { id: result.lastInsertRowid, username, display_name, avatar_color, role },

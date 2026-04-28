@@ -1904,6 +1904,9 @@ a.price-ticker:hover {
   overflow-wrap: anywhere;
   word-break: break-word;
   line-height: 1.4;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .personal-widget-item__title a {
@@ -1926,6 +1929,8 @@ a.price-ticker:hover {
   margin-top: 4px;
   word-break: break-word;
   overflow-wrap: break-word;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .personal-widget-item__notes a {

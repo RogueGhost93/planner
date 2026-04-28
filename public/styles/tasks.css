@@ -391,9 +391,11 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   margin-bottom: 2px;
-  cursor: pointer;
+  cursor: text;
   line-height: 1.25;
   overflow-wrap: anywhere;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .task-card--done .task-card__title {
@@ -421,6 +423,8 @@
   margin-top: 4px;
   word-break: break-word;
   overflow-wrap: break-word;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .task-card__description a {
