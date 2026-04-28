@@ -6,9 +6,8 @@ import { openModal, closeModal, showConfirm } from '/components/modal.js';
 function normalizeWebviewItemInput(item = {}, fallbackIndex = 0) {
   const name = String(item.name ?? '').trim() || t('webview.defaultName');
   const url = String(item.url ?? '').trim();
-  const showInTabs = item.show_in_tabs !== false && item.showInTabs !== false;
 
-  const result = { name, url, show_in_tabs: showInTabs };
+  const result = { name, url };
   const id = String(item.id ?? '').trim();
   if (id) result.id = id;
   return result;
@@ -18,8 +17,8 @@ export async function loadWebviewConfig() {
   return api.get('/webview/config');
 }
 
-export async function saveWebviewConfig(items) {
-  return api.put('/webview/config', { items });
+export async function saveWebviewConfig(items, extra = {}) {
+  return api.put('/webview/config', { items, ...extra });
 }
 
 export async function clearWebviewConfig() {
@@ -146,7 +145,6 @@ export function wireWebviewCards(container) {
 function editorHtml(item = {}) {
   const name = esc(item.name ?? '');
   const url = esc(item.url ?? '');
-  const showInTabs = item.show_in_tabs !== false && item.showInTabs !== false;
   return `
     <form class="webview-editor dashboard-widget-picker" data-webview-editor>
       <div class="webview-editor__intro">
@@ -161,16 +159,6 @@ function editorHtml(item = {}) {
         <div class="webview-editor__field">
           <label class="form-label" for="webview-url">${t('webview.urlLabel')}</label>
           <input class="form-input" type="url" id="webview-url" value="${url}" placeholder="${t('webview.urlPlaceholder')}" autocomplete="off" autocapitalize="off" spellcheck="false" required />
-        </div>
-        <div class="webview-editor__toggle">
-          <div class="dashboard-widget-picker__text">
-            <span class="dashboard-widget-picker__label">${t('webview.showInTabsLabel')}</span>
-            <span class="dashboard-widget-picker__meta">${t('webview.showInTabsHelp')}</span>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="webview-show-in-tabs" ${showInTabs ? 'checked' : ''} />
-            <span class="toggle-switch__slider"></span>
-          </label>
         </div>
       </div>
       <div class="webview-editor__status" hidden></div>
@@ -204,7 +192,6 @@ export function openWebviewEditor({ item = {}, title, onSubmit } = {}) {
           id: item?.id,
           name: panel.querySelector('#webview-name')?.value,
           url: panel.querySelector('#webview-url')?.value,
-          show_in_tabs: panel.querySelector('#webview-show-in-tabs')?.checked,
         }, 0);
 
         try {

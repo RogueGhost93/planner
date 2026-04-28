@@ -1,8 +1,11 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 
-const SETTINGS_KEY = 'webview_items';
-const LEGACY_KEY = 'webview_url';
+const USER_ITEMS_KEY = 'webview_items';
+const USER_TABS_KEY = 'webview_show_in_tabs';
+const LEGACY_ITEMS_KEY = 'webview_items';
+const LEGACY_TABS_KEY = 'webview_show_in_tabs';
+const LEGACY_URL_KEY = 'webview_url';
 
 function normalizeWebviewUrl(rawUrl) {
   const value = (rawUrl ?? '').trim();
@@ -35,81 +38,148 @@ function normalizeWebviewItem(item, index = 0) {
     id: String(item?.id ?? '').trim() || randomUUID(),
     name: normalizeWebviewName(url, item?.name),
     url,
-    show_in_tabs: item?.show_in_tabs === false || item?.showInTabs === false ? false : true,
     sort_order: Number.isFinite(Number(item?.sort_order)) ? Number(item.sort_order) : index,
   };
 }
 
-function readStoredItems() {
-  const row = db.get().prepare(`SELECT value FROM app_settings WHERE key = ?`).get(SETTINGS_KEY);
-  if (row?.value) {
+function parseBooleanValue(value, fallback = true) {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (value === true || value === 'true' || value === '1' || value === 1) return true;
+  if (value === false || value === 'false' || value === '0' || value === 0) return false;
+  return fallback;
+}
+
+function readStoredItems(userId) {
+  if (!userId) return [];
+
+  const userRow = db.get()
+    .prepare('SELECT value FROM user_settings WHERE user_id = ? AND key = ?')
+    .get(userId, USER_ITEMS_KEY);
+  if (userRow?.value) {
     try {
-      const parsed = JSON.parse(row.value);
+      const parsed = JSON.parse(userRow.value);
       if (Array.isArray(parsed)) {
         return parsed.map((item, index) => normalizeWebviewItem(item, index)).filter(Boolean);
+      }
+    } catch {
+      // fall through to legacy fallback
+    }
+  }
+
+  const legacyRow = db.get()
+    .prepare('SELECT value FROM app_settings WHERE key = ?')
+    .get(LEGACY_ITEMS_KEY);
+  if (legacyRow?.value) {
+    try {
+      const parsed = JSON.parse(legacyRow.value);
+      if (Array.isArray(parsed)) {
+        const normalized = parsed.map((item, index) => normalizeWebviewItem(item, index)).filter(Boolean);
+        persistItems(userId, normalized);
+        return normalized;
       }
     } catch {
       // fall through to legacy/env fallback
     }
   }
 
-  const legacyRow = db.get().prepare(`SELECT value FROM app_settings WHERE key = ?`).get(LEGACY_KEY);
-  const legacyUrl = normalizeWebviewUrl(legacyRow?.value);
+  const urlRow = db.get()
+    .prepare('SELECT value FROM app_settings WHERE key = ?')
+    .get(LEGACY_URL_KEY);
+  const legacyUrl = normalizeWebviewUrl(urlRow?.value);
   if (legacyUrl) {
-    return [{
+    const items = [{
       id: randomUUID(),
       name: 'Website',
       url: legacyUrl,
-      show_in_tabs: true,
       sort_order: 0,
     }];
+    persistItems(userId, items);
+    return items;
   }
 
   const envUrl = normalizeWebviewUrl(process.env.PLANIUM_WEBVIEW_URL);
   if (envUrl) {
-    return [{
+    const items = [{
       id: randomUUID(),
       name: 'Website',
       url: envUrl,
-      show_in_tabs: true,
       sort_order: 0,
     }];
+    persistItems(userId, items);
+    return items;
   }
 
   return [];
 }
 
-function persistItems(items) {
+function readStoredTabsEnabled(userId, items = null) {
+  if (!userId) return true;
+
+  const userRow = db.get()
+    .prepare('SELECT value FROM user_settings WHERE user_id = ? AND key = ?')
+    .get(userId, USER_TABS_KEY);
+  if (userRow?.value !== undefined && userRow?.value !== null) {
+    return parseBooleanValue(userRow.value, true);
+  }
+
+  const legacyRow = db.get()
+    .prepare('SELECT value FROM app_settings WHERE key = ?')
+    .get(LEGACY_TABS_KEY);
+  if (legacyRow?.value !== undefined && legacyRow?.value !== null) {
+    const enabled = parseBooleanValue(legacyRow.value, true);
+    persistTabsEnabled(userId, enabled);
+    return enabled;
+  }
+
+  if (Array.isArray(items) && items.length > 0) {
+    const enabled = items.some((item) => item?.show_in_tabs !== false && item?.showInTabs !== false);
+    persistTabsEnabled(userId, enabled);
+    return enabled;
+  }
+
+  return true;
+}
+
+function persistTabsEnabled(userId, enabled) {
+  if (!userId) return !!enabled;
+  db.get().prepare(`
+    INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
+    ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+  `).run(userId, USER_TABS_KEY, enabled ? 'true' : 'false');
+  return enabled;
+}
+
+function persistItems(userId, items) {
+  if (!userId) return [];
   const normalized = items
     .map((item, index) => normalizeWebviewItem(item, index))
     .filter(Boolean)
     .map((item, index) => ({ ...item, sort_order: index }));
 
   const stmt = db.get().prepare(`
-    INSERT INTO app_settings (key, value) VALUES (?, ?)
-    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
+    ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
   `);
 
   if (!normalized.length) {
     db.get().prepare(`
-      INSERT INTO app_settings (key, value) VALUES (?, '[]')
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value
-    `).run(SETTINGS_KEY);
-    db.get().prepare('DELETE FROM app_settings WHERE key = ?').run(LEGACY_KEY);
+      INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, '[]')
+      ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+    `).run(userId, USER_ITEMS_KEY);
     return [];
   }
 
-  stmt.run(SETTINGS_KEY, JSON.stringify(normalized));
-  db.get().prepare('DELETE FROM app_settings WHERE key = ?').run(LEGACY_KEY);
+  stmt.run(userId, USER_ITEMS_KEY, JSON.stringify(normalized));
   return normalized;
 }
 
-export function getWebviewItems() {
-  return readStoredItems().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+export function getWebviewItems(userId) {
+  return readStoredItems(userId).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 }
 
-export function getWebviewConfig() {
-  const items = getWebviewItems();
+export function getWebviewConfig(userId) {
+  const items = getWebviewItems(userId);
+  const showInTabs = readStoredTabsEnabled(userId, items);
   const origins = [...new Set(items.map((item) => {
     try {
       return new URL(item.url).origin;
@@ -121,37 +191,46 @@ export function getWebviewConfig() {
     configured: items.length > 0,
     items,
     origins,
+    show_in_tabs: showInTabs,
   };
 }
 
-export function getWebviewOrigins() {
-  return getWebviewConfig().origins;
+export function getWebviewOrigins(userId) {
+  return getWebviewConfig(userId).origins;
 }
 
-export function getWebviewUrl() {
-  return getWebviewItems()[0]?.url ?? null;
+export function getWebviewUrl(userId) {
+  return getWebviewItems(userId)[0]?.url ?? null;
 }
 
-export function getWebviewOrigin() {
-  return getWebviewOrigins()[0] ?? null;
+export function getWebviewOrigin(userId) {
+  return getWebviewOrigins(userId)[0] ?? null;
 }
 
-export function setWebviewItems(items) {
+export function setWebviewItems(userId, items) {
   if (Array.isArray(items)) {
-    return persistItems(items);
+    return persistItems(userId, items);
   }
 
   if (typeof items === 'string') {
     const url = normalizeWebviewUrl(items);
     if (!url) {
-      return persistItems([]);
+      return persistItems(userId, []);
     }
-    return persistItems([{ name: 'Website', url, show_in_tabs: true }]);
+    return persistItems(userId, [{ name: 'Website', url }]);
   }
 
-  return persistItems([]);
+  return persistItems(userId, []);
 }
 
-export function replaceWebviewItems(items) {
-  return persistItems(items);
+export function replaceWebviewItems(userId, items) {
+  return persistItems(userId, items);
+}
+
+export function getWebviewTabsEnabled(userId) {
+  return readStoredTabsEnabled(userId, getWebviewItems(userId));
+}
+
+export function setWebviewTabsEnabled(userId, enabled) {
+  return persistTabsEnabled(userId, !!enabled);
 }

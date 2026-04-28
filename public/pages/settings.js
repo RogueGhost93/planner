@@ -82,7 +82,6 @@ function renderWebviewSettingsRows(items = []) {
   }
 
   return items.map((item) => {
-    const enabled = item.show_in_tabs !== false;
     return `
       <div class="webview-settings-row" data-webview-id="${esc(item.id ?? '')}">
         <div class="webview-settings-row__meta">
@@ -90,13 +89,6 @@ function renderWebviewSettingsRows(items = []) {
           <div class="webview-settings-row__url">${esc(item.url ?? '')}</div>
         </div>
         <div class="webview-settings-row__actions">
-          <div class="webview-settings-row__toggle">
-            <span class="settings-toggle-label">${t('webview.showInTabsLabel')}</span>
-            <label class="toggle-switch">
-              <input type="checkbox" data-webview-tabs-toggle="${esc(item.id ?? '')}" ${enabled ? 'checked' : ''} />
-              <span class="toggle-switch__slider"></span>
-            </label>
-          </div>
           <button class="btn btn--ghost btn--icon" type="button" data-webview-edit="${esc(item.id ?? '')}" aria-label="${t('common.edit')}" title="${t('common.edit')}">
             <i data-lucide="pencil" aria-hidden="true"></i>
           </button>
@@ -128,7 +120,7 @@ export async function render(container, { user }) {
   let linkdingStatus = { configured: false, url: null };
   let weatherStatus  = { configured: false };
   let fileboxStatus  = { enabled: false };
-  let webviewStatus  = { configured: false, items: [] };
+  let webviewStatus  = { configured: false, items: [], show_in_tabs: true };
   let taskLists      = [];
   let dashboardLayout = defaultDashboardLayout();
   const myConfigs    = {};
@@ -155,7 +147,7 @@ export async function render(container, { user }) {
     if (lStatus.status  === 'fulfilled')  linkdingStatus = lStatus.value;
     if (wStatus.status  === 'fulfilled')  weatherStatus  = wStatus.value;
     if (fbStatus.status === 'fulfilled')  fileboxStatus  = fbStatus.value;
-    if (webStatus.status === 'fulfilled')  webviewStatus  = webStatus.value ?? { configured: false, items: [] };
+    if (webStatus.status === 'fulfilled')  webviewStatus  = webStatus.value ?? { configured: false, items: [], show_in_tabs: true };
     if (tlRes.status    === 'fulfilled')  taskLists      = tlRes.value.data ?? [];
     INTEGRATIONS.forEach((i, idx) => {
       if (myCfgRes[idx]?.status === 'fulfilled') myConfigs[i.id] = myCfgRes[idx].value;
@@ -411,25 +403,29 @@ export async function render(container, { user }) {
             <div class="settings-sync-info">
               <div class="settings-sync-info__name">${t('settings.webviewTitle')}</div>
               <div class="settings-sync-info__status ${webviewStatus?.configured ? 'settings-sync-info__status--connected' : ''}" id="webview-status-text">
-                ${webviewStatus?.configured ? (
-                  (webviewStatus.items?.filter((item) => item?.show_in_tabs !== false).length ?? 0) === 1
-                    ? t('webview.configuredCount', { count: webviewStatus.items?.filter((item) => item?.show_in_tabs !== false).length ?? 0 })
-                    : t('webview.configuredCountPlural', { count: webviewStatus.items?.filter((item) => item?.show_in_tabs !== false).length ?? 0 })
-                ) : t('settings.webviewNotConfigured')}
+                ${webviewStatus?.configured
+                  ? (webviewStatus.items?.length ?? 0) === 1
+                    ? t('webview.configuredCount', { count: webviewStatus.items?.length ?? 0 })
+                    : t('webview.configuredCountPlural', { count: webviewStatus.items?.length ?? 0 })
+                  : t('settings.webviewNotConfigured')}
               </div>
             </div>
           </div>
-          ${user?.role === 'admin' ? `
-            <div class="settings-sync-actions" style="margin-bottom:var(--space-3)">
-              <button type="button" class="btn btn--primary" id="webview-add-btn">${t('webview.addWebsite')}</button>
-              <button type="button" class="btn btn--secondary" id="webview-clear-btn" ${webviewStatus.items?.length ? '' : 'disabled'}>${t('common.clear')}</button>
-            </div>
-            <div class="webview-settings-list" id="webview-settings-list">
-              ${renderWebviewSettingsRows(webviewStatus.items ?? [])}
-            </div>
-          ` : `
-            <span class="form-hint">${t('settings.webviewAdminOnly')}</span>
-          `}
+          <div class="settings-toggle-row" style="margin-bottom:var(--space-3)">
+            <label class="settings-toggle-label" for="webview-show-in-tabs">${t('webview.showInTabsLabel')}</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="webview-show-in-tabs" ${webviewStatus.show_in_tabs !== false ? 'checked' : ''} />
+              <span class="toggle-switch__slider"></span>
+            </label>
+          </div>
+          <span class="form-hint" style="display:block;margin-bottom:var(--space-3)">${t('webview.showInTabsHelp')}</span>
+          <div class="settings-sync-actions" style="margin-bottom:var(--space-3)">
+            <button type="button" class="btn btn--primary" id="webview-add-btn">${t('webview.addWebsite')}</button>
+            <button type="button" class="btn btn--secondary" id="webview-clear-btn" ${webviewStatus.items?.length ? '' : 'disabled'}>${t('common.clear')}</button>
+          </div>
+          <div class="webview-settings-list" id="webview-settings-list">
+            ${renderWebviewSettingsRows(webviewStatus.items ?? [])}
+          </div>
         </div>
       </details>
 
@@ -842,15 +838,19 @@ function bindEvents(container, user, webviewStatus) {
     if (nextConfig) {
       webviewStatus.configured = !!nextConfig.configured;
       webviewStatus.items = Array.isArray(nextConfig.items) ? nextConfig.items : [];
+      if (typeof nextConfig.show_in_tabs === 'boolean') {
+        webviewStatus.show_in_tabs = nextConfig.show_in_tabs;
+      }
     }
     if (webviewStatusText) {
-      const count = webviewStatus.items.filter((item) => item?.show_in_tabs !== false).length;
       webviewStatusText.textContent = webviewStatus.configured
-        ? (count === 1
-          ? t('webview.configuredCount', { count })
-          : t('webview.configuredCountPlural', { count }))
+        ? (webviewStatus.items.length === 1
+          ? t('webview.configuredCount', { count: webviewStatus.items.length })
+          : t('webview.configuredCountPlural', { count: webviewStatus.items.length }))
         : t('settings.webviewNotConfigured');
     }
+    const webviewToggle = container.querySelector('#webview-show-in-tabs');
+    if (webviewToggle) webviewToggle.checked = webviewStatus.show_in_tabs !== false;
     if (webviewClearBtn) {
       webviewClearBtn.disabled = !webviewStatus.items.length;
     }
@@ -861,9 +861,16 @@ function bindEvents(container, user, webviewStatus) {
   };
 
   const saveWebviewItems = async (items, successToastKey = 'settings.webviewSavedToast') => {
-    const res = await saveWebviewConfig(items);
+    const res = await saveWebviewConfig(items, { show_in_tabs: webviewStatus.show_in_tabs !== false });
     syncWebviewUI(res);
     window.planium?.showToast(t(successToastKey), 'success');
+    return res;
+  };
+
+  const saveWebviewTabsEnabled = async (enabled) => {
+    const res = await saveWebviewConfig(webviewStatus.items, { show_in_tabs: enabled });
+    syncWebviewUI(res);
+    window.planium?.showToast(t('settings.webviewSavedToast'), 'success');
     return res;
   };
 
@@ -881,21 +888,16 @@ function bindEvents(container, user, webviewStatus) {
   webviewClearBtn?.addEventListener('click', async () => {
     if (!await showConfirm(t('webview.clearConfirm'), { danger: true })) return;
     await clearWebviewConfig();
-    syncWebviewUI({ configured: false, items: [] });
+    syncWebviewUI({ configured: false, items: [], show_in_tabs: webviewStatus.show_in_tabs });
     window.planium?.showToast(t('settings.webviewClearedToast'), 'default');
   });
 
-  webviewList?.addEventListener('change', async (e) => {
-    const toggle = e.target.closest('[data-webview-tabs-toggle]');
-    if (!toggle) return;
-    const id = toggle.dataset.webviewTabsToggle;
-    const items = webviewStatus.items.map((item) => (
-      String(item.id) === String(id) ? { ...item, show_in_tabs: toggle.checked } : item
-    ));
+  const webviewToggle = container.querySelector('#webview-show-in-tabs');
+  webviewToggle?.addEventListener('change', async () => {
     try {
-      await saveWebviewItems(items, 'settings.webviewSavedToast');
+      await saveWebviewTabsEnabled(webviewToggle.checked);
     } catch (err) {
-      toggle.checked = !toggle.checked;
+      webviewToggle.checked = !webviewToggle.checked;
       window.planium?.showToast(err.message, 'danger');
     }
   });

@@ -285,17 +285,22 @@
 .note-color-picker {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: 10px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
 }
 
 .note-color-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-  border: 2px solid transparent;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
   cursor: pointer;
-  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
 .note-color-swatch::before {
@@ -305,25 +310,27 @@
   border-radius: var(--radius-full);
 }
 
-.note-color-swatch:hover       { transform: scale(1.15); }
-.note-color-swatch--active     { border-color: var(--color-text-primary); transform: scale(1.1); }
+.note-color-swatch:hover       { transform: scale(1.08); }
+.note-color-swatch--active     { border-color: var(--color-text-primary); transform: scale(1.12); box-shadow: 0 0 0 2px rgba(255,255,255,0.04), inset 0 0 0 1px rgba(0, 0, 0, 0.08); }
 
 /* --------------------------------------------------------
  * Formatierungs-Toolbar im Notiz-Editor
  * -------------------------------------------------------- */
 .note-format-toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
-  border: 1.5px solid var(--color-border);
-  border-bottom: none;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  background-color: var(--color-surface-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-surface-2) 100%);
+  box-shadow: var(--shadow-xs);
 }
 
 .note-format-toolbar + .form-input {
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+  margin-top: var(--space-2);
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
 }
 
 .note-format-btn {
@@ -332,12 +339,12 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  border: none;
-  border-radius: var(--radius-xs);
-  background: transparent;
-  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
   cursor: pointer;
-  transition: background-color var(--transition-fast), color var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
   font-size: var(--text-sm);
   padding: 0;
 }
@@ -345,12 +352,15 @@
 .note-format-btn:hover {
   background-color: var(--color-accent-light);
   color: var(--color-accent);
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
 }
 
 .note-format-btn--sep {
-  width: 1px;
+  width: 100%;
+  height: 1px;
   background-color: var(--color-border);
-  margin: var(--space-1) var(--space-1);
+  margin: var(--space-1) 0;
   cursor: default;
 }
 
@@ -358,4 +368,3 @@
   background-color: var(--color-border);
   color: var(--color-text-secondary);
 }
-

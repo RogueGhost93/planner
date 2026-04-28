@@ -6,7 +6,6 @@ export const DASHBOARD_WIDGETS = [
   { id: 'quick-notes-widget', labelKey: 'dashboard.quickNotesTitle', defaultSpan: '1', visibleByDefault: true },
 ];
 
-const DASHBOARD_WIDGET_IDS = new Set(DASHBOARD_WIDGETS.map((widget) => widget.id));
 const DASHBOARD_WIDGET_SPANS = new Set(['1', '2', 'full']);
 const DASHBOARD_LAYOUT_TOKEN = /^[A-Za-z0-9:_-]+$/;
 
@@ -44,7 +43,7 @@ export function normalizeDashboardLayout(value) {
   const normalizedHidden = [];
   const hiddenSeen = new Set();
   for (const id of hidden) {
-    if (!DASHBOARD_WIDGET_IDS.has(id) || hiddenSeen.has(id)) continue;
+    if (typeof id !== 'string' || !DASHBOARD_LAYOUT_TOKEN.test(id) || hiddenSeen.has(id)) continue;
     hiddenSeen.add(id);
     normalizedHidden.push(id);
   }

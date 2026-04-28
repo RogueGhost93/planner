@@ -3,15 +3,16 @@ import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { openModal, closeModal } from '/components/modal.js';
 import { DASHBOARD_WIDGETS, defaultDashboardLayout, normalizeDashboardLayout } from '/lib/dashboard-layout.js';
+import { loadWebviewConfig, webviewItemLabel } from '/components/webview-manager.js';
 
-function widgetPickerRows(layout) {
+function widgetPickerRows(layout, widgets) {
   const hidden = new Set(layout.hidden ?? []);
-  return DASHBOARD_WIDGETS.map((widget) => {
+  return widgets.map((widget) => {
     const checked = !hidden.has(widget.id);
     return `
       <label class="dashboard-widget-picker__row" for="dashboard-widget-${widget.id}">
         <span class="dashboard-widget-picker__text">
-          <span class="dashboard-widget-picker__label">${esc(t(widget.labelKey))}</span>
+          <span class="dashboard-widget-picker__label">${esc(widget.label ?? t(widget.labelKey))}</span>
           <span class="dashboard-widget-picker__meta">${checked ? 'Shown on dashboard' : 'Hidden from dashboard'}</span>
         </span>
         <span class="toggle-switch">
@@ -33,7 +34,20 @@ async function loadCurrentLayout() {
 }
 
 export async function openDashboardWidgetPicker({ onSaved } = {}) {
-  const layout = await loadCurrentLayout();
+  const [layout, webviewRes] = await Promise.all([
+    loadCurrentLayout(),
+    loadWebviewConfig().catch(() => null),
+  ]);
+  const webviewItems = Array.isArray(webviewRes?.items)
+    ? webviewRes.items.filter((item) => item?.id && item?.url)
+    : [];
+  const widgets = [
+    ...DASHBOARD_WIDGETS.map((widget) => ({ id: widget.id, labelKey: widget.labelKey })),
+    ...webviewItems.map((item) => ({
+      id: `webview:${String(item.id).trim()}`,
+      label: webviewItemLabel(item),
+    })),
+  ];
 
   openModal({
     title: t('settings.dashboardWidgetsTitle'),
@@ -44,7 +58,7 @@ export async function openDashboardWidgetPicker({ onSaved } = {}) {
           <p class="dashboard-widget-picker__lead">${t('settings.dashboardWidgetsHelp')}</p>
         </div>
         <div class="dashboard-widget-picker__card">
-          ${widgetPickerRows(layout)}
+          ${widgetPickerRows(layout, widgets)}
         </div>
         <p class="dashboard-widget-picker__status" hidden></p>
         <div class="dashboard-widget-picker__footer">
@@ -69,7 +83,7 @@ export async function openDashboardWidgetPicker({ onSaved } = {}) {
         );
         const nextLayout = {
           order: layout.order.slice(),
-          hidden: DASHBOARD_WIDGETS.map((widget) => widget.id).filter((id) => !visible.has(id)),
+          hidden: widgets.map((widget) => widget.id).filter((id) => !visible.has(id)),
           spans: { ...layout.spans },
         };
 

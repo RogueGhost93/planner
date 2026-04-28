@@ -65,7 +65,7 @@ function parseOriginList(value, fallback = []) {
 // --------------------------------------------------------
 const isSecure = process.env.SESSION_SECURE !== 'false';
 app.use((req, res, next) => {
-  const webviewOrigins = getWebviewOrigins();
+  const webviewOrigins = getWebviewOrigins(req.session?.userId);
   const frameAncestors = parseOriginList(
     process.env.PLANIUM_FRAME_ANCESTORS,
     ["'self'", 'https://homarr.letsflyhi.com', 'https://homarr.luka.letsflyhi.com']

@@ -9,6 +9,7 @@
  * -------------------------------------------------------- */
 .dashboard {
   --module-accent: var(--color-accent);
+  --board-note-preview-lines: 5;
 }
 
 /* --------------------------------------------------------
@@ -74,7 +75,7 @@
   }
 
   /* Fixed widget height — sized for 6 calendar event rows */
-  .widget:not(#quote-widget):not(.widget--meals) {
+  .widget:not(#quote-widget):not(.widget--meals):not(.widget--board-notes) {
     height: 410px;
   }
 
@@ -82,12 +83,12 @@
     height: 560px;
   }
 
-  .widget:not(#quote-widget):not(.widget--meals) .widget__body {
+  .widget:not(#quote-widget):not(.widget--meals):not(.widget--board-notes) .widget__body {
     overflow-y: auto;
     scrollbar-width: none;
   }
 
-  .widget:not(#quote-widget):not(.widget--meals) .widget__body::-webkit-scrollbar {
+  .widget:not(#quote-widget):not(.widget--meals):not(.widget--board-notes) .widget__body::-webkit-scrollbar {
     display: none;
   }
 
@@ -1337,10 +1338,10 @@ a.price-ticker:hover {
  * Notizen-Grid-Widget (Board Widget)
  * -------------------------------------------------------- */
 
-/* Dashboard note cards — placed directly in the grid, no wrapper widget */
+/* Dashboard note cards — compact board section */
 .note-item {
   border-radius: var(--radius-sm);
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
   border-left: 3px solid var(--note-color, var(--color-accent));
@@ -1350,6 +1351,11 @@ a.price-ticker:hover {
 .note-item:hover {
   opacity: 0.8;
   transform: translateY(-1px);
+}
+
+.dashboard__board-notes .note-item:focus-visible {
+  outline: 2px solid rgba(44, 220, 255, 0.42);
+  outline-offset: 2px;
 }
 
 .note-item__title {
@@ -1366,21 +1372,50 @@ a.price-ticker:hover {
   font-size: var(--text-xs);
   color: var(--color-text-secondary);
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: var(--board-note-preview-lines);
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
-.widget--board-note {
-  min-height: 60px;
+.dashboard__board-notes--legacy {
+  margin-top: var(--space-5);
+  width: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.widget--board-note .widget__body {
-  padding-top: 0;
+.dashboard__board-notes-stack {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-3);
+  align-items: stretch;
 }
 
-.widget--board-note .dashboard-note__card {
-  min-height: 100%;
+.dashboard__board-notes .dashboard-board-notes__card {
+  width: 100%;
+  min-height: 132px;
+  height: 132px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .dashboard__board-notes-stack {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+
+  .dashboard__board-notes .dashboard-board-notes__card {
+    min-height: 140px;
+    height: 140px;
+  }
+}
+
+.dashboard__board-notes .note-item__title {
+  padding-right: var(--space-4);
 }
 
 .dashboard__grid--dragging .webview-widget__frame {

@@ -571,10 +571,11 @@ async function refreshOptionalNavItems() {
   const linkdingConfigured = linkdingStatus.status === 'fulfilled' && linkdingStatus.value?.configured;
   const fileboxEnabled = fileboxStatus.status === 'fulfilled' && fileboxStatus.value?.enabled;
   const webviewConfigured = webviewStatus.status === 'fulfilled' && webviewStatus.value?.configured;
+  const webviewTabsEnabled = webviewConfigured && webviewStatus.value?.show_in_tabs !== false;
 
   setNavRouteHidden('/meals', !mealieConfigured);
   setNavRouteHidden('/news', !freshrssConfigured);
-  setNavRouteHidden('/web', !webviewConfigured);
+  setNavRouteHidden('/web', !webviewTabsEnabled);
   setNavRouteHidden('/bookmarks', !linkdingConfigured);
   setNavRouteHidden('/filebox', !fileboxEnabled);
   renderBottomNavPages();

@@ -8,14 +8,12 @@ import { api } from '/api.js';
 import { t, formatDate, formatTime, getLocale } from '/i18n.js';
 import { esc, linkify } from '/utils/html.js';
 import { openItemEditDialog } from '/pages/tasks.js';
+import { openNoteModal } from '/pages/notes.js';
 import { renderPriceTickers, wirePriceTickers } from '/components/price-tickers.js';
 import { showConfirm, openModal } from '/components/modal.js';
 import { openDashboardWidgetPicker } from '/components/dashboard-widget-picker.js';
 import { normalizeDashboardLayout } from '/lib/dashboard-layout.js';
 import {
-  loadWebviewConfig,
-  saveWebviewConfig,
-  openWebviewEditor,
   renderWebviewCard,
   wireWebviewCards,
 } from '/components/webview-manager.js';
@@ -582,34 +580,53 @@ function renderTodayMeals(meals) {
 }
 
 function renderBoardNote(note) {
-  const layoutId = dashboardLayoutItemId('note', note.id);
   const title = note.title ? esc(note.title) : t('dashboard.pinnedNote');
 
   return `
-    <div class="widget widget--board-note widget-layout--span-1"
-         data-widget-id="${layoutId}" data-widget-span="1" data-note-id="${esc(note.id)}">
-      <div class="widget__header dashboard-note__header">
-        <span class="widget__title">
-          ${widgetDragHandle(layoutId)}
-          <i data-lucide="sticky-note" class="widget__title-icon" aria-hidden="true"></i>
-          ${title}
-        </span>
-      </div>
-      <div class="widget__body dashboard-note__body">
-        <div class="note-item dashboard-note__card" data-route="/notes" role="button" tabindex="0"
+    <article class="note-item dashboard-board-notes__card"
+             data-action="open-board-note" data-note-id="${esc(note.id)}"
+             role="button" tabindex="0" aria-label="${title}"
              style="--note-color:${esc(note.color)};">
-          ${note.title ? `<div class="note-item__title">${esc(note.title)}</div>` : ''}
-          <div class="note-item__content">${renderMarkdownLight(note.content)}</div>
-        </div>
-      </div>
-    </div>
+      ${note.title ? `<div class="note-item__title">${esc(note.title)}</div>` : ''}
+      <div class="note-item__content">${renderMarkdownLight(note.content)}</div>
+    </article>
   `;
 }
 
-function renderBoardNotes(notes) {
+function renderBoardNotes(notes, span = 'full') {
   if (!notes.length) return '';
+  return `
+    <section class="dashboard__board-notes dashboard__board-notes--legacy" aria-label="Pinned notes">
+      <div class="dashboard__board-notes-stack">
+        ${notes.map((n) => renderBoardNote(n)).join('')}
+      </div>
+    </section>
+  `;
+}
 
-  return notes.map((n) => renderBoardNote(n)).join('');
+function renderLegacyBoardNotes(notes) {
+  if (!notes.length) return '';
+  return `
+    <section class="dashboard__board-notes dashboard__board-notes--legacy" aria-label="Pinned notes">
+      <div class="dashboard__board-notes-stack">
+        ${notes.map((n) => renderBoardNote(n)).join('')}
+      </div>
+    </section>
+  `;
+}
+
+function updateBoardNotesSection(container, notes) {
+  const existing = container.querySelector('.dashboard__board-notes--legacy');
+  const html = renderLegacyBoardNotes(notes);
+  if (!existing) {
+    if (html) container.querySelector('.dashboard')?.insertAdjacentHTML('beforeend', html);
+    return;
+  }
+  if (!html) {
+    existing.remove();
+    return;
+  }
+  existing.outerHTML = html;
 }
 
 const SHOPPING_COLLAPSE_AT = 6;
@@ -904,7 +921,7 @@ function scheduleMidnightQuoteRefresh(container, signal) {
   signal.addEventListener('abort', () => clearTimeout(timerId));
 }
 
-function wireDashboardLayout(container, layoutState) {
+function wireDashboardLayout(container, layoutState, data) {
   const grid = container.querySelector('.dashboard__grid');
   if (!grid) return;
 
@@ -937,6 +954,28 @@ function wireDashboardLayout(container, layoutState) {
   };
 
   container.addEventListener('click', (e) => {
+    const openNote = e.target.closest('[data-action="open-board-note"]');
+    if (openNote) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.target.closest('[data-action="drag-widget"]')) return;
+      const noteId = Number(openNote.dataset.noteId);
+      const note = (data.pinnedNotes ?? []).find((n) => n.id === noteId);
+      if (note) {
+        openNote.blur?.();
+        openNoteModal({
+          mode: 'edit',
+          note,
+          onSaved: (savedNote) => {
+            const idx = (data.pinnedNotes ?? []).findIndex((n) => n.id === note.id);
+            if (idx !== -1) data.pinnedNotes[idx] = savedNote;
+            updateBoardNotesSection(container, data.pinnedNotes ?? []);
+          },
+        });
+      }
+      return;
+    }
+
     const sizeBtn = e.target.closest('[data-action="cycle-widget-span"]');
     if (!sizeBtn) return;
     e.preventDefault();
@@ -1042,8 +1081,7 @@ const FAB_ACTIONS = (user) => [
   { route: '/tasks',    label: t('dashboard.fabTask'),     icon: 'check-square'   },
   { route: '/calendar', label: t('dashboard.fabCalendar'), icon: 'calendar-plus'  },
   { route: '/lists', label: t('dashboard.fabShopping'), icon: 'shopping-cart'  },
-  { route: '/notes',    label: t('dashboard.fabNote'),     icon: 'sticky-note'    },
-  ...(user?.role === 'admin' ? [{ action: 'add-webview', label: t('webview.addWebsiteFab'), icon: 'globe' }] : []),
+  { action: 'create-note', label: t('dashboard.fabNote'), icon: 'sticky-note'    },
 ];
 
 function renderFab(user) {
@@ -1072,7 +1110,7 @@ function renderFab(user) {
   `;
 }
 
-function initFab(container, signal, user) {
+function initFab(container, signal, user, onNoteSaved = null) {
   const fabMain    = container.querySelector('#fab-main');
   const fabActions = container.querySelector('#fab-actions');
   if (!fabMain) return;
@@ -1113,17 +1151,12 @@ function initFab(container, signal, user) {
     });
   });
 
-  fabActions.querySelectorAll('[data-action="add-webview"]').forEach((el) => {
-    const go = async () => {
+  fabActions.querySelectorAll('[data-action="create-note"]').forEach((el) => {
+    const go = () => {
       toggleFab(false);
-      openWebviewEditor({
-        onSubmit: async (item) => {
-          const res = await loadWebviewConfig();
-          const items = Array.isArray(res?.items) ? res.items.slice() : [];
-          items.push(item);
-          await saveWebviewConfig(items);
-          window.location.reload();
-        },
+      openNoteModal({
+        mode: 'create',
+        onSaved: onNoteSaved,
       });
     };
     el.addEventListener('click', go);
@@ -1618,6 +1651,9 @@ export async function render(container, { user }) {
   const stats = { urgentTasks };
   const layoutState = normalizeDashboardLayout(data.layout);
   const hiddenWidgets = new Set(layoutState.hidden ?? []);
+  const webviewItems = (webview.items ?? []).filter((item) => item && item.url);
+  const pinnedNotes = (data.pinnedNotes ?? []).filter((note) => note && note.id != null);
+  const boardNotes = pinnedNotes;
   const widgetHtmlById = {
     'quote-widget': renderQuoteWidget(quote, layoutState.spans['quote-widget']),
     'tasks-widget': renderTasksWidget(data.personalLists ?? [], data.personalItems ?? [], layoutState.spans['tasks-widget']),
@@ -1625,11 +1661,8 @@ export async function render(container, { user }) {
     'shopping-widget': renderShoppingWidget(data.heads ?? [], data.sublists ?? [], data.listItems ?? [], layoutState.spans['shopping-widget']),
     'quick-notes-widget': renderQuickNotes(getQNMode(), layoutState.spans['quick-notes-widget']),
   };
-  const webviewItems = (webview.items ?? []).filter((item) => item && item.url);
-  const pinnedNotes = (data.pinnedNotes ?? []).filter((note) => note && note.id != null);
   const dynamicWidgetHtmlById = Object.fromEntries([
     ...webviewItems.map((item) => [dashboardLayoutItemId('webview', item.id), renderWebviewCard(item, { variant: 'widget' })]),
-    ...pinnedNotes.map((note) => [dashboardLayoutItemId('note', note.id), renderBoardNote(note)]),
   ]);
   const orderedWidgets = layoutState.order
     .filter((id) => !hiddenWidgets.has(id))
@@ -1638,9 +1671,8 @@ export async function render(container, { user }) {
     .join('');
   const unorderedWidgets = [
     ...webviewItems.map((item) => dashboardLayoutItemId('webview', item.id)),
-    ...pinnedNotes.map((note) => dashboardLayoutItemId('note', note.id)),
   ]
-    .filter((id) => !layoutState.order.includes(id))
+    .filter((id) => !layoutState.order.includes(id) && !hiddenWidgets.has(id))
     .map((id) => dynamicWidgetHtmlById[id])
     .filter(Boolean)
     .join('');
@@ -1654,6 +1686,7 @@ export async function render(container, { user }) {
         ${unorderedWidgets}
         ${renderWeatherWidget(weather)}
       </div>
+      ${renderLegacyBoardNotes(boardNotes)}
     </div>
     ${renderFab(user)}
   `;
@@ -1665,7 +1698,18 @@ export async function render(container, { user }) {
   wireDashboardLayout(container, layoutState, data);
   if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
   scheduleMidnightQuoteRefresh(container, _fabController.signal);
-  initFab(container, _fabController.signal, user);
+  initFab(container, _fabController.signal, user, (savedNote) => {
+    if (!savedNote) return;
+    data.pinnedNotes = Array.isArray(data.pinnedNotes) ? data.pinnedNotes.slice() : [];
+    const idx = data.pinnedNotes.findIndex((n) => n.id === savedNote.id);
+    if (savedNote.pinned) {
+      if (idx === -1) data.pinnedNotes.unshift(savedNote);
+      else data.pinnedNotes[idx] = savedNote;
+    } else if (idx !== -1) {
+      data.pinnedNotes.splice(idx, 1);
+    }
+    updateBoardNotesSection(container, data.pinnedNotes);
+  });
 
   function refreshTasksWidget() {
     const widgetEl = container.querySelector('#tasks-widget');

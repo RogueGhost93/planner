@@ -15,8 +15,8 @@ import { esc } from '/utils/html.js';
 // --------------------------------------------------------
 
 const NOTE_COLORS = [
-  '#FFEB3B', '#FFD54F', '#A5D6A7', '#80DEEA',
-  '#90CAF9', '#CE93D8', '#FFAB91', '#FFFFFF',
+  '#F4D46A', '#E8C9A6', '#DDE5B0', '#B8D8D2',
+  '#B8C8F0', '#D7B7EC', '#F1C0C8', '#DDE1E8',
 ];
 
 // --------------------------------------------------------
@@ -79,6 +79,7 @@ export async function render(container, { user }) {
     state.notes = [];
     window.planium?.showToast(t('notes.loadError'), 'danger');
   }
+
   const grid = container.querySelector('#notes-grid');
   grid.addEventListener('click', async (e) => {
     const pinBtn = e.target.closest('[data-action="pin"]');
@@ -117,6 +118,7 @@ export async function render(container, { user }) {
 // --------------------------------------------------------
 
 function renderGrid() {
+  if (!_container) return;
   const grid = _container.querySelector('#notes-grid');
   if (!grid) return;
 
@@ -320,7 +322,7 @@ function applyFormat(textarea, format) {
 // Modal
 // --------------------------------------------------------
 
-function openNoteModal({ mode, note = null }) {
+export function openNoteModal({ mode, note = null, onSaved = null } = {}) {
   const isEdit    = mode === 'edit';
   const selColor  = isEdit ? note.color : NOTE_COLORS[0];
 
@@ -484,17 +486,27 @@ function openNoteModal({ mode, note = null }) {
         saveBtn.textContent = '…';
 
         try {
+          let savedNote = null;
           if (mode === 'create') {
             const res = await api.post('/notes', { title, content: cnt, color, pinned, shared });
             state.notes.unshift(res.data);
+            savedNote = res.data;
           } else {
             const res = await api.put(`/notes/${note.id}`, { title, content: cnt, color, pinned, shared });
             const idx = state.notes.findIndex((n) => n.id === note.id);
             if (idx !== -1) state.notes[idx] = res.data;
             state.notes.sort((a, b) => b.pinned - a.pinned);
+            savedNote = res.data;
           }
           closeModal();
           renderGrid();
+          if (typeof onSaved === 'function') {
+            try {
+              onSaved(savedNote);
+            } catch (callbackErr) {
+              console.error('[Notes] onSaved callback failed:', callbackErr);
+            }
+          }
           window.planium?.showToast(mode === 'create' ? t('notes.createdToast') : t('notes.savedToast'), 'success');
         } catch (err) {
           window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
@@ -547,4 +559,3 @@ function isLightColor(hex) {
   const b = parseInt(hex.slice(5, 7), 16);
   return (r * 299 + g * 587 + b * 114) / 1000 > 150;
 }
-
