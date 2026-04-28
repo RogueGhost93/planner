@@ -128,6 +128,10 @@ function renderPriorityBadge(priority) {
   </span>`;
 }
 
+function priorityCardClass(priority) {
+  return priority && priority !== 'none' ? ` priority-tier--${priority}` : '';
+}
+
 function renderToolbarSearch({ scope, open, value, label, placeholder }) {
   const expanded = open || !!value;
   return `
@@ -172,7 +176,7 @@ function renderTaskCard(task, opts = {}) {
     : '';
 
   return `
-    <div class="task-card ${isDone ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-task-id="${task.id}" data-action="open-task">
+    <div class="task-card${priorityCardClass(task.priority)} ${isDone ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-task-id="${task.id}" data-action="open-task">
       <div class="task-card__main">
         <button class="task-select-cb" data-action="toggle-select" data-id="${task.id}"
                 aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
@@ -796,7 +800,7 @@ function renderKanbanCard(task) {
   const nextStatusLabel = STATUS_LABELS()[nextStatus] ?? nextStatus.replace('_', ' ');
   const isSelected = state.selectedIds.has(task.id);
   return `
-    <div class="kanban-card ${task.status === 'done' ? 'kanban-card--done' : ''} ${isSelected ? 'kanban-card--selected' : ''}"
+    <div class="kanban-card${priorityCardClass(task.priority)} ${task.status === 'done' ? 'kanban-card--done' : ''} ${isSelected ? 'kanban-card--selected' : ''}"
          data-task-id="${task.id}" draggable="${!state.selectMode}">
       ${state.selectMode ? `
         <button class="task-select-cb kanban-select-cb ${isSelected ? 'task-select-cb--checked' : ''}"
@@ -1462,7 +1466,7 @@ function renderPersonalItemRow(item) {
   const nextStatus = PERSONAL_STATUS_CYCLE[status] ?? 'open';
   const statusIcon = PERSONAL_STATUS_ICON[status] ?? 'circle';
   return `
-    <div class="task-card ${status === 'done' ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}" data-action="open-personal-item">
+    <div class="task-card${priorityCardClass(item.priority)} ${status === 'done' ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}" data-action="open-personal-item">
       <div class="task-card__main">
         <button class="task-select-cb" data-action="toggle-personal-select" data-item-id="${item.id}"
                 aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
@@ -1645,11 +1649,11 @@ function renderPersonalKanbanCard(item) {
   const nextStatus = PERSONAL_STATUS_CYCLE[status] ?? 'open';
   const icon = PERSONAL_STATUS_ICON[status] ?? 'circle';
   return `
-    <div class="kanban-card ${status === 'done' ? 'kanban-card--done' : ''}"
+    <div class="kanban-card${priorityCardClass(item.priority)} ${status === 'done' ? 'kanban-card--done' : ''}"
          data-item-id="${item.id}" draggable="true" data-action="open-personal-item">
       <div class="kanban-card__header">
         <div class="kanban-card__title">${linkify(item.title)}</div>
-        <button class="kanban-card__status-btn" data-action="cycle-personal-item"
+        <button class="kanban-card__status-btn kanban-card__status-btn--${status}" data-action="cycle-personal-item"
                 data-next-status="${nextStatus}"
                 aria-label="${t('tasks.cycleStatus')}">
           <i data-lucide="${icon}" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>

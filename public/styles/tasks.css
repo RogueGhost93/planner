@@ -311,6 +311,7 @@
  * Task-Card
  * -------------------------------------------------------- */
 .task-card {
+  position: relative;
   background-color: var(--color-surface);
   border-radius: var(--radius-md);
   border-left: 3px solid var(--module-accent);
@@ -323,6 +324,22 @@
 
 .task-card:hover {
   box-shadow: var(--shadow-md);
+}
+
+.priority-tier--low {
+  border-left-color: var(--color-priority-low) !important;
+}
+
+.priority-tier--medium {
+  border-left-color: var(--color-priority-medium) !important;
+}
+
+.priority-tier--high {
+  border-left-color: var(--color-priority-high) !important;
+}
+
+.priority-tier--urgent {
+  border-left-color: var(--color-priority-urgent) !important;
 }
 
 .task-card--done {
@@ -366,6 +383,16 @@
   animation: check-pop 0.2s var(--ease-out);
 }
 
+.task-status-btn--in_progress {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background-color: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
+.task-status-btn--in_progress:hover {
+  background-color: color-mix(in srgb, var(--color-success) 18%, transparent);
+}
+
 @keyframes check-pop {
   0%   { transform: scale(1); }
   50%  { transform: scale(1.2); }
@@ -380,6 +407,10 @@
 }
 
 .task-status-btn--done .task-status-btn__check { display: block; }
+
+.task-status-btn--in_progress .task-status-btn__check {
+  display: block;
+}
 
 .task-card__body {
   flex: 1;
@@ -716,6 +747,7 @@
   position: relative;
   background-color: var(--color-surface);
   border-radius: var(--radius-sm);
+  border-left: 3px solid var(--module-accent, var(--color-accent));
   box-shadow: var(--shadow-sm);
   padding: var(--space-3);
   cursor: grab;
@@ -837,9 +869,31 @@
   background: var(--color-surface-raised);
 }
 
+.kanban-card__status-btn--in_progress {
+  color: var(--color-success);
+}
+
+.kanban-card__status-btn--in_progress:hover {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
 .kanban-card--done .kanban-card__title {
   text-decoration: line-through;
   color: var(--color-text-secondary);
+}
+
+.task-card__body,
+.task-card__title,
+.task-card__description {
+  cursor: text;
+}
+
+.task-card__title a,
+.task-card__description a,
+.kanban-card__title a,
+.kanban-card__description a {
+  cursor: pointer;
 }
 
 .kanban-card__meta {

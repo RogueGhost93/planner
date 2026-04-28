@@ -1,17 +1,16 @@
 <claude-mem-context>
 # Memory Context
 
-# [planium] recent context, 2026-04-28 3:02pm GMT+2
+# [planium] recent context, 2026-04-28 3:39pm GMT+2
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (17,965t read) | 278,091t work | 94% savings
+Stats: 50 obs (17,775t read) | 278,478t work | 94% savings
 
 ### Apr 28, 2026
-880 9:54a 🔵 Bug found: /due-notifications householdQuery has no user/household filter — returns all tasks globally
-881 " 🔵 tasks table is empty — household tasks fully migrated; two database files exist
+881 9:54a 🔵 tasks table is empty — household tasks fully migrated; two database files exist
 S97 Planium Database is Empty — Possible DB Path Mismatch (Apr 28, 9:54 AM)
 882 9:58a 🔵 Deleted Items Still Appearing in Reminder Modal
 883 10:00a 🔵 Bug Confirmed Reproducible in Incognito Mode
@@ -70,6 +69,7 @@ S106 Fixed sortWidgetItems Sort Order in dashboard.js (Apr 28, 10:23 AM)
 927 " 🔵 DB Migration 18 Rebuilt the Tasks Table to Enforce open/done-Only Constraint
 928 3:01p ⚖️ Personal Kanban Intentionally Stays Two-Column While Household Tasks Gets Three
 929 3:02p 🔵 Service Worker Caches tasks.js and en.json — Version Bump Required to Ship Changes
+930 " ✅ Service Worker Cache Bumped from v163 to v164
 
 Access 278k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

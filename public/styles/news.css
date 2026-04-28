@@ -290,7 +290,8 @@
   .news-toolbar {
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2h) var(--space-3);
+    padding: var(--space-3) var(--space-3);
+    min-height: 88px;
   }
 
   .news-toolbar__title-wrap {
@@ -299,7 +300,8 @@
   }
 
   .news-toolbar__title {
-    font-size: var(--text-xl);
+    font-size: var(--text-2xl);
+    line-height: var(--line-height-tight);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
