@@ -1303,7 +1303,25 @@ function wireGreetingLink(container) {
   if (!btn) return;
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    window.open(btn.dataset.quickLink, '_blank');
+    const quickLink = btn.dataset.quickLink?.trim();
+    if (!quickLink) return;
+
+    const isInternalRoute = quickLink.startsWith('/') && !quickLink.startsWith('//');
+    if (isInternalRoute && window.planium?.navigate) {
+      window.planium.navigate(quickLink);
+      return;
+    }
+
+    // Mobile/standalone shells can hand off "_blank" links to the external browser.
+    // Keep external links in the current browser context on small screens instead.
+    const isMobile = window.matchMedia('(max-width: 1023px)').matches
+      || window.matchMedia('(pointer: coarse)').matches;
+    if (isMobile) {
+      window.location.href = quickLink;
+      return;
+    }
+
+    window.open(quickLink, '_blank', 'noopener,noreferrer');
   });
 }
 

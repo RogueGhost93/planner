@@ -348,7 +348,7 @@ function renderAppShell(container) {
     <nav class="nav-sidebar" aria-label="${t('nav.main')}">
       <a href="/" data-route="/" class="nav-sidebar__logo" aria-label="${t('nav.dashboard')}"><img src="/icons/logo-p.svg" alt="" class="nav-sidebar__logo-img" aria-hidden="true"><span>Planium</span></a>
       <div class="nav-sidebar__items" role="list">
-        ${navItems().map(navItemHtml).join('')}
+        ${navItems().map((item) => navItemHtml(item, item.optional)).join('')}
       </div>
     </nav>
 
@@ -361,28 +361,24 @@ function renderAppShell(container) {
         <span class="nav-bottom__dot"></span>
       </div>
       <div class="nav-bottom__scroll">
-        <div class="nav-bottom__page" role="list">
-          ${navItems().slice(0, 5).map(navItemHtml).join('')}
-        </div>
-        <div class="nav-bottom__page" role="list">
-          ${navItems().slice(5).map(navItemHtml).join('')}
-        </div>
+        ${buildBottomNavPagesHtml((item) => item.optional)}
       </div>
     </nav>
 
     <div class="toast-container" id="toast-container" aria-live="assertive"></div>
   `;
 
-  // Click handler for all nav links
-  container.querySelectorAll('[data-route]').forEach((el) => {
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      navigate(el.dataset.route);
-    });
+  // Click handler for all nav links, including rebuilt bottom-nav pages
+  container.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-route]');
+    if (!el || !container.contains(el)) return;
+    e.preventDefault();
+    navigate(el.dataset.route);
   });
 
   // Bottom nav: scroll-snap + dot indicator
   initBottomNavSwipe(container);
+  scrollNavToActive();
 }
 
 /**
@@ -406,7 +402,7 @@ function initBottomNavSwipe(container) {
 function scrollNavToActive() {
   const scroll = document.querySelector('.nav-bottom__scroll');
   if (!scroll) return;
-  const secondPage = navItems().slice(5).map(n => n.path);
+  const secondPage = getBottomNavPages()[1]?.map((item) => item.path) ?? [];
   if (secondPage.includes(currentPath)) {
     scroll.scrollTo({ left: scroll.offsetWidth, behavior: 'smooth' });
   }
@@ -435,6 +431,8 @@ async function refreshOptionalNavItems() {
   setNavRouteHidden('/news', !freshrssConfigured);
   setNavRouteHidden('/bookmarks', !linkdingConfigured);
   setNavRouteHidden('/filebox', !fileboxEnabled);
+  renderBottomNavPages();
+  updateNav(currentPath);
 }
 
 function navItems() {
@@ -454,13 +452,54 @@ function navItems() {
   ];
 }
 
-function navItemHtml({ path, label, icon, optional }) {
+function navItemHtml({ path, label, icon }, hidden = false) {
   return `
-    <a href="${path}" data-route="${path}" class="nav-item" role="listitem" aria-label="${label}" ${optional ? 'hidden' : ''}>
+    <a href="${path}" data-route="${path}" class="nav-item" role="listitem" aria-label="${label}" ${hidden ? 'hidden' : ''}>
       <i data-lucide="${icon}" class="nav-item__icon" aria-hidden="true"></i>
       <span class="nav-item__label">${label}</span>
     </a>
   `;
+}
+
+function isNavRouteHidden(path) {
+  return document.querySelector(`a.nav-item[data-route="${path}"]`)?.hidden ?? false;
+}
+
+function getBottomNavPages(hiddenResolver = (item) => isNavRouteHidden(item.path)) {
+  const items = navItems().map((item) => ({
+    ...item,
+    hidden: hiddenResolver(item),
+  }));
+
+  const visibleCount = items.reduce((count, item) => count + (item.hidden ? 0 : 1), 0);
+  const splitIndex = Math.ceil(visibleCount / 2);
+  const pages = [[], []];
+  let visibleSeen = 0;
+
+  for (const item of items) {
+    const pageIndex = visibleSeen < splitIndex ? 0 : 1;
+    pages[pageIndex].push(item);
+    if (!item.hidden) visibleSeen++;
+  }
+
+  return pages;
+}
+
+function renderBottomNavPages() {
+  const scroll = document.querySelector('.nav-bottom__scroll');
+  if (!scroll) return '';
+
+  const pageHtml = buildBottomNavPagesHtml();
+  scroll.innerHTML = pageHtml;
+  return pageHtml;
+}
+
+function buildBottomNavPagesHtml(hiddenResolver) {
+  return getBottomNavPages(hiddenResolver).map((page) => `
+        <div class="nav-bottom__page" role="list">
+          ${page.map((item) => navItemHtml(item, item.hidden)).join('')}
+        </div>
+  `).join('');
 }
 
 /**

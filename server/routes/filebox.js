@@ -13,14 +13,19 @@
 
 import express from 'express';
 import multer from 'multer';
+import { execFile } from 'node:child_process';
 import fs from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { promisify } from 'node:util';
 import { createLogger } from '../logger.js';
 import * as db from '../db.js';
 
 const log    = createLogger('Filebox');
 const router = express.Router();
+const execFileAsync = promisify(execFile);
 
 // DATA_DIR > directory of DB_PATH > <repo>/data — keeps Filebox next to the DB
 // in dev when no DATA_DIR is set, so we don't try to mkdir /data (EACCES).
@@ -32,6 +37,11 @@ function resolveDataDir() {
 const FILEBOX_ROOT = path.join(resolveDataDir(), 'filebox');
 const GLOBAL_DIR   = path.join(FILEBOX_ROOT, 'global');
 const MAX_FILE_BYTES = 50 * 1024 * 1024 * 1024; // 50 GiB
+const IMAGE_THUMBNAIL_EXTS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'avif', 'heic', 'heif', 'tif', 'tiff', 'svg',
+]);
+const PDF_THUMBNAIL_EXTS = new Set(['pdf']);
+const VIDEO_THUMBNAIL_EXTS = new Set(['mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v', 'ogv']);
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -74,6 +84,91 @@ function resolveInside(scopeDir, filename) {
   const resolved = path.resolve(scopeDir, safe);
   if (!resolved.startsWith(path.resolve(scopeDir) + path.sep)) return null;
   return resolved;
+}
+
+function thumbnailKindFor(filename) {
+  const ext = path.extname(filename || '').slice(1).toLowerCase();
+  if (IMAGE_THUMBNAIL_EXTS.has(ext)) return 'image';
+  if (PDF_THUMBNAIL_EXTS.has(ext)) return 'pdf';
+  if (VIDEO_THUMBNAIL_EXTS.has(ext)) return 'video';
+  return null;
+}
+
+async function renderPdfThumbnail(filePath, size) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'filebox-thumb-'));
+  const basePath = path.join(tempDir, 'page');
+  const pngPath = `${basePath}.png`;
+
+  try {
+    await execFileAsync('pdftoppm', [
+      '-f', '1',
+      '-singlefile',
+      '-png',
+      filePath,
+      basePath,
+    ]);
+
+    return await (await import('sharp')).default(pngPath)
+      .resize({ width: size, height: size, fit: 'cover', withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer();
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function renderVideoThumbnail(filePath, size) {
+  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'filebox-thumb-'));
+  const pngPath = path.join(tempDir, 'frame.png');
+
+  try {
+    let duration = 0;
+    try {
+      const probe = await execFileAsync('ffprobe', [
+        '-v', 'error',
+        '-show_entries', 'format=duration',
+        '-of', 'default=noprint_wrappers=1:nokey=1',
+        filePath,
+      ]);
+      duration = Number.parseFloat(String(probe.stdout || '').trim()) || 0;
+    } catch (err) {
+      log.warn('thumbnail video probe failed', err.message);
+    }
+
+    const offset = duration > 0
+      ? Math.min(Math.max(duration * 0.1, 0.5), Math.max(duration - 0.1, 0.5))
+      : 0.5;
+
+    try {
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-ss', String(offset),
+        '-i', filePath,
+        '-frames:v', '1',
+        '-an',
+        '-loglevel', 'error',
+        pngPath,
+      ]);
+    } catch (err) {
+      log.warn('thumbnail video frame failed, retrying at start', err.message);
+      await execFileAsync('ffmpeg', [
+        '-y',
+        '-ss', '0',
+        '-i', filePath,
+        '-frames:v', '1',
+        '-an',
+        '-loglevel', 'error',
+        pngPath,
+      ]);
+    }
+
+    return await (await import('sharp')).default(pngPath)
+      .resize({ width: size, height: size, fit: 'cover', withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer();
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 function isFileboxEnabled(userId) {
@@ -265,6 +360,58 @@ router.get('/download/:scope/:filename', (req, res) => {
       res.status(500).json({ error: 'Download failed', code: 500 });
     }
   });
+});
+
+// --------------------------------------------------------
+// GET /api/v1/filebox/thumbnail/:scope/:filename?size=160
+// Generates a small inline preview for image files.
+// --------------------------------------------------------
+router.get('/thumbnail/:scope/:filename', async (req, res) => {
+  const scope    = req.params.scope === 'private' ? 'private' : req.params.scope === 'global' ? 'global' : null;
+  if (!scope) return res.status(400).json({ error: 'Invalid scope.', code: 400 });
+
+  const userSlug = scope === 'private' ? lookupUsername(req.session.userId) : null;
+  const dir      = dirForScope(scope, userSlug);
+  if (!dir) return res.status(400).json({ error: 'Invalid scope.', code: 400 });
+
+  const filePath = resolveInside(dir, req.params.filename);
+  if (!filePath) return res.status(400).json({ error: 'Invalid filename.', code: 400 });
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    return res.status(404).json({ error: 'Not found.', code: 404 });
+  }
+  const kind = thumbnailKindFor(req.params.filename);
+  if (!kind) {
+    return res.status(404).json({ error: 'Not found.', code: 404 });
+  }
+
+  const sizeRaw = Number.parseInt(req.query.size, 10);
+  const size = Number.isFinite(sizeRaw) ? Math.min(512, Math.max(64, sizeRaw)) : 160;
+
+  try {
+    let buffer;
+    if (kind === 'image') {
+      const sharpMod = await import('sharp');
+      const sharp = sharpMod.default ?? sharpMod;
+      buffer = await sharp(filePath)
+        .rotate()
+        .resize({ width: size, height: size, fit: 'cover', withoutEnlargement: true })
+        .webp({ quality: 82 })
+        .toBuffer();
+    } else if (kind === 'pdf') {
+      buffer = await renderPdfThumbnail(filePath, size);
+    } else if (kind === 'video') {
+      buffer = await renderVideoThumbnail(filePath, size);
+    }
+
+    res.set({
+      'Content-Type': 'image/webp',
+      'Cache-Control': 'private, max-age=3600',
+    });
+    res.send(buffer);
+  } catch (err) {
+    log.warn('thumbnail', err.message);
+    res.status(404).json({ error: 'Not found.', code: 404 });
+  }
 });
 
 // --------------------------------------------------------

@@ -8,6 +8,11 @@ import { api } from '/api.js';
 import { esc } from '/utils/html.js';
 import { showConfirm } from '/components/modal.js';
 
+const PREVIEW_THUMBNAIL_EXTS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'avif', 'heic', 'heif', 'tif', 'tiff', 'svg',
+  'pdf', 'mp4', 'mov', 'webm', 'mkv', 'avi', 'm4v', 'ogv',
+]);
+
 // --------------------------------------------------------
 // State
 // --------------------------------------------------------
@@ -16,6 +21,8 @@ let state = {
   files: [],
   loading: false,
   upload: null, // { label, loaded, total } while an upload is in progress
+  selectMode: false,
+  selectedNames: new Set(),
 };
 let _container = null;
 
@@ -39,8 +46,8 @@ function formatDate(iso) {
 
 function fileIconFor(name) {
   const ext = (name.split('.').pop() || '').toLowerCase();
-  if (['jpg','jpeg','png','gif','webp','svg','bmp','ico'].includes(ext)) return 'image';
-  if (['mp4','mov','webm','mkv','avi'].includes(ext)) return 'video';
+  if (['jpg','jpeg','png','gif','webp','svg','bmp','ico','avif','heic','heif','tif','tiff'].includes(ext)) return 'image';
+  if (['mp4','mov','webm','mkv','avi','m4v','ogv'].includes(ext)) return 'video';
   if (['mp3','wav','flac','ogg','m4a'].includes(ext)) return 'music';
   if (['pdf'].includes(ext)) return 'file-text';
   if (['zip','tar','gz','7z','rar'].includes(ext)) return 'archive';
@@ -48,6 +55,52 @@ function fileIconFor(name) {
   if (['xls','xlsx','csv','ods'].includes(ext)) return 'table';
   if (['md','txt','log','json','yaml','yml','xml'].includes(ext)) return 'file-text';
   return 'file';
+}
+
+function isPreviewFile(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  return PREVIEW_THUMBNAIL_EXTS.has(ext);
+}
+
+function thumbFallbackIconFor(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (['mp4','mov','webm','mkv','avi','m4v','ogv'].includes(ext)) return 'video';
+  if (['pdf'].includes(ext)) return 'file-text';
+  if (['jpg','jpeg','png','gif','webp','bmp','ico','avif','heic','heif','tif','tiff','svg'].includes(ext)) return 'image';
+  return fileIconFor(name);
+}
+
+function thumbnailUrlFor(name) {
+  return `/api/v1/filebox/thumbnail/${encodeURIComponent(state.scope)}/${encodeURIComponent(name)}?size=160`;
+}
+
+function downloadUrlFor(name) {
+  return `/api/v1/filebox/download/${encodeURIComponent(state.scope)}/${encodeURIComponent(name)}`;
+}
+
+function scopeLabel(scope) {
+  return scope === 'global' ? 'Global files' : 'Private files';
+}
+
+function syncSelectedNames() {
+  const valid = new Set(state.files.map((f) => f.name));
+  for (const name of [...state.selectedNames]) {
+    if (!valid.has(name)) state.selectedNames.delete(name);
+  }
+}
+
+function setSelectMode(next) {
+  state.selectMode = next;
+  if (!next) state.selectedNames.clear();
+  renderToolbarState();
+  renderList();
+}
+
+function toggleSelected(name) {
+  if (state.selectedNames.has(name)) state.selectedNames.delete(name);
+  else state.selectedNames.add(name);
+  renderToolbarState();
+  renderList();
 }
 
 function getCsrfToken() {
@@ -67,6 +120,7 @@ async function loadFiles() {
   try {
     const res = await api.get(`/filebox/files?scope=${state.scope}`);
     state.files = res.files || [];
+    syncSelectedNames();
   } catch (err) {
     window.planium.showToast(err.message || 'Failed to load files', 'danger');
     state.files = [];
@@ -222,6 +276,40 @@ async function deleteFile(name) {
   }
 }
 
+async function deleteSelectedFiles() {
+  const names = [...state.selectedNames];
+  if (!names.length) return;
+
+  const ok = await showConfirm(
+    `Delete ${names.length} selected file${names.length === 1 ? '' : 's'}?`,
+    {
+      title: 'Delete files?',
+      okLabel: 'Delete',
+      danger: true,
+    },
+  );
+  if (!ok) return;
+
+  try {
+    const results = await Promise.allSettled(names.map((name) => api.delete(`/filebox/${state.scope}/${encodeURIComponent(name)}`)));
+    const deleted = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.length - deleted;
+
+    state.selectedNames.clear();
+    state.selectMode = false;
+    renderToolbarState();
+    await loadFiles();
+
+    if (failed === 0) {
+      window.planium.showToast(`Deleted ${deleted} file${deleted === 1 ? '' : 's'}`, 'success');
+    } else {
+      window.planium.showToast(`Deleted ${deleted} file${deleted === 1 ? '' : 's'}; ${failed} failed`, 'danger');
+    }
+  } catch (err) {
+    window.planium.showToast(err.message || 'Delete failed', 'danger');
+  }
+}
+
 // --------------------------------------------------------
 // Rendering
 // --------------------------------------------------------
@@ -237,6 +325,39 @@ function renderStats() {
     <span class="filebox-stats__dot" aria-hidden="true"></span>
     <span>${formatBytes(total)}</span>
   `;
+}
+
+function renderToolbarState() {
+  const selectBtn = _container?.querySelector('#filebox-select-btn');
+  const bulkDeleteBtn = _container?.querySelector('#filebox-bulk-delete-btn');
+  const subtitle = _container?.querySelector('#filebox-toolbar-subtitle');
+  const listEl = _container?.querySelector('#filebox-list');
+  if (selectBtn) {
+    selectBtn.classList.toggle('btn--primary', state.selectMode);
+    selectBtn.classList.toggle('btn--ghost', !state.selectMode);
+    selectBtn.setAttribute('aria-pressed', String(state.selectMode));
+    selectBtn.setAttribute('aria-label', state.selectMode ? 'Exit select mode' : 'Enter select mode');
+  }
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.hidden = !state.selectMode || state.selectedNames.size === 0;
+    const label = bulkDeleteBtn.querySelector('span');
+    if (label) {
+      label.textContent = state.selectedNames.size
+        ? `Delete ${state.selectedNames.size}`
+        : 'Delete selected';
+    }
+    bulkDeleteBtn.setAttribute('aria-label', state.selectedNames.size
+      ? `Delete ${state.selectedNames.size} selected files`
+      : 'Delete selected files');
+  }
+  if (subtitle) {
+    subtitle.textContent = state.selectMode
+      ? (state.selectedNames.size ? `${state.selectedNames.size} selected` : 'Tap files to select')
+      : scopeLabel(state.scope);
+  }
+  if (listEl) {
+    listEl.classList.toggle('filebox-list--select-mode', state.selectMode);
+  }
 }
 
 function renderDropzone() {
@@ -278,6 +399,7 @@ function renderDropzone() {
 function renderList() {
   const listEl = _container?.querySelector('#filebox-list');
   if (!listEl) return;
+  renderToolbarState();
 
   if (state.loading) {
     listEl.innerHTML = `
@@ -304,10 +426,22 @@ function renderList() {
   }
 
   listEl.innerHTML = state.files.map(f => `
-    <div class="filebox-item" data-name="${esc(f.name)}">
-      <span class="filebox-item__icon-wrap" aria-hidden="true">
-        <i data-lucide="${fileIconFor(f.name)}"></i>
-      </span>
+    <div class="filebox-item${state.selectedNames.has(f.name) ? ' filebox-item--selected' : ''}" data-name="${esc(f.name)}">
+      ${state.selectMode ? `
+        <button type="button" class="filebox-item__select" data-action="toggle-select" aria-pressed="${state.selectedNames.has(f.name)}" aria-label="Select ${esc(f.name)}">
+          ${state.selectedNames.has(f.name) ? '<i data-lucide="check" aria-hidden="true"></i>' : ''}
+        </button>
+      ` : ''}
+      ${isPreviewFile(f.name) ? `
+        <span class="filebox-item__thumb filebox-item__thumb--image" aria-hidden="true">
+          <img class="filebox-item__thumb-img" src="${thumbnailUrlFor(f.name)}" alt="" loading="lazy" decoding="async">
+          <i data-lucide="${thumbFallbackIconFor(f.name)}" class="filebox-item__thumb-fallback" aria-hidden="true"></i>
+        </span>
+      ` : `
+        <span class="filebox-item__thumb filebox-item__thumb--icon" aria-hidden="true">
+          <i data-lucide="${fileIconFor(f.name)}"></i>
+        </span>
+      `}
       <div class="filebox-item__body">
         <div class="filebox-item__name" title="${esc(f.name)}">${esc(f.name)}</div>
         <div class="filebox-item__meta">
@@ -316,22 +450,50 @@ function renderList() {
           <span>${formatDate(f.modifiedAt)}</span>
         </div>
       </div>
-      <div class="filebox-item__actions">
-        <a class="filebox-item__btn" href="/api/v1/filebox/download/${encodeURIComponent(state.scope)}/${encodeURIComponent(f.name)}" title="Download" aria-label="Download">
-          <i data-lucide="download" aria-hidden="true"></i>
-        </a>
-        <button class="filebox-item__btn filebox-item__btn--danger" data-action="delete" title="Delete" aria-label="Delete">
-          <i data-lucide="trash-2" aria-hidden="true"></i>
-        </button>
-      </div>
+      ${state.selectMode ? '' : `
+        <div class="filebox-item__actions">
+          <a class="filebox-item__btn" href="${downloadUrlFor(f.name)}" title="Download" aria-label="Download">
+            <i data-lucide="download" aria-hidden="true"></i>
+          </a>
+          <button class="filebox-item__btn filebox-item__btn--danger" data-action="delete" title="Delete" aria-label="Delete">
+            <i data-lucide="trash-2" aria-hidden="true"></i>
+          </button>
+        </div>
+      `}
     </div>
   `).join('');
   window.lucide?.createIcons();
+
+  listEl.querySelectorAll('.filebox-item__thumb-img').forEach((img) => {
+    img.addEventListener('error', () => {
+      const thumb = img.closest('.filebox-item__thumb');
+      if (thumb) thumb.classList.add('filebox-item__thumb--broken');
+      img.hidden = true;
+    }, { once: true });
+  });
 
   listEl.querySelectorAll('[data-action="delete"]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const name = e.currentTarget.closest('.filebox-item')?.dataset.name;
       if (name) deleteFile(name);
+    });
+  });
+
+  listEl.querySelectorAll('[data-action="toggle-select"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const name = e.currentTarget.closest('.filebox-item')?.dataset.name;
+      if (name) toggleSelected(name);
+    });
+  });
+
+  listEl.querySelectorAll('.filebox-item').forEach((item) => {
+    item.addEventListener('click', (e) => {
+      if (!state.selectMode) return;
+      if (e.target.closest('button,a,input,label')) return;
+      const name = item.dataset.name;
+      if (name) toggleSelected(name);
     });
   });
 }
@@ -345,10 +507,13 @@ function renderAll() {
 function switchScope(scope) {
   if (scope === state.scope) return;
   state.scope = scope;
+  state.selectedNames.clear();
+  state.selectMode = false;
   _container.querySelectorAll('[data-scope]').forEach(btn => {
     btn.classList.toggle('filebox-scope__btn--active', btn.dataset.scope === scope);
     btn.setAttribute('aria-pressed', btn.dataset.scope === scope ? 'true' : 'false');
   });
+  renderToolbarState();
   loadFiles();
 }
 
@@ -409,18 +574,27 @@ export async function render(container, _context) {
   container.innerHTML = `
     <div class="filebox-page">
       <div class="filebox-toolbar">
-        <h1 class="filebox-toolbar__title">Filebox</h1>
+        <div class="filebox-toolbar__heading">
+          <h1 class="filebox-toolbar__title">Filebox</h1>
+          <div class="filebox-toolbar__subtitle" id="filebox-toolbar-subtitle">${scopeLabel(state.scope)}</div>
+        </div>
         <div class="filebox-scope" role="tablist" aria-label="Scope">
-          <button type="button" class="filebox-scope__btn ${state.scope === 'global' ? 'filebox-scope__btn--active' : ''}" data-scope="global" aria-pressed="${state.scope === 'global'}">
+          <button type="button" class="filebox-scope__btn ${state.scope === 'global' ? 'filebox-scope__btn--active' : ''}" data-scope="global" aria-pressed="${state.scope === 'global'}" aria-label="Show global files" title="Global">
             <i data-lucide="users" aria-hidden="true"></i><span>Global</span>
           </button>
-          <button type="button" class="filebox-scope__btn ${state.scope === 'private' ? 'filebox-scope__btn--active' : ''}" data-scope="private" aria-pressed="${state.scope === 'private'}">
+          <button type="button" class="filebox-scope__btn ${state.scope === 'private' ? 'filebox-scope__btn--active' : ''}" data-scope="private" aria-pressed="${state.scope === 'private'}" aria-label="Show private files" title="Private">
             <i data-lucide="user" aria-hidden="true"></i><span>Private</span>
           </button>
         </div>
         <div class="filebox-toolbar__actions">
-          <button type="button" class="btn btn--primary filebox-toolbar__btn" id="filebox-upload-btn">
+          <button type="button" class="btn btn--primary filebox-toolbar__btn" id="filebox-upload-btn" aria-label="Upload files" title="Upload files">
             <i data-lucide="upload" aria-hidden="true"></i><span>Upload</span>
+          </button>
+          <button type="button" class="btn btn--ghost filebox-toolbar__btn" id="filebox-select-btn" aria-pressed="false" aria-label="Enter select mode" title="Select files">
+            <i data-lucide="check-square" aria-hidden="true"></i><span>Select</span>
+          </button>
+          <button type="button" class="btn btn--danger filebox-toolbar__btn" id="filebox-bulk-delete-btn" hidden aria-label="Delete selected files" title="Delete selected files">
+            <i data-lucide="trash-2" aria-hidden="true"></i><span>Delete selected</span>
           </button>
           <input type="file" id="filebox-file-input" multiple hidden
                  accept=".iso,.kdbx,.kdb,.dmg,.apk,.epub,.mobi,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.ods,.zip,.tar,.gz,.7z,.rar,.txt,.log,.json,.xml,.yaml,.yml,.md,.ics,.vcf,.mp3,.mp4,.mov,.webm,.mkv,.avi,.wav,.flac,.ogg,.m4a,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.ico,.ttf,.otf,.woff,.woff2,.key,.pem,.der,.p12,.pfx,.p8,.gpg,.asc,.crt,.cer,.jks,.keystore,.1pif,.opvault,.psafe3,.psafe,.rfo,.enpass,.lpass,.dcvault" />
@@ -440,6 +614,13 @@ export async function render(container, _context) {
   // Scope toggle
   container.querySelectorAll('[data-scope]').forEach(btn => {
     btn.addEventListener('click', () => switchScope(btn.dataset.scope));
+  });
+
+  container.querySelector('#filebox-select-btn')?.addEventListener('click', () => {
+    setSelectMode(!state.selectMode);
+  });
+  container.querySelector('#filebox-bulk-delete-btn')?.addEventListener('click', () => {
+    deleteSelectedFiles();
   });
 
   // Upload button + file input
@@ -476,5 +657,6 @@ export async function render(container, _context) {
     if (e.dataTransfer?.files?.length) uploadFiles(e.dataTransfer.files);
   });
 
+  renderToolbarState();
   await loadFiles();
 }

@@ -20,6 +20,19 @@ const DB_KEY = process.env.DB_ENCRYPTION_KEY;
 
 let db;
 
+function columnExists(tableName, columnName) {
+  return db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all()
+    .some((column) => column.name === columnName);
+}
+
+function addColumnIfMissing(tableName, columnName, ddl) {
+  if (!columnExists(tableName, columnName)) {
+    db.exec(ddl);
+  }
+}
+
 // --------------------------------------------------------
 // Initialisierung
 // --------------------------------------------------------
@@ -539,6 +552,7 @@ const MIGRATIONS = [
         list_id    INTEGER NOT NULL REFERENCES task_lists(id) ON DELETE CASCADE,
         title      TEXT    NOT NULL,
         done       INTEGER NOT NULL DEFAULT 0,
+        deleted_at TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
         updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -727,6 +741,11 @@ const MIGRATIONS = [
   },
   {
     version: 25,
+    description: 'Add deleted_at to personal_tasks for trash handling',
+    up: `ALTER TABLE personal_tasks ADD COLUMN deleted_at TEXT;`,
+  },
+  {
+    version: 26,
     description: 'Migrate tasks to personal_tasks as shared household list',
     up: `
       ALTER TABLE task_lists ADD COLUMN is_household INTEGER NOT NULL DEFAULT 0;
@@ -751,12 +770,16 @@ const MIGRATIONS = [
     `,
   },
   {
-    version: 26,
+    version: 27,
     description: 'Add alarm fields to tasks',
-    up: `
-      ALTER TABLE tasks ADD COLUMN alarm_at TEXT;
-      ALTER TABLE tasks ADD COLUMN alarm_sent INTEGER NOT NULL DEFAULT 0;
-    `,
+    up: () => {
+      addColumnIfMissing('tasks', 'alarm_at', 'ALTER TABLE tasks ADD COLUMN alarm_at TEXT;');
+      addColumnIfMissing(
+        'tasks',
+        'alarm_sent',
+        'ALTER TABLE tasks ADD COLUMN alarm_sent INTEGER NOT NULL DEFAULT 0;'
+      );
+    },
   },
   {
     version: 28,
@@ -775,10 +798,18 @@ const MIGRATIONS = [
   {
     version: 29,
     description: 'Add alarm fields to personal_tasks',
-    up: `
-      ALTER TABLE personal_tasks ADD COLUMN alarm_at TEXT;
-      ALTER TABLE personal_tasks ADD COLUMN alarm_sent INTEGER NOT NULL DEFAULT 0;
-    `,
+    up: () => {
+      addColumnIfMissing(
+        'personal_tasks',
+        'alarm_at',
+        'ALTER TABLE personal_tasks ADD COLUMN alarm_at TEXT;'
+      );
+      addColumnIfMissing(
+        'personal_tasks',
+        'alarm_sent',
+        'ALTER TABLE personal_tasks ADD COLUMN alarm_sent INTEGER NOT NULL DEFAULT 0;'
+      );
+    },
   },
   {
     version: 30,
@@ -830,12 +861,45 @@ const MIGRATIONS = [
   {
     version: 31,
     description: 'Add in_progress status to personal_tasks',
+    up: () => {
+      addColumnIfMissing(
+        'personal_tasks',
+        'status',
+        `
+          ALTER TABLE personal_tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'open'
+            CHECK(status IN ('open', 'in_progress', 'done'));
+        `
+      );
+      db.exec(`
+        UPDATE personal_tasks
+          SET status = CASE WHEN done = 1 THEN 'done' ELSE 'open' END;
+        CREATE INDEX IF NOT EXISTS idx_personal_tasks_status ON personal_tasks(status);
+      `);
+    },
+  },
+  {
+    version: 32,
+    description: 'Add labels for personal tasks',
     up: `
-      ALTER TABLE personal_tasks ADD COLUMN status TEXT NOT NULL DEFAULT 'open'
-        CHECK(status IN ('open', 'in_progress', 'done'));
-      UPDATE personal_tasks
-        SET status = CASE WHEN done = 1 THEN 'done' ELSE 'open' END;
-      CREATE INDEX IF NOT EXISTS idx_personal_tasks_status ON personal_tasks(status);
+      CREATE TABLE personal_labels (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        list_id    INTEGER NOT NULL REFERENCES task_lists(id) ON DELETE CASCADE,
+        name       TEXT    NOT NULL COLLATE NOCASE,
+        color      TEXT    NOT NULL,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        updated_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        UNIQUE(list_id, name)
+      );
+
+      CREATE TABLE personal_task_labels (
+        task_id    INTEGER NOT NULL REFERENCES personal_tasks(id) ON DELETE CASCADE,
+        label_id   INTEGER NOT NULL REFERENCES personal_labels(id) ON DELETE CASCADE,
+        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        PRIMARY KEY (task_id, label_id)
+      );
+
+      CREATE INDEX idx_personal_labels_list        ON personal_labels(list_id);
+      CREATE INDEX idx_personal_task_labels_label   ON personal_task_labels(label_id);
     `,
   },
 ];
@@ -862,7 +926,11 @@ function migrate() {
   if (pending.length === 0) return;
 
   const runMigration = db.transaction((migration) => {
-    db.exec(migration.up);
+    if (typeof migration.up === 'function') {
+      migration.up();
+    } else {
+      db.exec(migration.up);
+    }
     db.prepare('INSERT INTO schema_migrations (version, description) VALUES (?, ?)')
       .run(migration.version, migration.description);
     log.info(`Migration ${migration.version} angewendet: ${migration.description}`);

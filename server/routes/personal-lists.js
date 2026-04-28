@@ -14,6 +14,10 @@ import { nextOccurrence } from '../services/recurrence.js';
 
 const VALID_PERSONAL_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 const VALID_PERSONAL_STATUSES = ['open', 'in_progress', 'done'];
+const PERSONAL_LABEL_COLORS = [
+  '#2563EB', '#0B7A73', '#16A34A', '#C2410C',
+  '#DC2626', '#7C3AED', '#DB2777', '#0F766E',
+];
 
 const log = createLogger('PersonalLists');
 const router = express.Router();
@@ -44,6 +48,146 @@ function personalStatusExpr(alias = 't') {
   return `COALESCE(${alias}.status, CASE WHEN ${alias}.done = 1 THEN 'done' ELSE 'open' END)`;
 }
 
+function personalTrashExpr(alias = 't') {
+  return `${alias}.deleted_at IS NOT NULL`;
+}
+
+function normalizeLabelName(value) {
+  return String(value ?? '').trim().replace(/\s+/g, ' ');
+}
+
+function parseLabelNames(raw) {
+  if (raw == null) return [];
+  const values = Array.isArray(raw)
+    ? raw
+    : String(raw).split(/[,;\n]/);
+  const seen = new Set();
+  const result = [];
+  for (const value of values) {
+    const name = normalizeLabelName(value);
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(name);
+  }
+  return result;
+}
+
+function colorForLabelName(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return PERSONAL_LABEL_COLORS[hash % PERSONAL_LABEL_COLORS.length];
+}
+
+function attachLabelsToItems(listId, items) {
+  if (!items.length) return items;
+  const ids = items.map((item) => Number(item.id)).filter(Number.isInteger);
+  if (!ids.length) return items;
+
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = db.get().prepare(`
+    SELECT ptl.task_id, pl.id, pl.name, pl.color
+    FROM personal_task_labels ptl
+    JOIN personal_labels pl ON pl.id = ptl.label_id
+    WHERE pl.list_id = ? AND ptl.task_id IN (${placeholders})
+    ORDER BY ptl.task_id ASC, pl.name ASC
+  `).all(listId, ...ids);
+
+  const byTask = new Map();
+  for (const row of rows) {
+    if (!byTask.has(row.task_id)) byTask.set(row.task_id, []);
+    byTask.get(row.task_id).push({ id: row.id, name: row.name, color: row.color });
+  }
+
+  for (const item of items) {
+    item.labels = byTask.get(item.id) || [];
+  }
+  return items;
+}
+
+function loadPersonalItemWithLabels(listId, itemId) {
+  const item = db.get()
+    .prepare(`
+      SELECT t.*,
+             u.display_name AS assigned_name,
+             u.avatar_color AS assigned_color
+      FROM personal_tasks t
+      LEFT JOIN users u ON u.id = t.assigned_to
+      WHERE t.id = ? AND t.list_id = ?
+    `)
+    .get(itemId, listId);
+  if (!item) return null;
+  return attachLabelsToItems(listId, [item])[0] ?? item;
+}
+
+function syncPersonalItemLabels(listId, itemId, rawLabelNames) {
+  const labelNames = parseLabelNames(rawLabelNames);
+  const d = db.get();
+  const existing = d.prepare(`
+    SELECT id, name, color
+    FROM personal_labels
+    WHERE list_id = ?
+  `).all(listId);
+  const byName = new Map(existing.map((row) => [row.name.toLowerCase(), row]));
+  const labelIds = [];
+
+  for (const name of labelNames) {
+    const key = name.toLowerCase();
+    let label = byName.get(key);
+    if (!label) {
+      const color = colorForLabelName(name);
+      const result = d.prepare(`
+        INSERT INTO personal_labels (list_id, name, color)
+        VALUES (?, ?, ?)
+      `).run(listId, name, color);
+      label = { id: result.lastInsertRowid, name, color };
+      byName.set(key, label);
+    }
+    labelIds.push(label.id);
+  }
+
+  d.prepare('DELETE FROM personal_task_labels WHERE task_id = ?').run(itemId);
+  if (labelIds.length) {
+    const insert = d.prepare(`
+      INSERT OR IGNORE INTO personal_task_labels (task_id, label_id)
+      VALUES (?, ?)
+    `);
+    for (const labelId of labelIds) insert.run(itemId, labelId);
+  }
+}
+
+function loadPersonalLabels(listId) {
+  return db.get().prepare(`
+    SELECT
+      pl.id,
+      pl.name,
+      pl.color,
+      COALESCE(COUNT(DISTINCT ptl.task_id), 0) AS task_count
+    FROM personal_labels pl
+    LEFT JOIN personal_task_labels ptl ON ptl.label_id = pl.id
+    WHERE pl.list_id = ?
+    GROUP BY pl.id
+    ORDER BY pl.name ASC
+  `).all(listId);
+}
+
+function loadPersonalLabel(listId, labelId) {
+  return db.get().prepare(`
+    SELECT
+      pl.id,
+      pl.name,
+      pl.color,
+      COALESCE(COUNT(DISTINCT ptl.task_id), 0) AS task_count
+    FROM personal_labels pl
+    LEFT JOIN personal_task_labels ptl ON ptl.label_id = pl.id
+    WHERE pl.list_id = ? AND pl.id = ?
+    GROUP BY pl.id
+  `).get(listId, labelId);
+}
+
 // --------------------------------------------------------
 // GET /api/v1/personal-lists
 // All lists owned by the current user OR shared with them, with item counts.
@@ -61,7 +205,7 @@ router.get('/', (req, res) => {
         COALESCE(COUNT(t.id), 0) AS total_count
       FROM task_lists l
       LEFT JOIN users u           ON u.id = l.owner_id
-      LEFT JOIN personal_tasks t  ON t.list_id = l.id
+      LEFT JOIN personal_tasks t  ON t.list_id = l.id AND t.deleted_at IS NULL
       WHERE l.owner_id = ?
          OR EXISTS (SELECT 1 FROM task_list_shares s
                     WHERE s.list_id = l.id AND s.user_id = ?)
@@ -210,6 +354,7 @@ router.delete('/:id', (req, res) => {
 // --------------------------------------------------------
 // GET /api/v1/personal-lists/:id/items
 // Open first, then in progress, then done; insertion order within each.
+// Pass ?deleted=1 to fetch trashed items.
 // Accessible to owner OR shared users.
 // --------------------------------------------------------
 router.get('/:id/items', (req, res) => {
@@ -217,14 +362,18 @@ router.get('/:id/items', (req, res) => {
     const list = accessibleList(req.params.id, req.session.userId);
     if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
 
+    const showTrash = req.query.deleted === '1' || req.query.deleted === 'true';
+    const trashWhere = showTrash ? personalTrashExpr('t') : 't.deleted_at IS NULL';
+
     const items = db.get().prepare(`
       SELECT t.*,
              u.display_name AS assigned_name,
              u.avatar_color AS assigned_color
       FROM personal_tasks t
       LEFT JOIN users u ON u.id = t.assigned_to
-      WHERE t.list_id = ?
+      WHERE t.list_id = ? AND ${trashWhere}
       ORDER BY
+        ${showTrash ? 't.deleted_at DESC,' : ''}
         CASE ${personalStatusExpr('t')}
           WHEN 'open' THEN 0
           WHEN 'in_progress' THEN 1
@@ -238,7 +387,7 @@ router.get('/:id/items', (req, res) => {
                         WHEN 'low' THEN 2 ELSE 3 END,
         t.sort_order ASC, t.id ASC
     `).all(req.params.id);
-    res.json({ data: items });
+    res.json({ data: attachLabelsToItems(req.params.id, items) });
   } catch (err) {
     log.error('GET /:id/items', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
@@ -267,8 +416,11 @@ router.post('/:id/items', (req, res) => {
     const is_recurring    = req.body.is_recurring    ? 1 : 0;
     const recurrence_rule = req.body.recurrence_rule ?? null;
     const assigned_to     = req.body.assigned_to     ?? null;
+    const labelNames      = req.body.label_names ?? req.body.labels ?? [];
 
+    const vPriority = oneOf(priority, VALID_PERSONAL_PRIORITIES, 'priority');
     const vStatus = oneOf(status, VALID_PERSONAL_STATUSES, 'status');
+    if (vPriority.error) return res.status(400).json({ error: vPriority.error, code: 400 });
     if (vStatus.error) return res.status(400).json({ error: vStatus.error, code: 400 });
 
     const id = db.transaction(() => {
@@ -276,18 +428,15 @@ router.post('/:id/items', (req, res) => {
         .prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM personal_tasks WHERE list_id = ?')
         .get(req.params.id).m;
       const result = db.get().prepare(`
-        INSERT INTO personal_tasks (list_id, title, description, priority, status, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, sort_order, done)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(req.params.id, vTitle.value, description, priority, vStatus.value, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, maxOrder + 1, vStatus.value === 'done' ? 1 : 0);
+        INSERT INTO personal_tasks (list_id, title, description, priority, status, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, sort_order, done, deleted_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+      `).run(req.params.id, vTitle.value, description, vPriority.value, vStatus.value, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, maxOrder + 1, vStatus.value === 'done' ? 1 : 0);
+      syncPersonalItemLabels(req.params.id, result.lastInsertRowid, labelNames);
       return result.lastInsertRowid;
     });
 
     res.status(201).json({
-      data: db.get().prepare(`
-        SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color
-        FROM personal_tasks t LEFT JOIN users u ON u.id = t.assigned_to
-        WHERE t.id = ?
-      `).get(id),
+      data: loadPersonalItemWithLabels(req.params.id, id),
     });
   } catch (err) {
     log.error('POST /:id/items', err);
@@ -306,7 +455,7 @@ router.patch('/:id/items/:itemId', (req, res) => {
     if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
 
     const item = db.get()
-      .prepare('SELECT * FROM personal_tasks WHERE id = ? AND list_id = ?')
+      .prepare('SELECT * FROM personal_tasks WHERE id = ? AND list_id = ? AND deleted_at IS NULL')
       .get(req.params.itemId, req.params.id);
     if (!item) return res.status(404).json({ error: 'Item not found.', code: 404 });
 
@@ -370,6 +519,8 @@ router.patch('/:id/items/:itemId', (req, res) => {
       params.push(req.body.assigned_to || null);
     }
 
+    const hasLabelUpdate = req.body.label_names !== undefined || req.body.labels !== undefined;
+
     const requestedStatus = req.body.status !== undefined
       ? req.body.status
       : (req.body.done !== undefined ? (req.body.done ? 'done' : 'open') : undefined);
@@ -382,35 +533,35 @@ router.patch('/:id/items/:itemId', (req, res) => {
       params.push(v.value === 'done' ? 1 : 0);
     }
 
-    if (!updates.length) return res.json({ data: item });
-
-    // When marking done and item is recurring, reschedule instead
-    const markingDone = requestedStatus === 'done';
-    if (markingDone && (item.is_recurring || req.body.is_recurring) && (item.recurrence_rule || req.body.recurrence_rule)) {
-      const rule   = req.body.recurrence_rule || item.recurrence_rule;
-      const base   = item.due_date || new Date().toISOString().slice(0, 10);
-      const nextDue = nextOccurrence(base, rule);
-      // Reset to pending with next due date instead of marking done
-      if (nextDue) {
-        const dueDateIdx = updates.indexOf('due_date = ?');
-        if (dueDateIdx !== -1) params[dueDateIdx] = nextDue;
-        else { updates.push('due_date = ?'); params.push(nextDue); }
+    if (updates.length) {
+      // When marking done and item is recurring, reschedule instead
+      const markingDone = requestedStatus === 'done';
+      if (markingDone && (item.is_recurring || req.body.is_recurring) && (item.recurrence_rule || req.body.recurrence_rule)) {
+        const rule   = req.body.recurrence_rule || item.recurrence_rule;
+        const base   = item.due_date || new Date().toISOString().slice(0, 10);
+        const nextDue = nextOccurrence(base, rule);
+        // Reset to pending with next due date instead of marking done
+        if (nextDue) {
+          const dueDateIdx = updates.indexOf('due_date = ?');
+          if (dueDateIdx !== -1) params[dueDateIdx] = nextDue;
+          else { updates.push('due_date = ?'); params.push(nextDue); }
+        }
+        const statusIdx = updates.indexOf('status = ?');
+        if (statusIdx !== -1) params[statusIdx] = 'open';
+        const doneIdx = updates.indexOf('done = ?');
+        if (doneIdx !== -1) params[doneIdx] = 0;
       }
-      const statusIdx = updates.indexOf('status = ?');
-      if (statusIdx !== -1) params[statusIdx] = 'open';
-      const doneIdx = updates.indexOf('done = ?');
-      if (doneIdx !== -1) params[doneIdx] = 0;
+
+      params.push(req.params.itemId);
+      db.get().prepare(`UPDATE personal_tasks SET ${updates.join(', ')} WHERE id = ?`).run(...params);
     }
 
-    params.push(req.params.itemId);
-    db.get().prepare(`UPDATE personal_tasks SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    if (hasLabelUpdate) {
+      syncPersonalItemLabels(req.params.id, req.params.itemId, req.body.label_names ?? req.body.labels);
+    }
 
     res.json({
-      data: db.get().prepare(`
-        SELECT t.*, u.display_name AS assigned_name, u.avatar_color AS assigned_color
-        FROM personal_tasks t LEFT JOIN users u ON u.id = t.assigned_to
-        WHERE t.id = ?
-      `).get(req.params.itemId),
+      data: loadPersonalItemWithLabels(req.params.id, req.params.itemId),
     });
   } catch (err) {
     log.error('PATCH /:id/items/:itemId', err);
@@ -420,6 +571,7 @@ router.patch('/:id/items/:itemId', (req, res) => {
 
 // --------------------------------------------------------
 // DELETE /api/v1/personal-lists/:id/items/:itemId
+// Soft-deletes an item by moving it to trash.
 // Accessible to owner OR shared users.
 // --------------------------------------------------------
 router.delete('/:id/items/:itemId', (req, res) => {
@@ -428,10 +580,14 @@ router.delete('/:id/items/:itemId', (req, res) => {
     if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
 
     const result = db.get()
-      .prepare('DELETE FROM personal_tasks WHERE id = ? AND list_id = ?')
+      .prepare(`
+        UPDATE personal_tasks
+        SET deleted_at = COALESCE(deleted_at, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        WHERE id = ? AND list_id = ?
+      `)
       .run(req.params.itemId, req.params.id);
     if (result.changes === 0) return res.status(404).json({ error: 'Item not found.', code: 404 });
-    res.json({ ok: true });
+    res.json({ ok: true, data: loadPersonalItemWithLabels(req.params.id, req.params.itemId) });
   } catch (err) {
     log.error('DELETE /:id/items/:itemId', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
@@ -439,8 +595,33 @@ router.delete('/:id/items/:itemId', (req, res) => {
 });
 
 // --------------------------------------------------------
+// POST /api/v1/personal-lists/:id/items/:itemId/restore
+// Restores a trashed item back into the active list.
+// Accessible to owner OR shared users.
+// --------------------------------------------------------
+router.post('/:id/items/:itemId/restore', (req, res) => {
+  try {
+    const list = accessibleList(req.params.id, req.session.userId);
+    if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
+
+    const result = db.get()
+      .prepare(`
+        UPDATE personal_tasks
+        SET deleted_at = NULL
+        WHERE id = ? AND list_id = ? AND deleted_at IS NOT NULL
+      `)
+      .run(req.params.itemId, req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Item not found.', code: 404 });
+    res.json({ ok: true, data: loadPersonalItemWithLabels(req.params.id, req.params.itemId) });
+  } catch (err) {
+    log.error('POST /:id/items/:itemId/restore', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
 // POST /api/v1/personal-lists/:id/clear-done
-// Bulk-removes all done items from a list.
+// Bulk-moves all done items from a list to trash.
 // Accessible to owner OR shared users.
 // --------------------------------------------------------
 router.post('/:id/clear-done', (req, res) => {
@@ -449,11 +630,148 @@ router.post('/:id/clear-done', (req, res) => {
     if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
 
     const result = db.get()
-      .prepare('DELETE FROM personal_tasks WHERE list_id = ? AND (status = ? OR (status IS NULL AND done = 1))')
+      .prepare(`
+        UPDATE personal_tasks
+        SET deleted_at = COALESCE(deleted_at, strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+        WHERE list_id = ? AND deleted_at IS NULL AND (status = ? OR (status IS NULL AND done = 1))
+      `)
       .run(req.params.id, 'done');
     res.json({ ok: true, deleted: result.changes });
   } catch (err) {
     log.error('POST /:id/clear-done', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// POST /api/v1/personal-lists/:id/clear-trash
+// Permanently removes all trashed items from a list.
+// Accessible to owner OR shared users.
+// --------------------------------------------------------
+router.post('/:id/clear-trash', (req, res) => {
+  try {
+    const list = accessibleList(req.params.id, req.session.userId);
+    if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
+
+    const result = db.get()
+      .prepare('DELETE FROM personal_tasks WHERE list_id = ? AND deleted_at IS NOT NULL')
+      .run(req.params.id);
+    res.json({ ok: true, deleted: result.changes });
+  } catch (err) {
+    log.error('POST /:id/clear-trash', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// GET /api/v1/personal-lists/:id/labels
+// Returns all labels for a list, including task usage counts.
+// Accessible to owner OR shared users.
+// --------------------------------------------------------
+router.get('/:id/labels', (req, res) => {
+  try {
+    const list = accessibleList(req.params.id, req.session.userId);
+    if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
+    res.json({ data: loadPersonalLabels(req.params.id) });
+  } catch (err) {
+    log.error('GET /:id/labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// POST /api/v1/personal-lists/:id/labels
+// Body: { name, color }
+// Accessible to owner OR shared users.
+// --------------------------------------------------------
+router.post('/:id/labels', (req, res) => {
+  try {
+    const list = accessibleList(req.params.id, req.session.userId);
+    if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
+
+    const vName = str(req.body.name, 'name', { max: 60 });
+    const vColor = color(req.body.color, 'color');
+    const errs = collectErrors([vName, vColor]);
+    if (errs.length) return res.status(400).json({ error: errs.join(' '), code: 400 });
+
+    try {
+      const result = db.get().prepare(`
+        INSERT INTO personal_labels (list_id, name, color)
+        VALUES (?, ?, ?)
+      `).run(req.params.id, vName.value, vColor.value);
+      res.status(201).json({
+        data: loadPersonalLabel(req.params.id, result.lastInsertRowid),
+      });
+    } catch (err) {
+      if (String(err?.message || '').includes('UNIQUE')) {
+        return res.status(409).json({ error: 'Label name already exists.', code: 409 });
+      }
+      throw err;
+    }
+  } catch (err) {
+    log.error('POST /:id/labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// PATCH /api/v1/personal-lists/:id/labels/:labelId
+// Body: { name?, color? }
+// Accessible to owner OR shared users.
+// --------------------------------------------------------
+router.patch('/:id/labels/:labelId', (req, res) => {
+  try {
+    const list = accessibleList(req.params.id, req.session.userId);
+    if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
+
+    const label = db.get().prepare(`
+      SELECT * FROM personal_labels WHERE id = ? AND list_id = ?
+    `).get(req.params.labelId, req.params.id);
+    if (!label) return res.status(404).json({ error: 'Label not found.', code: 404 });
+
+    const checks = [];
+    if (req.body.name !== undefined) checks.push(str(req.body.name, 'name', { max: 60 }));
+    if (req.body.color !== undefined) checks.push(color(req.body.color, 'color'));
+    const errs = collectErrors(checks);
+    if (errs.length) return res.status(400).json({ error: errs.join(' '), code: 400 });
+
+    const newName = req.body.name !== undefined ? req.body.name.trim() : label.name;
+    const newColor = req.body.color !== undefined ? req.body.color : label.color;
+
+    try {
+      db.get().prepare('UPDATE personal_labels SET name = ?, color = ? WHERE id = ? AND list_id = ?')
+        .run(newName, newColor, req.params.labelId, req.params.id);
+    } catch (err) {
+      if (String(err?.message || '').includes('UNIQUE')) {
+        return res.status(409).json({ error: 'Label name already exists.', code: 409 });
+      }
+      throw err;
+    }
+
+    res.json({ data: loadPersonalLabel(req.params.id, req.params.labelId) });
+  } catch (err) {
+    log.error('PATCH /:id/labels/:labelId', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+// --------------------------------------------------------
+// DELETE /api/v1/personal-lists/:id/labels/:labelId
+// Removes the label and all item assignments.
+// Accessible to owner OR shared users.
+// --------------------------------------------------------
+router.delete('/:id/labels/:labelId', (req, res) => {
+  try {
+    const list = accessibleList(req.params.id, req.session.userId);
+    if (!list) return res.status(404).json({ error: 'Not found.', code: 404 });
+
+    const result = db.get().prepare(`
+      DELETE FROM personal_labels WHERE id = ? AND list_id = ?
+    `).run(req.params.labelId, req.params.id);
+    if (result.changes === 0) return res.status(404).json({ error: 'Label not found.', code: 404 });
+    res.json({ ok: true });
+  } catch (err) {
+    log.error('DELETE /:id/labels/:labelId', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
   }
 });
@@ -556,7 +874,7 @@ router.get('/due-notifications', (req, res) => {
       FROM personal_tasks pt
       JOIN task_lists l ON l.id = pt.list_id
       LEFT JOIN users u ON u.id = pt.assigned_to
-      WHERE pt.due_date = ? AND ${personalStatusExpr('pt')} != 'done'
+      WHERE pt.due_date = ? AND pt.deleted_at IS NULL AND ${personalStatusExpr('pt')} != 'done'
         AND (l.owner_id = ?
              OR EXISTS (SELECT 1 FROM task_list_shares s
                         WHERE s.list_id = l.id AND s.user_id = ?))

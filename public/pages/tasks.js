@@ -132,6 +132,52 @@ function priorityCardClass(priority) {
   return priority && priority !== 'none' ? ` priority-tier--${priority}` : '';
 }
 
+function renderLabelChips(labels, limit = 2) {
+  if (!Array.isArray(labels) || !labels.length) return '';
+
+  const visible = labels.slice(0, limit);
+  const hiddenCount = labels.length - visible.length;
+  const hidden = labels.slice(limit);
+
+  return `
+    <div class="task-labels">
+      ${visible.map((label) => `
+        <span class="task-label-pill"
+              style="--label-color:${esc(label.color || '#6B7280')}"
+              title="${esc(label.name)}">
+          ${esc(label.name)}
+        </span>
+      `).join('')}
+      ${hiddenCount > 0 ? `
+        <span class="task-label-more-wrap">
+          <span class="task-label-pill task-label-pill--more"
+                title="${esc(labels.slice(limit).map((label) => label.name).join(', '))}">
+            ${t('tasks.labelsMore', { count: hiddenCount })}
+          </span>
+          <span class="task-label-popover" aria-hidden="true">
+            ${hidden.map((label) => `
+              <span class="task-label-pill task-label-pill--popover"
+                    style="--label-color:${esc(label.color || '#6B7280')}">
+                ${esc(label.name)}
+              </span>
+            `).join('')}
+          </span>
+        </span>` : ''}
+    </div>`;
+}
+
+function renderLabelPickerChip(label, selected = false) {
+  return `
+    <button type="button"
+            class="task-label-pill task-label-pill--selectable ${selected ? 'task-label-pill--selected' : ''}"
+            data-action="toggle-label-chip"
+            data-label-name="${esc(label.name)}"
+            aria-pressed="${selected ? 'true' : 'false'}"
+            style="--label-color:${esc(label.color || '#6B7280')}">
+      ${esc(label.name)}
+    </button>`;
+}
+
 function renderToolbarSearch({ scope, open, value, label, placeholder }) {
   const expanded = open || !!value;
   return `
@@ -194,6 +240,7 @@ function renderTaskCard(task, opts = {}) {
           </div>
           <div class="task-card__meta">
             ${renderPriorityBadge(task.priority)}
+            ${renderLabelChips(task.labels)}
             ${renderDueDate(task.due_date)}
             ${task.is_recurring ? `<span class="due-date" aria-label="${t('tasks.recurring')}"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>` : ''}
           </div>
@@ -244,12 +291,13 @@ function renderTaskCard(task, opts = {}) {
 }
 
 function renderTaskGroups(tasks) {
-  const open = tasks.filter((t) => t.status !== 'done');
+  const open = tasks.filter((t) => t.status === 'open');
+  const inProgress = sortTasksForList(tasks.filter((t) => t.status === 'in_progress'));
   const pending = sortTasksForList(open.filter((t) => isRecurringTaskDue(t)));
   const notYetDue = sortTasksForList(open.filter((t) => !isRecurringTaskDue(t)));
   const done = sortTasksForList(tasks.filter((t) => t.status === 'done'));
 
-  if (!pending.length && !notYetDue.length && !done.length) {
+  if (!pending.length && !inProgress.length && !notYetDue.length && !done.length) {
     return `<div class="empty-state">
       <svg class="empty-state__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
@@ -266,6 +314,16 @@ function renderTaskGroups(tasks) {
     html += `
       <div class="task-group">
         ${pending.map((tk) => renderTaskCard(tk)).join('')}
+      </div>`;
+  }
+
+  if (inProgress.length) {
+    html += `
+      <div class="task-group">
+        <div class="task-group__divider">
+          <span>${t('tasks.statusInProgress')} (${inProgress.length})</span>
+        </div>
+        ${inProgress.map((tk) => renderTaskCard(tk)).join('')}
       </div>`;
   }
 
@@ -468,6 +526,7 @@ let state = {
   taskLists:        [],
   activeTab:        'household',
   personalItems:    [],
+  personalTrashItems: [],
   personalViewMode:    localStorage.getItem('personal-view') || 'list',
   personalFilters:     { status: '', priority: '', assigned_to: '' },
   personalSearch:      '',
@@ -480,6 +539,11 @@ let state = {
 const PERSONAL_LIST_COLORS = [
   '#2563EB', '#7C3AED', '#0B7A73', '#16A34A',
   '#C2410C', '#DC2626', '#B45309', '#DB2777',
+];
+
+const PERSONAL_LABEL_COLORS = [
+  '#2563EB', '#0B7A73', '#16A34A', '#C2410C',
+  '#DC2626', '#7C3AED', '#DB2777', '#0F766E',
 ];
 
 // --------------------------------------------------------
@@ -511,6 +575,7 @@ function taskMatchesSearch(task, query) {
     statusLabels[task.status],
     task.assigned_name,
     task.due_date,
+    ...(task.labels || []).flatMap((label) => [label.name, label.color]),
   ].some((value) => normalizeSearch(value).includes(query));
 }
 
@@ -531,6 +596,7 @@ function personalItemMatchesSearch(item, query) {
     priorityLabels[item.priority],
     statusLabel,
     item.due_date,
+    ...(item.labels || []).flatMap((label) => [label.name, label.color]),
   ].some((value) => normalizeSearch(value).includes(query));
 }
 
@@ -818,6 +884,7 @@ function renderKanbanCard(task) {
       </div>
       <div class="kanban-card__meta">
         ${renderPriorityBadge(task.priority)}
+        ${renderLabelChips(task.labels)}
         ${due ? `<span class="due-date ${due.cls}"><i data-lucide="clock" style="width:10px;height:10px" aria-hidden="true"></i> ${due.label}</span>` : ''}
       </div>
       ${task.assigned_color ? `
@@ -1395,10 +1462,15 @@ async function loadPersonalLists() {
 
 async function loadPersonalItems(listId) {
   try {
-    const data = await api.get(`/personal-lists/${listId}/items`);
-    state.personalItems = data.data ?? [];
+    const [itemsRes, trashRes] = await Promise.all([
+      api.get(`/personal-lists/${listId}/items`),
+      api.get(`/personal-lists/${listId}/items?deleted=1`),
+    ]);
+    state.personalItems = itemsRes.data ?? [];
+    state.personalTrashItems = trashRes.data ?? [];
   } catch (err) {
     state.personalItems = [];
+    state.personalTrashItems = [];
     window.planium.showToast(t('tasks.personalListLoadError'), 'danger');
   }
 }
@@ -1462,22 +1534,25 @@ function renderPersonalItemRow(item) {
   const list = state.taskLists.find((l) => l.id === state.activeTab);
   const showPriority = list?.show_priority !== 0;
   const isShared = list && (!list.is_owner || (list.shared_user_ids?.length > 0));
+  const isTrashed = !!item.deleted_at;
   const status = getPersonalItemStatus(item);
   const nextStatus = PERSONAL_STATUS_CYCLE[status] ?? 'open';
   const statusIcon = PERSONAL_STATUS_ICON[status] ?? 'circle';
+  const cardAction = isTrashed ? '' : 'data-action="open-personal-item"';
   return `
-    <div class="task-card${priorityCardClass(item.priority)} ${status === 'done' ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}" data-action="open-personal-item">
+    <div class="task-card${priorityCardClass(item.priority)} ${status === 'done' ? 'task-card--done' : ''} ${isTrashed ? 'task-card--trashed' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}" ${cardAction}>
       <div class="task-card__main">
-        <button class="task-select-cb" data-action="toggle-personal-select" data-item-id="${item.id}"
-                aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
-          ${isSelected ? '<i data-lucide="check" style="width:12px;height:12px;color:#fff" aria-hidden="true"></i>' : ''}
-        </button>
-        <button class="task-status-btn task-status-btn--${status}"
-                data-action="cycle-personal-item"
-                data-next-status="${nextStatus}"
-                aria-label="${t('tasks.cycleStatus')}">
-          <i data-lucide="${statusIcon}" style="width:12px;height:12px;pointer-events:none" aria-hidden="true"></i>
-        </button>
+        ${!isTrashed ? `
+          <button class="task-select-cb" data-action="toggle-personal-select" data-item-id="${item.id}"
+                  aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
+            ${isSelected ? '<i data-lucide="check" style="width:12px;height:12px;color:#fff" aria-hidden="true"></i>' : ''}
+          </button>
+          <button class="task-status-btn task-status-btn--${status}"
+                  data-action="cycle-personal-item"
+                  data-next-status="${nextStatus}"
+                  aria-label="${t('tasks.cycleStatus')}">
+            <i data-lucide="${statusIcon}" style="width:12px;height:12px;pointer-events:none" aria-hidden="true"></i>
+          </button>` : ''}
         <div class="task-card__body">
           <div class="task-card__title">
             ${linkify(item.title)}
@@ -1485,10 +1560,12 @@ function renderPersonalItemRow(item) {
           ${item.description ? `<div class="task-card__description">${linkify(item.description)}</div>` : ''}
           <div class="task-card__meta">
             ${renderPriorityBadge(item.priority ?? 'none')}
+            ${renderLabelChips(item.labels)}
             ${due ? `<span class="due-date ${due.cls}">
               <i data-lucide="clock" style="width:11px;height:11px" aria-hidden="true"></i> ${esc(due.label)}
             </span>` : ''}
             ${item.is_recurring ? `<span class="due-date" aria-label="${t('tasks.recurring')}"><i data-lucide="repeat" style="width:12px;height:12px" aria-hidden="true"></i></span>` : ''}
+            ${isTrashed ? `<span class="due-date" aria-label="${t('tasks.trashSection')}"><i data-lucide="trash-2" style="width:12px;height:12px" aria-hidden="true"></i> ${t('tasks.trashSection')}</span>` : ''}
           </div>
         </div>
         ${isShared && item.assigned_color ? `
@@ -1496,18 +1573,25 @@ function renderPersonalItemRow(item) {
                title="${esc(item.assigned_name)}">
             ${esc(initials(item.assigned_name ?? ''))}
           </div>` : ''}
-        ${(!item.priority || item.priority === 'none') && showPriority ? `
+        ${!isTrashed && (!item.priority || item.priority === 'none') && showPriority ? `
         <div class="priority-quick-flags" role="group" aria-label="Set priority">
           <button class="priority-quick-flag priority-quick-flag--urgent" data-action="set-personal-priority" data-priority="urgent" title="Urgent"></button>
           <button class="priority-quick-flag priority-quick-flag--high"   data-action="set-personal-priority" data-priority="high"   title="High"></button>
           <button class="priority-quick-flag priority-quick-flag--medium" data-action="set-personal-priority" data-priority="medium" title="Medium"></button>
           <button class="priority-quick-flag priority-quick-flag--low"    data-action="set-personal-priority" data-priority="low"    title="Low"></button>
         </div>` : ''}
+        ${!isTrashed ? `
         <button class="btn btn--ghost btn--icon" data-action="delete-personal-item"
                 aria-label="Delete"
                 style="min-height:unset;width:36px;height:36px;color:var(--color-text-secondary)">
           <i data-lucide="x" style="width:16px;height:16px" aria-hidden="true"></i>
-        </button>
+        </button>` : `
+        <button class="btn btn--ghost btn--icon" data-action="restore-personal-item"
+                aria-label="${t('tasks.restoreFromTrash')}"
+                title="${t('tasks.restoreFromTrash')}"
+                style="min-height:unset;width:36px;height:36px;color:var(--color-text-secondary)">
+          <i data-lucide="rotate-ccw" style="width:16px;height:16px" aria-hidden="true"></i>
+        </button>`}
       </div>
     </div>`;
 }
@@ -1516,21 +1600,34 @@ function renderPersonalItems() {
   const filtered = getFilteredPersonalItems();
 
   if (!filtered.length) {
-    return `<div class="personal-list__empty">${t('tasks.personalListEmpty')}</div>`;
+    if (!state.personalTrashItems.length) {
+      return `<div class="personal-list__empty">${t('tasks.personalListEmpty')}</div>`;
+    }
   }
 
   if (state.personalFilters.status) {
     return `<div class="task-group">${sortTasksForList(filtered).map(renderPersonalItemRow).join('')}</div>`;
   }
 
-  const notDone   = filtered.filter((i) => getPersonalItemStatus(i) !== 'done');
-  const pending   = sortTasksForList(notDone.filter((i) => isRecurringTaskDue(i)));
-  const notYetDue = sortTasksForList(notDone.filter((i) => !isRecurringTaskDue(i)));
-  const done      = sortTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'done'));
+  const open = filtered.filter((i) => getPersonalItemStatus(i) === 'open');
+  const inProgress = sortTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'in_progress'));
+  const pending = sortTasksForList(open.filter((i) => isRecurringTaskDue(i)));
+  const notYetDue = sortTasksForList(open.filter((i) => !isRecurringTaskDue(i)));
+  const done = sortTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'done'));
+  const trash = state.personalTrashItems;
   let html = '';
 
   if (pending.length) {
     html += `<div class="task-group">${pending.map(renderPersonalItemRow).join('')}</div>`;
+  }
+  if (inProgress.length) {
+    html += `
+      <div class="task-group">
+        <div class="task-group__divider">
+          <span>${t('tasks.statusInProgress')} (${inProgress.length})</span>
+        </div>
+        ${inProgress.map(renderPersonalItemRow).join('')}
+      </div>`;
   }
   if (notYetDue.length) {
     html += `
@@ -1554,7 +1651,20 @@ function renderPersonalItems() {
         ${done.map(renderPersonalItemRow).join('')}
       </div>`;
   }
-  return html;
+  if (trash.length) {
+    html += `
+      <div class="task-group task-group--trash">
+        <div class="task-group__divider">
+          <span>${t('tasks.trashSection')} (${trash.length})</span>
+          <button class="btn btn--ghost personal-list__clear-btn" data-action="clear-trash-items">
+            <i data-lucide="trash-2" style="width:14px;height:14px" aria-hidden="true"></i>
+            ${t('tasks.clearTrash')}
+          </button>
+        </div>
+        ${trash.map((item) => renderPersonalItemRow(item)).join('')}
+      </div>`;
+  }
+  return html || `<div class="personal-list__empty">${t('tasks.personalListEmpty')}</div>`;
 }
 
 // --------------------------------------------------------
@@ -1662,6 +1772,7 @@ function renderPersonalKanbanCard(item) {
       ${item.description ? `<div class="kanban-card__description">${linkify(item.description)}</div>` : ''}
       <div class="kanban-card__meta">
         ${renderPriorityBadge(item.priority ?? 'none')}
+        ${renderLabelChips(item.labels)}
         ${due ? `<span class="due-date ${due.cls}">
           <i data-lucide="clock" style="width:10px;height:10px" aria-hidden="true"></i> ${esc(due.label)}
         </span>` : ''}
@@ -1868,6 +1979,12 @@ function renderPersonalView(container) {
             </button>
             <div class="filter-dropdown__menu" id="personal-filter-menu"></div>
           </div>
+          <button class="btn btn--ghost btn--icon tasks-toolbar__labels-btn"
+                  data-action="manage-labels"
+                  aria-label="${t('tasks.manageLabels')}"
+                  title="${t('tasks.manageLabels')}">
+            <i data-lucide="tag" style="width:18px;height:18px" aria-hidden="true"></i>
+          </button>
           <button class="btn btn--ghost btn--icon tasks-toolbar__select-btn" id="personal-btn-select"
                   aria-label="${t('tasks.selectMode')}" aria-pressed="false"
                   title="${t('tasks.selectMode')}">
@@ -1914,8 +2031,10 @@ function updatePersonalBulkBar(container) {
   view.classList.toggle('personal-list--select-mode', inSelect);
   const viewToggle = view.querySelector('#personal-view-toggle');
   const search = view.querySelector('[data-search-scope="personal"]');
+  const labelsBtn = view.querySelector('[data-action="manage-labels"]');
   if (viewToggle) viewToggle.hidden = inSelect;
   if (search) search.hidden = inSelect;
+  if (labelsBtn) labelsBtn.hidden = inSelect;
   const countEl   = view.querySelector('#personal-bulk-count');
   const deleteBtn = view.querySelector('#personal-btn-bulk-delete');
   if (countEl)   { countEl.hidden   = !inSelect; countEl.textContent = t('tasks.selectedCount', { count: state.personalSelectedIds.size }); }
@@ -2057,21 +2176,15 @@ function wirePersonalView(container) {
     const ids = [...state.personalSelectedIds];
     try {
       await Promise.all(ids.map((id) => api.delete(`/personal-lists/${state.activeTab}/items/${id}`)));
-      const removedItems = state.personalItems.filter((i) => ids.includes(i.id));
-      const pendingRemoved = removedItems.filter((i) => getPersonalItemStatus(i) !== 'done').length;
-      state.personalItems = state.personalItems.filter((i) => !ids.includes(i.id));
       state.personalSelectedIds.clear();
       state.personalSelectMode = false;
       if (selectBtn) { selectBtn.classList.remove('btn--primary'); selectBtn.setAttribute('aria-pressed', 'false'); }
-      const list = state.taskLists.find((l) => l.id === state.activeTab);
-      if (list) {
-        list.pending_count = Math.max(0, list.pending_count - pendingRemoved);
-        list.total_count   = Math.max(0, list.total_count - ids.length);
-        renderTaskTabsBar(container);
-      }
+      await loadPersonalItems(state.activeTab);
+      await loadPersonalLists();
+      renderTaskTabsBar(container);
       refreshPersonalItems(container);
       updatePersonalBulkBar(container);
-      window.planium.showToast(t('tasks.bulkDeletedToast', { count }), 'default');
+      window.planium.showToast(t('tasks.movedToTrashToast', { count }), 'default');
     } catch (err) {
       window.planium.showToast(err.message, 'danger');
     }
@@ -2172,6 +2285,10 @@ function wirePersonalView(container) {
       }
       return;
     }
+    if (action === 'manage-labels') {
+      openLabelManager({ container });
+      return;
+    }
     if (action === 'clear-done-items') {
       const ok = await showConfirm(t('tasks.personalListClearDoneConfirm'), { danger: true });
       if (!ok) return;
@@ -2230,15 +2347,56 @@ function wirePersonalView(container) {
     if (action === 'delete-personal-item') {
       try {
         await api.delete(`/personal-lists/${state.activeTab}/items/${itemId}`);
-        const removed = state.personalItems.find((i) => i.id === itemId);
-        state.personalItems = state.personalItems.filter((i) => i.id !== itemId);
+        await loadPersonalItems(state.activeTab);
+        await loadPersonalLists();
         refreshPersonalItems(container);
-        const list = state.taskLists.find((l) => l.id === state.activeTab);
-        if (list) {
-          if (removed && getPersonalItemStatus(removed) !== 'done') list.pending_count = Math.max(0, list.pending_count - 1);
-          list.total_count = Math.max(0, list.total_count - 1);
-          renderTaskTabsBar(container);
-        }
+        renderTaskTabsBar(container);
+      } catch (err) {
+        window.planium.showToast(err.message, 'danger');
+      }
+      return;
+    }
+    if (action === 'restore-personal-item') {
+      try {
+        await api.post(`/personal-lists/${state.activeTab}/items/${itemId}/restore`);
+        await loadPersonalItems(state.activeTab);
+        await loadPersonalLists();
+        refreshPersonalItems(container);
+        renderTaskTabsBar(container);
+        window.planium.showToast(t('tasks.restoreFromTrashToast'), 'default');
+      } catch (err) {
+        window.planium.showToast(err.message, 'danger');
+      }
+      return;
+    }
+    if (action === 'clear-done-items') {
+      const doneItems = state.personalItems.filter((i) => getPersonalItemStatus(i) === 'done');
+      if (!doneItems.length) return;
+      const count = doneItems.length;
+      if (!await showConfirm(t('tasks.personalListClearDoneConfirm'), { danger: true })) return;
+      try {
+        await api.post(`/personal-lists/${state.activeTab}/clear-done`);
+        await loadPersonalItems(state.activeTab);
+        await loadPersonalLists();
+        refreshPersonalItems(container);
+        renderTaskTabsBar(container);
+        window.planium.showToast(t('tasks.movedToTrashToast', { count }), 'default');
+      } catch (err) {
+        window.planium.showToast(err.message, 'danger');
+      }
+      return;
+    }
+    if (action === 'clear-trash-items') {
+      const trashCount = state.personalTrashItems.length;
+      if (!trashCount) return;
+      if (!await showConfirm(t('tasks.clearTrashConfirm', { count: trashCount }), { danger: true })) return;
+      try {
+        await api.post(`/personal-lists/${state.activeTab}/clear-trash`);
+        await loadPersonalItems(state.activeTab);
+        await loadPersonalLists();
+        refreshPersonalItems(container);
+        renderTaskTabsBar(container);
+        window.planium.showToast(t('tasks.clearTrashDone', { count: trashCount }), 'default');
       } catch (err) {
         window.planium.showToast(err.message, 'danger');
       }
@@ -2511,6 +2669,212 @@ function openListDialog({ list = null, container } = {}) {
   });
 }
 
+function renderLabelColorSwatches(activeColor, inputName = 'color') {
+  return PERSONAL_LABEL_COLORS.map((c) => `
+    <button type="button"
+            class="label-color-swatch ${c === activeColor ? 'label-color-swatch--active' : ''}"
+            data-color="${c}"
+            style="background-color:${c}"
+            aria-label="${c}"></button>
+  `).join('');
+}
+
+function renderLabelManagerRow(label) {
+  return `
+    <form class="label-manager__row" data-label-id="${label.id}" novalidate>
+      <div class="label-manager__row-main">
+        <div class="form-group">
+          <label class="label" for="label-name-${label.id}">${t('tasks.labelName')}</label>
+          <input class="input" type="text" id="label-name-${label.id}" name="name"
+                 value="${esc(label.name)}" maxlength="60" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="label">${t('tasks.labelColor')}</label>
+          <div class="label-color-grid" data-color-grid>
+            ${renderLabelColorSwatches(label.color)}
+          </div>
+          <input type="hidden" name="color" value="${esc(label.color)}">
+        </div>
+      </div>
+      <div class="label-manager__row-meta">
+        <span class="label-manager__count">${label.task_count} ${t('tasks.labelUsage')}</span>
+        <div class="label-manager__row-actions">
+          <button type="submit" class="btn btn--primary" style="min-height:36px">${t('tasks.labelSave')}</button>
+          <button type="button" class="btn btn--ghost label-manager__delete" data-action="delete-label" style="min-height:36px">
+            ${t('tasks.labelDelete')}
+          </button>
+        </div>
+      </div>
+    </form>`;
+}
+
+function openLabelManager({ container } = {}) {
+  const listId = state.activeTab;
+  const list = state.taskLists.find((l) => l.id === listId);
+  if (!list) return;
+
+  openSharedModal({
+    title: t('tasks.labelManagerTitle'),
+    size: 'lg',
+    content: `
+      <div class="label-manager">
+        <p class="share-help">${t('tasks.labelManagerHelp')}</p>
+        <div class="label-manager__list" id="label-manager-list"></div>
+        <form class="label-manager__create" id="label-create-form" novalidate>
+          <div class="label-manager__section-title">${t('tasks.labelCreateTitle')}</div>
+          <div class="label-manager__row-main">
+            <div class="form-group">
+              <label class="label" for="label-create-name">${t('tasks.labelName')}</label>
+              <input class="input" type="text" id="label-create-name" name="name"
+                     placeholder="${t('tasks.labelCreatePlaceholder')}"
+                     maxlength="60" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="label">${t('tasks.labelColor')}</label>
+              <div class="label-color-grid" data-color-grid>
+                ${renderLabelColorSwatches(PERSONAL_LABEL_COLORS[0])}
+              </div>
+              <input type="hidden" name="color" value="${PERSONAL_LABEL_COLORS[0]}">
+            </div>
+          </div>
+          <div class="label-manager__row-actions">
+            <button type="submit" class="btn btn--primary">${t('tasks.labelAdd')}</button>
+          </div>
+        </form>
+        <div id="label-manager-error" class="login-error" hidden></div>
+        <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
+          <button type="button" class="btn btn--primary" id="label-manager-close">${t('common.close') ?? 'Close'}</button>
+        </div>
+      </div>
+    `,
+    onSave(panel) {
+      const errorEl = panel.querySelector('#label-manager-error');
+      const listEl = panel.querySelector('#label-manager-list');
+      const createForm = panel.querySelector('#label-create-form');
+
+      const renderList = (labels) => {
+        listEl.innerHTML = labels.length
+          ? labels.map((label) => renderLabelManagerRow(label)).join('')
+          : `<div class="label-manager__empty">${t('tasks.labelsNone')}</div>`;
+
+        listEl.querySelectorAll('.label-manager__row').forEach((row) => {
+          const swatches = row.querySelector('[data-color-grid]');
+          const colorInput = row.querySelector('input[name="color"]');
+          swatches?.addEventListener('click', (e) => {
+            const swatch = e.target.closest('.label-color-swatch');
+            if (!swatch) return;
+            swatches.querySelectorAll('.label-color-swatch--active')
+              .forEach((el) => el.classList.remove('label-color-swatch--active'));
+            swatch.classList.add('label-color-swatch--active');
+            colorInput.value = swatch.dataset.color;
+          });
+        });
+      };
+
+      const loadLabels = async () => {
+        const res = await api.get(`/personal-lists/${listId}/labels`);
+        renderList(res.data ?? []);
+      };
+
+      panel.addEventListener('click', async (e) => {
+        const target = e.target.closest('[data-action]');
+        if (!target) return;
+        if (target.dataset.action !== 'delete-label') return;
+
+        const row = target.closest('.label-manager__row');
+        if (!row) return;
+        const labelId = row.dataset.labelId;
+        const ok = await showConfirm(t('tasks.labelDeleteConfirm'), { danger: true });
+        if (!ok) return;
+        try {
+          await api.delete(`/personal-lists/${listId}/labels/${labelId}`);
+          await loadLabels();
+          await loadPersonalItems(listId);
+          refreshPersonalItems(container);
+          window.planium.showToast(t('tasks.labelDeletedToast'), 'default');
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      });
+
+      panel.addEventListener('submit', async (e) => {
+        const row = e.target.closest('.label-manager__row');
+        if (!row || row.id === 'label-create-form') return;
+        e.preventDefault();
+        errorEl.hidden = true;
+        const labelId = row.dataset.labelId;
+        const name = row.querySelector('input[name="name"]')?.value.trim();
+        const color = row.querySelector('input[name="color"]')?.value;
+        if (!name) {
+          errorEl.textContent = t('common.required');
+          errorEl.hidden = false;
+          return;
+        }
+        try {
+          const res = await api.patch(`/personal-lists/${listId}/labels/${labelId}`, { name, color });
+          Object.assign(row.dataset, { labelId: String(res.data.id) });
+          await loadLabels();
+          await loadPersonalItems(listId);
+          refreshPersonalItems(container);
+          window.planium.showToast(t('tasks.labelSavedToast'), 'success');
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      });
+
+      createForm?.addEventListener('click', (e) => {
+        const swatch = e.target.closest('.label-color-swatch');
+        if (!swatch) return;
+        const grid = createForm.querySelector('[data-color-grid]');
+        const colorInput = createForm.querySelector('input[name="color"]');
+        grid?.querySelectorAll('.label-color-swatch--active')
+          .forEach((el) => el.classList.remove('label-color-swatch--active'));
+        swatch.classList.add('label-color-swatch--active');
+        colorInput.value = swatch.dataset.color;
+      });
+
+      createForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorEl.hidden = true;
+        const name = createForm.querySelector('input[name="name"]')?.value.trim();
+        const color = createForm.querySelector('input[name="color"]')?.value;
+        if (!name) {
+          errorEl.textContent = t('common.required');
+          errorEl.hidden = false;
+          return;
+        }
+        try {
+          await api.post(`/personal-lists/${listId}/labels`, { name, color });
+          createForm.reset();
+          const grid = createForm.querySelector('[data-color-grid]');
+          grid?.querySelectorAll('.label-color-swatch--active')
+            .forEach((el) => el.classList.remove('label-color-swatch--active'));
+          const first = createForm.querySelector('.label-color-swatch');
+          first?.classList.add('label-color-swatch--active');
+          createForm.querySelector('input[name="color"]').value = PERSONAL_LABEL_COLORS[0];
+          await loadLabels();
+          await loadPersonalItems(listId);
+          refreshPersonalItems(container);
+          window.planium.showToast(t('tasks.labelCreatedToast'), 'success');
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      });
+
+      panel.querySelector('#label-manager-close')?.addEventListener('click', () => closeModal());
+      if (window.lucide) window.lucide.createIcons();
+
+      loadLabels().catch((err) => {
+        errorEl.textContent = err.message;
+        errorEl.hidden = false;
+      });
+    },
+  });
+}
+
 // --------------------------------------------------------
 // Edit Personal Item Dialog (title + optional priority + due date)
 // --------------------------------------------------------
@@ -2527,6 +2891,7 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
   const assignedOptions = (state.users || []).map((u) =>
     `<option value="${u.id}" ${item.assigned_to === u.id ? 'selected' : ''}>${esc(u.display_name)}</option>`
   ).join('');
+  const selectedLabelNames = new Set((item.labels || []).map((label) => normalizeSearch(label.name)));
 
   openSharedModal({
     title: t('tasks.editPersonalItemTitle'),
@@ -2544,6 +2909,14 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
           <textarea class="input" id="pi-description" name="description"
                     rows="2" style="resize:vertical"
                     placeholder="${t('tasks.descriptionPlaceholder')}">${esc(item.description || '')}</textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="label" for="pi-labels">${t('tasks.labelsLabel')}</label>
+          <div class="task-label-picker" id="pi-label-picker" aria-label="${t('tasks.labelsLabel')}">
+            <div class="task-label-picker__loading">${t('tasks.labelsLoading') ?? 'Loading labels...'}</div>
+          </div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-secondary);margin-top:4px">${t('tasks.labelsPickerHelp')}</div>
         </div>
 
         <div class="form-group" style="margin-bottom:0">
@@ -2603,6 +2976,25 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
     onSave(panel) {
       bindRRuleEvents(document, 'pi');
 
+      const labelPicker = panel.querySelector('#pi-label-picker');
+      const selectedLabelNames = new Set((item.labels || []).map((label) => normalizeSearch(label.name)));
+
+      const renderPicker = (labels) => {
+        if (!labelPicker) return;
+        if (!labels.length) {
+          labelPicker.innerHTML = `<div class="task-label-picker__empty">${t('tasks.labelsNone')}</div>`;
+          return;
+        }
+        labelPicker.innerHTML = labels.map((label) =>
+          renderLabelPickerChip(label, selectedLabelNames.has(normalizeSearch(label.name)))
+        ).join('');
+      };
+
+      const loadPicker = async () => {
+        const res = await api.get(`/personal-lists/${targetListId}/labels`);
+        renderPicker(res.data ?? []);
+      };
+
       const dueInput = panel.querySelector('#pi-due');
       const dueClear = panel.querySelector('#pi-due-clear');
       dueInput?.addEventListener('input', () => {
@@ -2611,6 +3003,17 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
       dueClear?.addEventListener('click', () => {
         dueInput.value = '';
         dueClear.hidden = true;
+      });
+
+      panel.addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-action="toggle-label-chip"]');
+        if (!chip || !labelPicker || !labelPicker.contains(chip)) return;
+        const name = normalizeSearch(chip.dataset.labelName);
+        const isSelected = chip.getAttribute('aria-pressed') === 'true';
+        chip.setAttribute('aria-pressed', String(!isSelected));
+        chip.classList.toggle('task-label-pill--selected', !isSelected);
+        if (isSelected) selectedLabelNames.delete(name);
+        else selectedLabelNames.add(name);
       });
 
       panel.querySelector('#pi-delete-btn')?.addEventListener('click', async () => {
@@ -2663,6 +3066,7 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
 
         const payload = {
           title, priority, due_date: due, due_time: dueTime, alarm_at: alarmAt, description,
+          label_names: [...selectedLabelNames],
           is_recurring: rrule.is_recurring ? 1 : 0,
           recurrence_rule: rrule.recurrence_rule || null,
         };
@@ -2692,6 +3096,11 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
           errEl.hidden = false;
           btn.disabled = false;
         }
+      });
+
+      loadPicker().catch((err) => {
+        if (!labelPicker) return;
+        labelPicker.innerHTML = `<div class="task-label-picker__empty">${esc(err.message)}</div>`;
       });
     },
   });
