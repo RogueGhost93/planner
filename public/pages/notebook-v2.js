@@ -16,6 +16,7 @@ const IMPORT_ACCEPT = '.md,.markdown,.html,.htm';
 const STORAGE_KEYS = {
   collapsed: 'planium-notebook-collapsed-v2',
   layout: 'planium-notebook-layout-v2',
+  labelFilter: 'planium-notebook-label-filter-v1',
 };
 
 const PHONE_LAYOUT_QUERY = '(max-width: 719px)';
@@ -45,6 +46,8 @@ const state = {
   dragNoteId: null,
   dragOverNoteId: null,
   dragOverRoot: false,
+  labelFilterIds: loadLabelFilter(),
+  quickCreateOpen: false,
 };
 
 let rootEl = null;
@@ -56,6 +59,14 @@ let editorContentEl = null;
 let editorPreviewEl = null;
 let editorStatusEl = null;
 let layoutMediaQuery = null;
+let resizeMediaHandler = null;
+let windowResizeHandler = null;
+let notebookFabDocHandlerBound = false;
+
+const NOTEBOOK_LABEL_COLORS = [
+  '#2563EB', '#0B7A73', '#16A34A', '#C2410C',
+  '#DC2626', '#7C3AED', '#DB2777', '#0F766E',
+];
 
 function loadCollapsed() {
   try {
@@ -101,6 +112,90 @@ function saveLayout() {
   } catch {
     // ignore
   }
+}
+
+function loadLabelFilter() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEYS.labelFilter) || '[]');
+    return Array.isArray(raw) ? raw.map((id) => Number(id)).filter(Number.isInteger) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLabelFilter() {
+  try {
+    localStorage.setItem(STORAGE_KEYS.labelFilter, JSON.stringify(state.labelFilterIds || []));
+  } catch {
+    // ignore
+  }
+}
+
+function syncShellState() {
+  if (!rootEl) return;
+  rootEl.classList.toggle('is-folder-trash', state.folder === 'trash');
+
+  const trashToggle = rootEl.querySelector('.notebook-trash-toggle');
+  if (trashToggle) {
+    trashToggle.classList.toggle('is-active', state.folder === 'trash');
+  }
+
+  const labelFilterBtn = rootEl.querySelector('.notebook-label-filter-btn');
+  if (labelFilterBtn) {
+    labelFilterBtn.classList.toggle('is-active', state.labelFilterIds.length > 0);
+    const countEl = labelFilterBtn.querySelector('.notebook-label-filter-btn__count');
+    if (countEl) {
+      const count = state.labelFilterIds.length;
+      countEl.textContent = count ? String(count) : '';
+      countEl.hidden = !count;
+    }
+  }
+
+  const fab = document.querySelector('.notebook-quick-fab');
+  if (fab) {
+    fab.classList.toggle('fab-container--open', state.quickCreateOpen);
+  }
+
+  const fabChild = document.querySelector('.notebook-quick-fab [data-action="new-child"]');
+  if (fabChild) {
+    const disabled = !state.activeNoteId || state.folder === 'trash';
+    fabChild.disabled = disabled;
+    fabChild.setAttribute('aria-disabled', String(disabled));
+  }
+}
+
+function bindNotebookFabDocumentHandler() {
+  if (notebookFabDocHandlerBound) return;
+  notebookFabDocHandlerBound = true;
+
+  document.addEventListener('click', async (event) => {
+    const fabToggle = event.target.closest('.notebook-fab__toggle');
+    if (fabToggle) {
+      event.preventDefault();
+      event.stopPropagation();
+      state.quickCreateOpen = !state.quickCreateOpen;
+      syncShellState();
+      return;
+    }
+
+    const fabItem = event.target.closest('.notebook-fab__item');
+    if (!fabItem) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const action = fabItem.dataset.action;
+    state.quickCreateOpen = false;
+    syncShellState();
+
+    if (action === 'new-root') {
+      await createNote(null);
+      return;
+    }
+
+    if (action === 'new-child' && state.activeNoteId != null && state.folder !== 'trash') {
+      await createNote(state.activeNoteId);
+    }
+  });
 }
 
 function saveFolder() {
@@ -165,10 +260,43 @@ function getChildren(parentId, kind = 'notes') {
   return state.childrenMap[kind]?.get(parentKey(parentId)) || [];
 }
 
+function noteMatchesLabelFilter(note) {
+  const filterIds = state.labelFilterIds || [];
+  if (!filterIds.length) return true;
+  const noteIds = new Set((note?.labels || []).map((label) => Number(label.id)).filter(Number.isInteger));
+  return filterIds.some((id) => noteIds.has(id));
+}
+
+function filterTreeNodes(nodes, kind = 'notes') {
+  if (!state.labelFilterIds?.length) return nodes;
+  return nodes.map((node) => {
+    const children = getChildren(node.id, kind);
+    const filteredChildren = filterTreeNodes(children, kind);
+    if (!noteMatchesLabelFilter(node) && !filteredChildren.length) return null;
+    return { ...node, _filteredChildren: filteredChildren };
+  }).filter(Boolean);
+}
+
 function pickDefaultNoteId() {
   const roots = getChildren(null, 'notes');
   if (roots.length) return roots[0].id;
   return null;
+}
+
+function pickDefaultFilteredNoteId(kind = 'notes') {
+  const roots = filterTreeNodes(getChildren(null, kind), kind);
+  if (!roots.length) return null;
+
+  const walk = (nodes) => {
+    for (const node of nodes) {
+      if (noteMatchesLabelFilter(node)) return node.id;
+      const next = walk(node._filteredChildren || []);
+      if (next != null) return next;
+    }
+    return null;
+  };
+
+  return walk(roots);
 }
 
 function pickDefaultTrashNoteId() {
@@ -244,8 +372,421 @@ function renderLayoutButtons() {
   return buttons.join('');
 }
 
+function normalizeLabelColor(color) {
+  const value = String(color || '#6B7280').trim();
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : '#6B7280';
+}
+
+function labelDisplayChipStyle(color) {
+  const c = normalizeLabelColor(color);
+  return `background-color:${c}22;border-color:${c}55;color:${c}`;
+}
+
+function renderLabelColorSwatches(activeColor) {
+  return NOTEBOOK_LABEL_COLORS.map((c) => `
+    <button type="button"
+            class="label-color-swatch ${c === activeColor ? 'label-color-swatch--active' : ''}"
+            data-color="${c}"
+            style="background-color:${c}"
+            aria-label="${c}"></button>
+  `).join('');
+}
+
+function renderNotebookLabelChips(labels, limit = 3) {
+  if (!Array.isArray(labels) || !labels.length) return '';
+
+  const visible = labels.slice(0, limit);
+  const hidden = labels.slice(limit);
+  const hiddenCount = hidden.length;
+
+  return `
+    <div class="task-labels task-labels--compact notebook-note-labels">
+      ${visible.map((label) => `
+        <span class="task-label-pill notebook-label-pill"
+              style="${labelDisplayChipStyle(label.color)}"
+              title="${esc(label.name)}">
+          ${esc(label.name)}
+        </span>
+      `).join('')}
+      ${hiddenCount > 0 ? `
+        <span class="task-label-more-wrap">
+          <span class="task-label-pill task-label-pill--more"
+                title="${esc(labels.slice(limit).map((label) => label.name).join(', '))}">
+            ${t('notebook.labelsMore', { count: hiddenCount })}
+          </span>
+          <span class="task-label-popover" aria-hidden="true">
+            ${hidden.map((label) => `
+              <span class="task-label-pill task-label-pill--popover"
+                    style="${labelDisplayChipStyle(label.color)}">
+                ${esc(label.name)}
+              </span>
+            `).join('')}
+          </span>
+        </span>` : ''}
+    </div>
+    <div class="task-labels task-labels--full">
+      ${labels.map((label) => `
+        <span class="task-label-pill notebook-label-pill"
+              style="${labelDisplayChipStyle(label.color)}"
+              title="${esc(label.name)}">
+          ${esc(label.name)}
+        </span>
+      `).join('')}
+    </div>`;
+}
+
+function renderNotebookLabelPickerChip(label, selected = false) {
+  const color = normalizeLabelColor(label.color);
+  const base = 'display:inline-flex;align-items:center;max-width:100%;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:var(--font-weight-semibold);line-height:1.2;white-space:nowrap';
+  const state = selected
+    ? `background-color:${color};border:1px solid ${color};color:#fff`
+    : `background-color:${color}22;border:1px solid ${color}55;color:${color}`;
+  return `
+    <button type="button"
+            class="task-label-pill task-label-pill--selectable ${selected ? 'task-label-pill--selected' : ''}"
+            data-action="toggle-label-chip"
+            data-label-id="${label.id}"
+            data-label-name="${esc(label.name)}"
+            data-label-color="${esc(color)}"
+            aria-pressed="${selected ? 'true' : 'false'}"
+            style="${base};${state}">
+      ${esc(label.name)}
+    </button>`;
+}
+
+function renderNotebookLabelManagerRow(label) {
+  return `
+    <form class="label-manager__row" data-label-id="${label.id}" novalidate>
+      <div class="label-manager__row-main">
+        <div class="form-group">
+          <label class="label" for="label-name-${label.id}">${esc(t('notebook.labelName'))}</label>
+          <input class="input" type="text" id="label-name-${label.id}" name="name"
+                 value="${esc(label.name)}" maxlength="60" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="label">${esc(t('notebook.labelColor'))}</label>
+          <div class="label-color-grid" data-color-grid>
+            ${renderLabelColorSwatches(label.color)}
+          </div>
+          <input type="hidden" name="color" value="${esc(label.color)}">
+        </div>
+      </div>
+      <div class="label-manager__row-meta">
+        <span class="label-manager__count">${label.note_count} ${esc(t('notebook.labelUsage'))}</span>
+        <div class="label-manager__row-actions">
+          <button type="submit" class="btn btn--primary" style="min-height:36px">${esc(t('notebook.labelSave'))}</button>
+          <button type="button" class="btn btn--ghost label-manager__delete" data-action="delete-label" style="min-height:36px">
+            ${esc(t('notebook.labelDelete'))}
+          </button>
+        </div>
+      </div>
+    </form>`;
+}
+
+async function loadNotebookLabels() {
+  const res = await api.get('/notebook/labels');
+  return Array.isArray(res.data) ? res.data : [];
+}
+
+async function openNotebookLabelManager({ onChanged } = {}) {
+  const labels = await loadNotebookLabels();
+
+  openModal({
+    title: t('notebook.labelManagerTitle'),
+    size: 'lg',
+    content: `
+      <div class="label-manager">
+        <p class="share-help">${esc(t('notebook.labelManagerHelp'))}</p>
+        <div class="label-manager__list" id="notebook-label-manager-list"></div>
+        <form class="label-manager__create" id="notebook-label-create-form" novalidate>
+          <div class="label-manager__section-title">${esc(t('notebook.labelCreateTitle'))}</div>
+          <div class="label-manager__row-main">
+            <div class="form-group">
+              <label class="label" for="notebook-label-create-name">${esc(t('notebook.labelName'))}</label>
+              <input class="input" type="text" id="notebook-label-create-name" name="name"
+                     placeholder="${esc(t('notebook.labelCreatePlaceholder'))}"
+                     maxlength="60" autocomplete="off">
+            </div>
+            <div class="form-group">
+              <label class="label">${esc(t('notebook.labelColor'))}</label>
+              <div class="label-color-grid" data-color-grid>
+                ${renderLabelColorSwatches(NOTEBOOK_LABEL_COLORS[0])}
+              </div>
+              <input type="hidden" name="color" value="${NOTEBOOK_LABEL_COLORS[0]}">
+            </div>
+          </div>
+          <div class="label-manager__row-actions">
+            <button type="submit" class="btn btn--primary">${esc(t('notebook.labelAdd'))}</button>
+          </div>
+        </form>
+        <div id="notebook-label-manager-error" class="login-error" hidden></div>
+        <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
+          <button type="button" class="btn btn--primary" id="notebook-label-manager-close">${esc(t('common.close'))}</button>
+        </div>
+      </div>
+    `,
+    onSave(panel) {
+      const errorEl = panel.querySelector('#notebook-label-manager-error');
+      const listEl = panel.querySelector('#notebook-label-manager-list');
+      const createForm = panel.querySelector('#notebook-label-create-form');
+
+      const renderList = (items) => {
+        listEl.innerHTML = items.length
+          ? items.map((label) => renderNotebookLabelManagerRow(label)).join('')
+          : `<div class="label-manager__empty">${esc(t('notebook.labelsNone'))}</div>`;
+
+        listEl.querySelectorAll('.label-manager__row').forEach((row) => {
+          const swatches = row.querySelector('[data-color-grid]');
+          const colorInput = row.querySelector('input[name="color"]');
+          swatches?.addEventListener('click', (e) => {
+            const swatch = e.target.closest('.label-color-swatch');
+            if (!swatch) return;
+            swatches.querySelectorAll('.label-color-swatch--active')
+              .forEach((el) => el.classList.remove('label-color-swatch--active'));
+            swatch.classList.add('label-color-swatch--active');
+            colorInput.value = swatch.dataset.color;
+          });
+
+          row.querySelector('.label-manager__delete')?.addEventListener('click', async () => {
+            const labelId = row.dataset.labelId;
+            const ok = await showConfirm(t('notebook.labelDeleteConfirm'), { danger: true });
+            if (!ok) return;
+            try {
+              await api.delete(`/notebook/labels/${labelId}`);
+              const next = await loadNotebookLabels();
+              state.labelFilterIds = state.labelFilterIds.filter((id) => next.some((label) => label.id === id));
+              saveLabelFilter();
+              renderList(next);
+              await onChanged?.(next);
+              window.planium.showToast(t('notebook.labelDeletedToast'), 'default');
+            } catch (err) {
+              errorEl.textContent = err.message;
+              errorEl.hidden = false;
+            }
+          });
+
+          row.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorEl.hidden = true;
+            const labelId = row.dataset.labelId;
+            const name = row.querySelector('input[name="name"]')?.value.trim();
+            const color = row.querySelector('input[name="color"]')?.value;
+            if (!name) {
+              errorEl.textContent = t('common.required');
+              errorEl.hidden = false;
+              return;
+            }
+            try {
+              await api.patch(`/notebook/labels/${labelId}`, { name, color });
+              const next = await loadNotebookLabels();
+              state.labelFilterIds = state.labelFilterIds.filter((id) => next.some((label) => label.id === id));
+              saveLabelFilter();
+              renderList(next);
+              await onChanged?.(next);
+              window.planium.showToast(t('notebook.labelSavedToast'), 'success');
+            } catch (err) {
+              errorEl.textContent = err.message;
+              errorEl.hidden = false;
+            }
+          }, { once: true });
+        });
+      };
+
+      renderList(labels);
+
+      createForm?.addEventListener('click', (e) => {
+        const swatch = e.target.closest('.label-color-swatch');
+        if (!swatch) return;
+        const grid = createForm.querySelector('[data-color-grid]');
+        const colorInput = createForm.querySelector('input[name="color"]');
+        grid?.querySelectorAll('.label-color-swatch--active')
+          .forEach((el) => el.classList.remove('label-color-swatch--active'));
+        swatch.classList.add('label-color-swatch--active');
+        colorInput.value = swatch.dataset.color;
+      });
+
+      createForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorEl.hidden = true;
+        const name = createForm.querySelector('input[name="name"]')?.value.trim();
+        const color = createForm.querySelector('input[name="color"]')?.value;
+        if (!name) {
+          errorEl.textContent = t('common.required');
+          errorEl.hidden = false;
+          return;
+        }
+        try {
+          await api.post('/notebook/labels', { name, color });
+          createForm.reset();
+          const grid = createForm.querySelector('[data-color-grid]');
+          grid?.querySelectorAll('.label-color-swatch--active')
+            .forEach((el) => el.classList.remove('label-color-swatch--active'));
+          const first = createForm.querySelector('.label-color-swatch');
+          first?.classList.add('label-color-swatch--active');
+          createForm.querySelector('input[name="color"]').value = NOTEBOOK_LABEL_COLORS[0];
+          const next = await loadNotebookLabels();
+          state.labelFilterIds = state.labelFilterIds.filter((id) => next.some((label) => label.id === id));
+          saveLabelFilter();
+          renderList(next);
+          await onChanged?.(next);
+          window.planium.showToast(t('notebook.labelCreatedToast'), 'success');
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      });
+
+      panel.querySelector('#notebook-label-manager-close')?.addEventListener('click', () => closeModal());
+    },
+  });
+}
+
+async function openNotebookLabelPicker(noteId = state.activeNoteId) {
+  const note = getNote(noteId);
+  if (!note || note.trashed_at != null) return;
+
+  await saveCurrentNote().catch(() => {});
+  const current = new Set((note.labels || []).map((label) => Number(label.id)).filter(Number.isInteger));
+  let labels = await loadNotebookLabels();
+
+  openModal({
+    title: t('notebook.labelPickerTitle'),
+    size: 'md',
+    content: `
+      <div class="label-manager">
+        <p class="share-help">${esc(t('notebook.labelPickerHelp'))}</p>
+        <div class="task-label-picker" id="notebook-label-picker"></div>
+        <div class="label-manager__row-actions" style="justify-content:space-between">
+          <button type="button" class="btn btn--secondary" id="notebook-label-manage">${esc(t('notebook.labelManage'))}</button>
+          <button type="button" class="btn btn--primary" id="notebook-label-apply">${esc(t('notebook.labelApply'))}</button>
+        </div>
+        <div id="notebook-label-picker-error" class="login-error" hidden></div>
+      </div>
+    `,
+    onSave(panel) {
+      const pickerEl = panel.querySelector('#notebook-label-picker');
+      const errorEl = panel.querySelector('#notebook-label-picker-error');
+      const manageBtn = panel.querySelector('#notebook-label-manage');
+      const applyBtn = panel.querySelector('#notebook-label-apply');
+      const selected = new Set(current);
+
+      const renderPicker = () => {
+        pickerEl.innerHTML = labels.length
+          ? labels.map((label) => renderNotebookLabelPickerChip(label, selected.has(label.id))).join('')
+          : `<div class="task-label-picker__empty">${esc(t('notebook.labelsNone'))}</div>`;
+      };
+
+      renderPicker();
+
+      pickerEl.addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-action="toggle-label-chip"]');
+        if (!chip) return;
+        const labelId = Number(chip.dataset.labelId);
+        if (!Number.isInteger(labelId)) return;
+        if (selected.has(labelId)) selected.delete(labelId);
+        else selected.add(labelId);
+        renderPicker();
+      });
+
+      manageBtn?.addEventListener('click', async () => {
+        try {
+          closeModal();
+          await openNotebookLabelManager({
+            onChanged: async () => {
+              await refreshNotebook({ selectId: noteId });
+            },
+          });
+        } catch (err) {
+          window.planium.showToast(err.message || t('notebook.failed'), 'danger');
+        }
+      });
+
+      applyBtn?.addEventListener('click', async () => {
+        errorEl.hidden = true;
+        try {
+          const labelIds = [...selected];
+          const res = await api.put(`/notebook/${noteId}/labels`, { label_ids: labelIds });
+          updateNoteInState(res.data);
+          closeModal();
+          await refreshNotebook({ selectId: noteId });
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      });
+    },
+  });
+}
+
+async function openNotebookLabelFilterDialog() {
+  const labels = await loadNotebookLabels();
+  const current = new Set(state.labelFilterIds || []);
+
+  openModal({
+    title: t('notebook.labelFilterTitle'),
+    size: 'md',
+    content: `
+      <div class="label-manager">
+        <p class="share-help">${esc(t('notebook.labelFilterHelp'))}</p>
+        <div class="task-label-picker" id="notebook-label-filter-picker"></div>
+        <div class="label-manager__row-actions" style="justify-content:space-between">
+          <button type="button" class="btn btn--secondary" id="notebook-label-filter-clear">${esc(t('common.clear'))}</button>
+          <button type="button" class="btn btn--primary" id="notebook-label-filter-apply">${esc(t('notebook.labelApply'))}</button>
+        </div>
+        <div id="notebook-label-filter-error" class="login-error" hidden></div>
+      </div>
+    `,
+    onSave(panel) {
+      const pickerEl = panel.querySelector('#notebook-label-filter-picker');
+      const errorEl = panel.querySelector('#notebook-label-filter-error');
+      const clearBtn = panel.querySelector('#notebook-label-filter-clear');
+      const applyBtn = panel.querySelector('#notebook-label-filter-apply');
+      const selected = new Set(current);
+
+      const renderPicker = () => {
+        pickerEl.innerHTML = labels.length
+          ? labels.map((label) => renderNotebookLabelPickerChip(label, selected.has(label.id))).join('')
+          : `<div class="task-label-picker__empty">${esc(t('notebook.labelsNone'))}</div>`;
+      };
+
+      renderPicker();
+
+      pickerEl.addEventListener('click', (e) => {
+        const chip = e.target.closest('[data-action="toggle-label-chip"]');
+        if (!chip) return;
+        const labelId = Number(chip.dataset.labelId);
+        if (!Number.isInteger(labelId)) return;
+        if (selected.has(labelId)) selected.delete(labelId);
+        else selected.add(labelId);
+        renderPicker();
+      });
+
+      clearBtn?.addEventListener('click', async () => {
+        state.labelFilterIds = [];
+        saveLabelFilter();
+        closeModal();
+        await refreshNotebook({ selectId: null });
+      });
+
+      applyBtn?.addEventListener('click', async () => {
+        errorEl.hidden = true;
+        try {
+          state.labelFilterIds = [...selected];
+          saveLabelFilter();
+          closeModal();
+          await refreshNotebook({ selectId: null });
+        } catch (err) {
+          errorEl.textContent = err.message;
+          errorEl.hidden = false;
+        }
+      });
+    },
+  });
+}
+
 function renderSidebar() {
   if (!sidebarBodyEl) return;
+  syncShellState();
   sidebarBodyEl.classList.toggle('is-drop-root', Boolean(state.dragOverRoot));
 
   if (state.searchQuery) {
@@ -278,7 +819,7 @@ function renderSidebar() {
 }
 
 function renderSidebarSection(kind) {
-  const roots = getChildren(null, kind);
+  const roots = filterTreeNodes(getChildren(null, kind), kind);
   if (!roots.length) {
     return `
       <section class="notebook-section notebook-section--${kind}">
@@ -310,8 +851,8 @@ function renderSidebarSection(kind) {
 
 function renderTreeNodes(nodes, depth, kind = 'notes') {
   return nodes.map((node) => {
-    const children = getChildren(node.id, kind);
-    const collapsed = state.collapsed.has(node.id);
+    const children = node._filteredChildren ?? getChildren(node.id, kind);
+    const collapsed = state.labelFilterIds.length ? false : state.collapsed.has(node.id);
     const active = node.id === state.activeNoteId ? 'is-active' : '';
     const hasChildren = children.length > 0;
     const childCount = hasChildren ? `<span class="notebook-tree__count">${children.length}</span>` : '';
@@ -325,8 +866,11 @@ function renderTreeNodes(nodes, depth, kind = 'notes') {
             <i data-lucide="${hasChildren ? toggleIcon : 'dot'}" aria-hidden="true"></i>
           </button>
           <button class="notebook-tree__item" data-action="select" data-note-id="${node.id}" title="${esc(node.title || t('notebook.untitled'))}">
-            <span class="notebook-tree__title">${esc(node.title || t('notebook.untitled'))}</span>
-            ${childCount}
+            <div class="notebook-tree__item-main">
+              <span class="notebook-tree__title">${esc(node.title || t('notebook.untitled'))}</span>
+              ${childCount}
+            </div>
+            ${node.labels?.length ? renderNotebookLabelChips(node.labels, 1) : ''}
           </button>
           ${kind === 'trash' ? `
             <button class="notebook-tree__child" data-action="restore" data-note-id="${node.id}" aria-label="${esc(t('notebook.restoreLabel'))}">
@@ -352,7 +896,9 @@ function renderTreeNodes(nodes, depth, kind = 'notes') {
 
 function renderSearchResults() {
   const query = state.searchQuery;
-  const results = state.searchResults;
+  const results = state.labelFilterIds.length
+    ? state.searchResults.filter(noteMatchesLabelFilter)
+    : state.searchResults;
 
   if (!results.length) {
     return `
@@ -382,6 +928,7 @@ function renderSearchResult(result) {
     <button class="notebook-search-result" data-action="select-search" data-note-id="${result.id}">
       <div class="notebook-search-result__title">${esc(result.title || t('notebook.untitled'))}</div>
       <div class="notebook-search-result__path">${breadcrumb || esc(t('notebook.rootLabel'))}</div>
+      ${result.labels?.length ? `<div class="notebook-search-result__labels">${renderNotebookLabelChips(result.labels, 2)}</div>` : ''}
       ${result.excerpt ? `<div class="notebook-search-result__excerpt">${result.excerpt}</div>` : ''}
     </button>
   `;
@@ -404,7 +951,7 @@ function renderEmptyEditor() {
 
 function renderEditor() {
   if (!editorHostEl) return;
-  rootEl?.classList.toggle('is-folder-trash', state.folder === 'trash');
+  syncShellState();
   const note = getNote(state.activeNoteId);
 
   if (!note) {
@@ -466,9 +1013,13 @@ function renderEditor() {
             autocomplete="off"
           />
           <div class="notebook-breadcrumbs">${breadcrumb}</div>
+          ${note.labels?.length ? renderNotebookLabelChips(note.labels) : ''}
         </div>
 
         <div class="notebook-editor__actions">
+          <button class="btn btn--sm btn--icon notebook-editor-action" data-action="labels" title="${esc(t('notebook.labelButton'))}">
+            <i data-lucide="tag" aria-hidden="true"></i>
+          </button>
           <button class="btn btn--sm btn--icon notebook-editor-action" data-action="new-child" title="${esc(t('notebook.newChild'))}">
             <i data-lucide="folder-plus" aria-hidden="true"></i>
           </button>
@@ -551,6 +1102,7 @@ function renderEditor() {
   editorStatusEl = editorHostEl.querySelector('.notebook-editor__status');
 
   renderPreviewFromDraft();
+  syncEditorContentHeight();
   renderEditorStatus();
   if (window.lucide) window.lucide.createIcons();
 
@@ -1219,6 +1771,20 @@ function renderPreviewFromDraft() {
   editorPreviewEl.innerHTML = marked.parse(editorContentEl.value || '');
 }
 
+function syncEditorContentHeight() {
+  if (!editorContentEl) return;
+
+  if (!isPhoneLayout()) {
+    editorContentEl.style.height = '';
+    editorContentEl.style.overflow = '';
+    return;
+  }
+
+  editorContentEl.style.height = 'auto';
+  editorContentEl.style.overflow = 'hidden';
+  editorContentEl.style.height = `${editorContentEl.scrollHeight}px`;
+}
+
 function updateEditorStatus(text = '') {
   state.notice = text;
   renderEditorStatus();
@@ -1259,6 +1825,10 @@ async function refreshNotebook({ selectId = null, focus = null } = {}) {
     state.activeNoteId = selectId;
   } else if (state.activeNoteId == null || !state.noteMap.has(state.activeNoteId)) {
     state.activeNoteId = preferredFolder === 'trash' ? pickDefaultTrashNoteId() : pickDefaultNoteId();
+  }
+
+  if (state.labelFilterIds.length && state.activeNoteId != null && !noteMatchesLabelFilter(getNote(state.activeNoteId))) {
+    state.activeNoteId = pickDefaultFilteredNoteId(preferredFolder);
   }
 
   if (state.activeNoteId != null) {
@@ -1395,6 +1965,11 @@ async function createNote(parentId = null) {
   if (searchInputEl) searchInputEl.value = '';
   state.pendingFocus = 'title';
   await refreshNotebook({ selectId: res.data.id, focus: 'title' });
+  if (isPhoneLayout()) {
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    });
+  }
 }
 
 async function trashNote(noteId) {
@@ -1597,33 +2172,44 @@ function renderShell(container) {
             <i data-lucide="upload" aria-hidden="true"></i>
             <span>${esc(t('notebook.importLabel'))}</span>
           </button>
-          <button class="btn btn--sm btn--secondary notebook-new-child" title="${esc(t('notebook.newChild'))}">
-            <i data-lucide="folder-plus" aria-hidden="true"></i>
-            <span>${esc(t('notebook.newChild'))}</span>
-          </button>
-          <button class="btn btn--sm btn--primary notebook-new-root" title="${esc(t('notebook.newRoot'))}">
-            <i data-lucide="plus" aria-hidden="true"></i>
-            <span>${esc(t('notebook.newRoot'))}</span>
-          </button>
         </div>
       </header>
 
       <div class="notebook-shell">
         <aside class="notebook-sidebar">
-          <div class="notebook-sidebar__header">
-            <div class="notebook-sidebar__search">
-              <i data-lucide="search" aria-hidden="true"></i>
-              <input type="search" class="notebook-search" placeholder="${esc(t('notebook.searchPlaceholder'))}" autocomplete="off" />
-              <button class="notebook-search-clear" aria-label="${esc(t('clear'))}">
-                <i data-lucide="x" aria-hidden="true"></i>
-              </button>
-            </div>
+        <div class="notebook-sidebar__header">
+          <div class="notebook-sidebar__search">
+            <i data-lucide="search" aria-hidden="true"></i>
+            <input type="search" class="notebook-search" placeholder="${esc(t('notebook.searchPlaceholder'))}" autocomplete="off" />
+            <button class="notebook-search-clear" aria-label="${esc(t('clear'))}">
+              <i data-lucide="x" aria-hidden="true"></i>
+            </button>
+            <button class="notebook-label-filter-btn ${state.labelFilterIds.length ? 'is-active' : ''}" aria-label="${esc(t('notebook.labelFilterButton'))}" title="${esc(t('notebook.labelFilterButton'))}">
+              <i data-lucide="tag" aria-hidden="true"></i>
+              <span class="notebook-label-filter-btn__count">${state.labelFilterIds.length || ''}</span>
+            </button>
           </div>
+        </div>
           <div class="notebook-sidebar__body"></div>
         </aside>
         <main class="notebook-main">
           <div class="notebook-editor-host"></div>
         </main>
+      </div>
+      <div class="fab-container notebook-quick-fab ${state.quickCreateOpen ? 'fab-container--open' : ''}" style="--module-accent: var(--module-notebook);">
+        <button class="fab-main notebook-fab__toggle" aria-label="${esc(t('notebook.newRoot'))}" title="${esc(t('notebook.newRoot'))}">
+          <i data-lucide="plus" aria-hidden="true"></i>
+        </button>
+        <div class="fab-actions">
+          <button type="button" class="fab-action__btn notebook-fab__item" data-action="new-root">
+            <i data-lucide="plus" aria-hidden="true"></i>
+            <span>${esc(t('notebook.newRoot'))}</span>
+          </button>
+          <button type="button" class="fab-action__btn notebook-fab__item" data-action="new-child" ${state.activeNoteId && state.folder !== 'trash' ? '' : 'disabled'}>
+            <i data-lucide="folder-plus" aria-hidden="true"></i>
+            <span>${esc(t('notebook.newChild'))}</span>
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -1655,6 +2241,31 @@ function wireEvents(container) {
       return;
     }
 
+    const fabToggle = event.target.closest('.notebook-fab__toggle');
+    if (fabToggle) {
+      state.quickCreateOpen = !state.quickCreateOpen;
+      syncShellState();
+      return;
+    }
+
+    const fabItem = event.target.closest('.notebook-fab__item');
+    if (fabItem) {
+      const action = fabItem.dataset.action;
+      state.quickCreateOpen = false;
+      syncShellState();
+      if (action === 'new-root') {
+        await createNote(null);
+        ensureSidebarVisible(!isPhoneLayout());
+        return;
+      }
+      if (action === 'new-child' && state.activeNoteId && state.folder !== 'trash') {
+        await createNote(state.activeNoteId);
+        ensureSidebarVisible(!isPhoneLayout());
+        return;
+      }
+      return;
+    }
+
     const trashToggle = event.target.closest('.notebook-trash-toggle');
     if (trashToggle) {
       state.folder = state.folder === 'trash' ? 'notes' : 'trash';
@@ -1683,14 +2294,14 @@ function wireEvents(container) {
     const newRoot = event.target.closest('.notebook-new-root');
     if (newRoot || event.target.closest('.notebook-new-root-btn')) {
       await createNote(null);
-      ensureSidebarVisible(false);
+      ensureSidebarVisible(!isPhoneLayout());
       return;
     }
 
     const newChild = event.target.closest('.notebook-new-child');
     if (newChild) {
       await createNote(state.activeNoteId ?? null);
-      ensureSidebarVisible(false);
+      ensureSidebarVisible(!isPhoneLayout());
       return;
     }
 
@@ -1701,6 +2312,17 @@ function wireEvents(container) {
       if (searchInputEl) searchInputEl.value = '';
       renderSidebar();
       return;
+    }
+
+    const labelFilterBtn = event.target.closest('.notebook-label-filter-btn');
+    if (labelFilterBtn) {
+      await openNotebookLabelFilterDialog();
+      return;
+    }
+
+    if (state.quickCreateOpen && !event.target.closest('.notebook-fab')) {
+      state.quickCreateOpen = false;
+      syncShellState();
     }
 
     const rowAction = event.target.closest('[data-action]');
@@ -1723,7 +2345,7 @@ function wireEvents(container) {
 
       if (action === 'new-child') {
         await createNote(noteId);
-        ensureSidebarVisible(false);
+        ensureSidebarVisible(!isPhoneLayout());
         return;
       }
 
@@ -1757,8 +2379,17 @@ function wireEvents(container) {
     const editorAction = event.target.closest('.notebook-editor-action');
     if (editorAction) {
       const action = editorAction.dataset.action;
+      if (action === 'labels') {
+        try {
+          await openNotebookLabelPicker(state.activeNoteId);
+        } catch (err) {
+          window.planium.showToast(err.message || t('notebook.failed'), 'danger');
+        }
+        return;
+      }
       if (action === 'new-child') {
         await createNote(state.activeNoteId ?? null);
+        ensureSidebarVisible(!isPhoneLayout());
         return;
       }
       if (action === 'trash') {
@@ -1812,6 +2443,7 @@ function wireEvents(container) {
     if (event.target === editorTitleEl || event.target === editorContentEl) {
       state.dirty = true;
       renderEditorStatus();
+      syncEditorContentHeight();
       renderPreviewFromDraft();
       clearTimeout(state.saveTimer);
       state.saveTimer = window.setTimeout(() => {
@@ -1940,13 +2572,21 @@ function wireEvents(container) {
 export async function render(container) {
   rootEl = container;
   renderShell(container);
+  bindNotebookFabDocumentHandler();
   container.classList.add('notebook-page');
 
-  if (layoutMediaQuery) {
-    layoutMediaQuery.removeEventListener('change', handleLayoutMediaChange);
+  if (layoutMediaQuery && resizeMediaHandler) {
+    layoutMediaQuery.removeEventListener('change', resizeMediaHandler);
   }
   layoutMediaQuery = window.matchMedia(PHONE_LAYOUT_QUERY);
-  layoutMediaQuery.addEventListener('change', handleLayoutMediaChange);
+  resizeMediaHandler = handleLayoutMediaChange;
+  layoutMediaQuery.addEventListener('change', resizeMediaHandler);
+
+  if (windowResizeHandler) {
+    window.removeEventListener('resize', windowResizeHandler);
+  }
+  windowResizeHandler = handleWindowResize;
+  window.addEventListener('resize', windowResizeHandler);
 
   sidebarBodyEl = container.querySelector('.notebook-sidebar__body');
   searchInputEl = container.querySelector('.notebook-search');
@@ -1972,9 +2612,14 @@ export async function render(container) {
   }
 
   if (window.lucide) window.lucide.createIcons();
+  syncEditorContentHeight();
 }
 
 function handleLayoutMediaChange() {
   if (!editorHostEl) return;
   renderEditor();
+}
+
+function handleWindowResize() {
+  syncEditorContentHeight();
 }

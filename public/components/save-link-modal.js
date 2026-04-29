@@ -10,12 +10,23 @@ import { esc } from '/utils/html.js';
 
 /**
  * Opens a modal to save a link to Linkding or as a task.
- * @param {string} initialUrl - Pre-fill URL field (optional)
- * @param {string} initialTitle - Pre-fill title field (optional)
+ * @param {string|Object} options - Pre-fill values or an options object
+ * @param {string} [options.initialUrl] - Pre-fill URL field (optional)
+ * @param {string} [options.initialTitle] - Pre-fill title field (optional)
+ * @param {'linkding'|'task'} [options.initialTarget] - Preselect destination
  */
-export async function openSaveLinkModal(initialUrl = '', initialTitle = '') {
+export async function openSaveLinkModal(options = '', initialTitle = '') {
+  const opts = typeof options === 'object' && options !== null
+    ? options
+    : { initialUrl: options, initialTitle };
+  const initialUrl = opts.initialUrl || '';
+  const initialTitleValue = opts.initialTitle || '';
+  const initialTarget = ['linkding', 'task'].includes(opts.initialTarget)
+    ? opts.initialTarget
+    : null;
+
   let taskLists = [];
-  let selectedTarget = 'linkding';
+  let selectedTarget = initialTarget || 'linkding';
   let linkdingConfigured = false;
 
   try {
@@ -55,43 +66,45 @@ export async function openSaveLinkModal(initialUrl = '', initialTitle = '') {
           type="text"
           id="save-link-title"
           placeholder="Article Title"
-          value="${esc(initialTitle)}"
+          value="${esc(initialTitleValue)}"
           maxlength="500"
           style="font-size:16px"
         />
       </div>
 
-      <div class="form-group">
-        <label class="form-label">Destination</label>
-        <div style="display:flex;gap:var(--space-3)">
-          ${linkdingConfigured ? `
-            <label class="settings-toggle-label" style="cursor:pointer;display:flex;align-items:center;gap:var(--space-2);margin:0">
-              <input
-                type="radio"
-                name="save-link-target"
-                value="linkding"
-                checked
-                style="cursor:pointer"
-              />
-              <span>Linkding</span>
-            </label>
-          ` : ''}
-          ${taskLists.length > 0 ? `
-            <label class="settings-toggle-label" style="cursor:pointer;display:flex;align-items:center;gap:var(--space-2);margin:0">
-              <input
-                type="radio"
-                name="save-link-target"
-                value="task"
-                style="cursor:pointer"
-              />
-              <span>Task</span>
-            </label>
+      ${initialTarget ? '' : `
+        <div class="form-group">
+          <label class="form-label">Destination</label>
+          <div style="display:flex;gap:var(--space-3)">
+            ${linkdingConfigured ? `
+              <label class="settings-toggle-label" style="cursor:pointer;display:flex;align-items:center;gap:var(--space-2);margin:0">
+                <input
+                  type="radio"
+                  name="save-link-target"
+                  value="linkding"
+                  checked
+                  style="cursor:pointer"
+                />
+                <span>Linkding</span>
+              </label>
+            ` : ''}
+            ${taskLists.length > 0 ? `
+              <label class="settings-toggle-label" style="cursor:pointer;display:flex;align-items:center;gap:var(--space-2);margin:0">
+                <input
+                  type="radio"
+                  name="save-link-target"
+                  value="task"
+                  style="cursor:pointer"
+                />
+                <span>Task</span>
+              </label>
+            ` : ''}
+          </div>
+          ${!linkdingConfigured && taskLists.length === 0 ? `
+            <span class="form-hint" style="color:var(--color-danger)">No destinations configured. Set up Linkding or task lists in Settings.</span>
           ` : ''}
         </div>
-        ${!linkdingConfigured && taskLists.length === 0 ? `
-          <span class="form-hint" style="color:var(--color-danger)">No destinations configured. Set up Linkding or task lists in Settings.</span>
-        ` : ''}
-      </div>
+      `}
 
       ${taskLists.length > 0 ? `
         <div class="form-group" id="task-list-group" style="display:none">

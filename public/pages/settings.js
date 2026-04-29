@@ -161,6 +161,7 @@ export async function render(container, { user }) {
     : appleStatus.configured
       ? (appleStatus.lastSync ? t('settings.configuredLastSync', { date: formatDateTime(appleStatus.lastSync) }) : t('settings.configured'))
       : t('settings.notConnected');
+  const showPhoneNavMode = isPhoneViewport();
 
   container.innerHTML = `
     <div class="page settings-page">
@@ -223,6 +224,15 @@ export async function render(container, { user }) {
           </select>
           <span class="form-hint">${t('settings.priorityAppearanceHelp')}</span>
 
+          ${showPhoneNavMode ? `
+          <p class="settings-card__label" style="margin-top:var(--space-4);margin-bottom:var(--space-2)">${t('settings.phoneNavLabel')}</p>
+          <select id="phone-nav-mode" class="form-input settings-select" style="width:100%">
+            <option value="tabs" ${currentPhoneNavMode() === 'tabs' ? 'selected' : ''}>${t('settings.phoneNavTabs')}</option>
+            <option value="menu" ${currentPhoneNavMode() === 'menu' ? 'selected' : ''}>${t('settings.phoneNavMenu')}</option>
+          </select>
+          <span class="form-hint">${t('settings.phoneNavHelp')}</span>
+          ` : ''}
+
           <div class="settings-toggle-row" style="margin-top:var(--space-3)">
             <label class="settings-toggle-label" for="greeting-widget-accent-fill">${t('settings.greetingWidgetAccentFillLabel')}</label>
             <label class="toggle-switch">
@@ -253,7 +263,7 @@ export async function render(container, { user }) {
           <div class="settings-toggle-row" style="margin-top:var(--space-4)">
             <label class="settings-toggle-label" for="show-quotes">${t('settings.showQuotesLabel')}</label>
             <label class="toggle-switch">
-              <input type="checkbox" id="show-quotes" ${localStorage.getItem('planium-show-quotes') !== 'false' ? 'checked' : ''} />
+              <input type="checkbox" id="show-quotes" ${localStorage.getItem('planium-show-quotes') === 'true' ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
             </label>
           </div>
@@ -261,7 +271,7 @@ export async function render(container, { user }) {
           <div class="settings-toggle-row">
             <label class="settings-toggle-label" for="show-tickers">Show price tickers in greeting bar</label>
             <label class="toggle-switch">
-              <input type="checkbox" id="show-tickers" ${localStorage.getItem('planium-show-tickers') !== 'false' ? 'checked' : ''} />
+              <input type="checkbox" id="show-tickers" ${localStorage.getItem('planium-show-tickers') === 'true' ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
             </label>
           </div>
@@ -980,6 +990,15 @@ function bindEvents(container, user, webviewStatus) {
     });
   }
 
+  const phoneNavMode = container.querySelector('#phone-nav-mode');
+  if (phoneNavMode) {
+    phoneNavMode.addEventListener('change', () => {
+      setPhoneNavMode(phoneNavMode.value);
+      window.planium?.refreshNavigation?.();
+      window.planium?.showToast(t('settings.phoneNavSavedToast'), 'success');
+    });
+  }
+
   // Quick Link
   const quickLinkSave = container.querySelector('#quick-link-save');
   if (quickLinkSave) {
@@ -1600,6 +1619,23 @@ function currentTheme() {
   return localStorage.getItem('planium-theme') || 'light';
 }
 
+const PHONE_NAV_MODE_KEY = 'planium-phone-nav-mode';
+
+function isPhoneViewport() {
+  return window.matchMedia('(max-width: 767px)').matches;
+}
+
+function currentPhoneNavMode() {
+  const value = localStorage.getItem(PHONE_NAV_MODE_KEY);
+  return value === 'menu' ? 'menu' : 'tabs';
+}
+
+function setPhoneNavMode(value) {
+  const mode = value === 'menu' ? 'menu' : 'tabs';
+  localStorage.setItem(PHONE_NAV_MODE_KEY, mode);
+  return mode;
+}
+
 function applyTheme(value, user = null) {
   localStorage.setItem('planium-theme', value);
   const VALID = ['light','dark','obsidian','midnight-forest','noir','deep-ocean','aubergine','parchment','frost','glacier','arctic'];
@@ -1654,6 +1690,7 @@ function collectAppearanceSyncPayload(container) {
   const showQuotes = container.querySelector('#show-quotes');
   const showTickers = container.querySelector('#show-tickers');
   const priorityAppearance = container.querySelector('#priority-appearance');
+  const greetingWidgetAccentFill = container.querySelector('#greeting-widget-accent-fill');
 
   return {
     appearance_sync: true,
@@ -1662,8 +1699,8 @@ function collectAppearanceSyncPayload(container) {
     quick_link: quickLinkInput?.value.trim() || '',
     appearance_priority_appearance: priorityAppearance?.value || currentPriorityAppearance(),
     appearance_greeting_widget_accent_fill: greetingWidgetAccentFill?.checked ?? currentGreetingWidgetAccentFill(),
-    appearance_show_quotes: showQuotes?.checked ?? (localStorage.getItem('planium-show-quotes') !== 'false'),
-    appearance_show_tickers: showTickers?.checked ?? (localStorage.getItem('planium-show-tickers') !== 'false'),
+    appearance_show_quotes: showQuotes?.checked ?? (localStorage.getItem('planium-show-quotes') === 'true'),
+    appearance_show_tickers: showTickers?.checked ?? (localStorage.getItem('planium-show-tickers') === 'true'),
     appearance_daily_accent: dailyAccent?.checked ?? (localStorage.getItem('planium-daily-accent') === 'true'),
     appearance_daily_accent_date: localStorage.getItem('planium-daily-accent-date') || '',
     appearance_ticker_btc_href: tickerLinkInput?.value.trim() || '',

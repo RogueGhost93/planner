@@ -327,6 +327,11 @@
   z-index: 3;
 }
 
+.task-card--first {
+  box-shadow: none;
+  margin-top: -1px;
+}
+
 .priority-tier--low {
   border-left-color: var(--color-priority-low) !important;
 }

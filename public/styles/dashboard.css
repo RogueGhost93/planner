@@ -158,6 +158,45 @@
   grid-column: 1 / -1;
 }
 
+.widget-greeting--accent-fill {
+  border-left-width: 0;
+  background:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--module-accent) 48%, var(--color-surface)) 0%,
+      color-mix(in srgb, var(--module-accent) 30%, var(--color-surface)) 52%,
+      color-mix(in srgb, var(--module-accent) 20%, var(--color-surface)) 100%);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--module-accent) 12%, transparent);
+}
+
+.widget-greeting--accent-fill .widget-greeting__date-row,
+.widget-greeting--accent-fill .widget-greeting__day,
+.widget-greeting--accent-fill .greeting-weather,
+.widget-greeting--accent-fill .greeting-home-btn,
+.widget-greeting--accent-fill .greeting-chip {
+  color: var(--color-text-primary);
+}
+
+.widget-greeting--accent-fill .greeting-home-btn,
+.widget-greeting--accent-fill .greeting-chip {
+  background: color-mix(in srgb, var(--module-accent) 24%, var(--color-surface-2));
+  border-color: color-mix(in srgb, var(--module-accent) 42%, var(--color-border));
+}
+
+.widget-greeting--accent-fill .greeting-home-btn:hover,
+.widget-greeting--accent-fill .greeting-chip:hover {
+  background: color-mix(in srgb, var(--module-accent) 34%, var(--color-surface-2));
+}
+
+.widget-greeting--accent-fill .greeting-chip--warn {
+  background: color-mix(in srgb, var(--color-danger-light) 82%, var(--module-accent));
+  border-color: transparent;
+  color: var(--color-danger);
+}
+
+.widget-greeting--accent-fill .widget-greeting__sep {
+  color: color-mix(in srgb, var(--color-text-secondary) 70%, var(--module-accent));
+}
+
 .widget-greeting__content {
   display: flex;
   flex-direction: row;

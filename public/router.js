@@ -6,7 +6,9 @@
 
 import { auth, api } from '/api.js';
 import { initI18n, getLocale, t } from '/i18n.js';
+import { esc } from '/utils/html.js';
 import { initNotifications, stopNotifications } from '/components/task-notifications.js';
+import { openModal, closeModal } from '/components/modal.js';
 import { init as initPTR } from '/utils/pullToRefresh.js';
 
 // --------------------------------------------------------
@@ -97,8 +99,11 @@ const NAV_ITEM_DEFS = [
   { path: '/settings', labelKey: 'nav.settings',  icon: 'settings'         },
 ];
 const NAV_PATHS = NAV_ITEM_DEFS.map((item) => item.path);
+const PHONE_NAV_MODE_KEY = 'planium-phone-nav-mode';
+const PHONE_NAV_BREAKPOINT = window.matchMedia('(max-width: 767px)');
 
 let currentNavOrder = NAV_PATHS.slice();
+let currentHiddenNavPaths = new Set(NAV_ITEM_DEFS.filter((item) => item.optional).map((item) => item.path));
 
 function normalizeNavOrder(value) {
   const source = Array.isArray(value) ? value : [];
@@ -130,6 +135,31 @@ function parseNavOrder(value) {
   }
 }
 
+function isPhoneViewport() {
+  return PHONE_NAV_BREAKPOINT.matches;
+}
+
+function currentPhoneNavMode() {
+  const value = localStorage.getItem(PHONE_NAV_MODE_KEY);
+  return value === 'menu' ? 'menu' : 'tabs';
+}
+
+function isPhoneNavMenuEnabled() {
+  return isPhoneViewport() && currentPhoneNavMode() === 'menu';
+}
+
+function getNavItemLabel(path) {
+  return navItems().find((item) => item.path === path)?.label ?? t('nav.dashboard');
+}
+
+function refreshBottomNav() {
+  const nav = document.querySelector('.nav-bottom');
+  if (!nav) return;
+  nav.outerHTML = renderBottomNavHtml();
+  wireBottomNav();
+  updateNav(currentPath);
+}
+
 // --------------------------------------------------------
 // Apply user preferences (theme + accent from server profile)
 // --------------------------------------------------------
@@ -158,11 +188,11 @@ function applyUserPreferences(user) {
       || user.appearance_greeting_widget_accent_fill === '1')
     : (localStorage.getItem('planium-greeting-accent-fill') === 'true');
   const showQuotes = appearanceSync
-    ? (user.appearance_show_quotes !== false && user.appearance_show_quotes !== '0')
-    : (localStorage.getItem('planium-show-quotes') !== 'false');
+    ? (user.appearance_show_quotes === true || user.appearance_show_quotes === 1 || user.appearance_show_quotes === '1')
+    : (localStorage.getItem('planium-show-quotes') === 'true');
   const showTickers = appearanceSync
-    ? (user.appearance_show_tickers !== false && user.appearance_show_tickers !== '0')
-    : (localStorage.getItem('planium-show-tickers') !== 'false');
+    ? (user.appearance_show_tickers === true || user.appearance_show_tickers === 1 || user.appearance_show_tickers === '1')
+    : (localStorage.getItem('planium-show-tickers') === 'true');
   const dailyAccentEnabled = appearanceSync
     ? (user.appearance_daily_accent === true || user.appearance_daily_accent === 1 || user.appearance_daily_accent === '1')
     : (localStorage.getItem('planium-daily-accent') === 'true');
@@ -418,7 +448,7 @@ async function renderPage(route, previousPath = null, { noTransition = false } =
     }
 
     // Remove any FABs that were hoisted out of the previous page wrapper.
-    content.querySelectorAll(':scope > .page-fab, :scope > .fab-container').forEach(fab => fab.remove());
+    content.querySelectorAll(':scope > .page-fab, :scope > .fab-container, :scope > .notebook-fab, :scope > .filebox-fab').forEach(fab => fab.remove());
 
     // Old content is now gone - old stylesheet can be removed
     const pageWrapper = document.createElement('div');
@@ -437,7 +467,7 @@ async function renderPage(route, previousPath = null, { noTransition = false } =
     // the animated element, not children. A CSS transform on a parent creates a
     // new containing block for position:fixed descendants, which makes them jump
     // during the slide-in animation. Moving them one level up avoids this.
-    pageWrapper.querySelectorAll('.page-fab, .fab-container').forEach(fab => content.appendChild(fab));
+    pageWrapper.querySelectorAll('.page-fab, .fab-container, .notebook-fab, .filebox-fab').forEach(fab => content.appendChild(fab));
 
     // Make visible and start animation only after render() + CSS
     pageWrapper.style.opacity = '';
@@ -466,22 +496,14 @@ function renderAppShell(container) {
     <nav class="nav-sidebar" aria-label="${t('nav.main')}">
       <a href="/" data-route="/" class="nav-sidebar__logo" aria-label="${t('nav.dashboard')}"><img src="/icons/logo-p.svg" alt="" class="nav-sidebar__logo-img" aria-hidden="true"><span>Planium</span></a>
       <div class="nav-sidebar__items" role="list">
-        ${navItems().map((item) => navItemHtml(item, item.optional)).join('')}
+        ${navItems().map((item) => navItemHtml(item, isNavRouteHidden(item.path))).join('')}
       </div>
     </nav>
 
     <main class="app-content" id="main-content" aria-live="polite">
     </main>
 
-    <nav class="nav-bottom" aria-label="${t('nav.navigation')}">
-      <div class="nav-bottom__dots" aria-hidden="true">
-        <span class="nav-bottom__dot nav-bottom__dot--active"></span>
-        <span class="nav-bottom__dot"></span>
-      </div>
-      <div class="nav-bottom__scroll">
-        ${buildBottomNavPagesHtml((item) => item.optional)}
-      </div>
-    </nav>
+    ${renderBottomNavHtml()}
 
     <div class="toast-container" id="toast-container" aria-live="assertive"></div>
   `;
@@ -495,9 +517,8 @@ function renderAppShell(container) {
   });
 
   // Bottom nav: scroll-snap + dot indicator
-  initBottomNavSwipe(container);
+  wireBottomNav();
   initRouteSwipe(container);
-  scrollNavToActive();
   wireNavReorder(container);
 }
 
@@ -539,10 +560,12 @@ function isRouteSwipeExcludedTarget(target) {
     '[contenteditable="true"]',
     '.nav-sidebar',
     '.nav-bottom',
-    '.shopping-page',
-    '#tasks-widget',
-    '#shopping-widget',
-    '#list-content',
+    '.list-tabs-bar',
+    '#list-tabs-bar',
+    '.task-tabs-bar',
+    '#task-tabs-bar',
+    '.tasks-widget__tabs-wrap',
+    '.shopping-widget__head-wrap',
   ].join(', '));
 }
 
@@ -617,6 +640,8 @@ function initRouteSwipe(container) {
 }
 
 function setNavRouteHidden(path, hidden) {
+  if (hidden) currentHiddenNavPaths.add(path);
+  else currentHiddenNavPaths.delete(path);
   document.querySelectorAll(`a.nav-item[data-route="${path}"]`).forEach(el => {
     el.hidden = hidden;
   });
@@ -643,7 +668,7 @@ async function refreshOptionalNavItems() {
   setNavRouteHidden('/web', !webviewTabsEnabled);
   setNavRouteHidden('/bookmarks', !linkdingConfigured);
   setNavRouteHidden('/filebox', !fileboxEnabled);
-  renderBottomNavPages();
+  refreshBottomNav();
   updateNav(currentPath);
 }
 
@@ -753,11 +778,11 @@ function navItemHtml({ path, label, icon }, hidden = false) {
 }
 
 function isNavRouteHidden(path) {
-  return document.querySelector(`a.nav-item[data-route="${path}"]`)?.hidden ?? false;
+  return currentHiddenNavPaths.has(path) || (document.querySelector(`a.nav-item[data-route="${path}"]`)?.hidden ?? false);
 }
 
 function getVisibleNavItems() {
-  return navItems().filter((item) => !item.optional || !isNavRouteHidden(item.path));
+  return navItems().filter((item) => !isNavRouteHidden(item.path));
 }
 
 function getBottomNavPages(hiddenResolver = (item) => isNavRouteHidden(item.path)) {
@@ -790,6 +815,34 @@ function renderBottomNavPages() {
   return pageHtml;
 }
 
+function renderBottomNavHtml() {
+  if (isPhoneNavMenuEnabled()) {
+    return `
+      <nav class="nav-bottom nav-bottom--menu" aria-label="${t('nav.navigation')}">
+        <button class="nav-bottom__menu-trigger" id="phone-nav-menu-trigger" type="button" aria-label="${t('nav.navigation')}" aria-haspopup="dialog">
+          <i data-lucide="menu" class="nav-bottom__menu-icon" aria-hidden="true"></i>
+          <span class="nav-bottom__menu-text">
+            <span class="nav-bottom__menu-label">${t('nav.menu')}</span>
+            <span class="nav-bottom__menu-current">${esc(getNavItemLabel(currentPath ?? '/'))}</span>
+          </span>
+        </button>
+      </nav>
+    `;
+  }
+
+  return `
+    <nav class="nav-bottom" aria-label="${t('nav.navigation')}">
+      <div class="nav-bottom__dots" aria-hidden="true">
+        <span class="nav-bottom__dot nav-bottom__dot--active"></span>
+        <span class="nav-bottom__dot"></span>
+      </div>
+      <div class="nav-bottom__scroll">
+        ${buildBottomNavPagesHtml((item) => isNavRouteHidden(item.path))}
+      </div>
+    </nav>
+  `;
+}
+
 function buildBottomNavPagesHtml(hiddenResolver) {
   return getBottomNavPages(hiddenResolver).map((page) => `
         <div class="nav-bottom__page" role="list">
@@ -798,10 +851,95 @@ function buildBottomNavPagesHtml(hiddenResolver) {
   `).join('');
 }
 
+function openPhoneNavMenu() {
+  const items = getVisibleNavItems();
+  if (!items.length) return;
+
+  openModal({
+    title: t('nav.navigation'),
+    size: 'lg',
+    content: `
+      <div class="phone-nav-menu">
+        <p class="phone-nav-menu__current">${esc(getNavItemLabel(currentPath ?? '/'))}</p>
+        <div class="phone-nav-menu__grid">
+          ${items.map((item) => `
+            <button type="button"
+                    class="phone-nav-menu__item${item.path === currentPath ? ' phone-nav-menu__item--active' : ''}"
+                    data-route="${item.path}">
+              <i data-lucide="${item.icon}" class="phone-nav-menu__icon" aria-hidden="true"></i>
+              <span class="phone-nav-menu__label">${esc(item.label)}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `,
+    onSave(panel) {
+      panel.classList.add('modal-panel--phone-nav');
+      const grid = panel.querySelector('.phone-nav-menu__grid');
+      const current = panel.querySelector('.phone-nav-menu__current');
+      if (grid) {
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        const itemCount = items.length;
+        const paddingX = 32;
+        const gap = 8;
+        const currentHeight = current?.getBoundingClientRect().height ?? 20;
+        const titleHeight = panel.querySelector('.modal-panel__header')?.getBoundingClientRect().height ?? 56;
+        const bodyPadding = 24;
+        const availableHeight = Math.max(240, Math.min(viewportH - 48, Math.floor(viewportH * 0.58))) - titleHeight - currentHeight - bodyPadding;
+        const minItemHeight = 50;
+        const maxItemHeight = 94;
+        let bestColumns = 2;
+        let bestItemHeight = minItemHeight;
+
+        for (let columns = Math.min(4, itemCount); columns >= 2; columns--) {
+          const rows = Math.ceil(itemCount / columns);
+          const gridWidth = Math.max(0, viewportW - paddingX - ((columns - 1) * gap));
+          const widthPerItem = gridWidth / columns;
+          const heightPerItem = Math.floor((availableHeight - ((rows - 1) * gap)) / rows);
+          const size = Math.floor(Math.min(widthPerItem * 0.82, heightPerItem));
+          if (size >= minItemHeight && size >= bestItemHeight) {
+            bestColumns = columns;
+            bestItemHeight = Math.min(maxItemHeight, size);
+          }
+        }
+
+        panel.style.setProperty('--phone-nav-columns', String(bestColumns));
+        panel.style.setProperty('--phone-nav-item-height', `${bestItemHeight}px`);
+      }
+      panel.querySelectorAll('[data-route]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const route = btn.dataset.route;
+          if (route === currentPath) {
+            closeModal();
+            return;
+          }
+          closeModal();
+          const delay = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 220;
+          window.setTimeout(() => navigate(route), delay);
+        });
+      });
+    },
+  });
+}
+
+function wireBottomNav() {
+  const nav = document.querySelector('.nav-bottom');
+  if (!nav) return;
+
+  if (nav.classList.contains('nav-bottom--menu')) {
+    nav.querySelector('#phone-nav-menu-trigger')?.addEventListener('click', openPhoneNavMenu);
+    return;
+  }
+
+  initBottomNavSwipe(document);
+  scrollNavToActive();
+}
+
 function renderSidebarNavItems() {
   const items = document.querySelector('.nav-sidebar__items');
   if (!items) return;
-  items.innerHTML = navItems().map((item) => navItemHtml(item, item.optional)).join('');
+  items.innerHTML = navItems().map((item) => navItemHtml(item, isNavRouteHidden(item.path))).join('');
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -823,10 +961,23 @@ function buildFullNavOrderFromVisible(newVisibleOrder) {
 
 async function syncNavShell() {
   renderSidebarNavItems();
-  renderBottomNavPages();
-  updateNav(currentPath);
   await refreshOptionalNavItems();
   updateNav(currentPath);
+}
+
+function refreshNavigation() {
+  refreshBottomNav();
+}
+
+const handlePhoneNavBreakpointChange = () => {
+  if (!currentUser || !document.querySelector('.nav-bottom')) return;
+  refreshNavigation();
+};
+
+if (PHONE_NAV_BREAKPOINT.addEventListener) {
+  PHONE_NAV_BREAKPOINT.addEventListener('change', handlePhoneNavBreakpointChange);
+} else if (PHONE_NAV_BREAKPOINT.addListener) {
+  PHONE_NAV_BREAKPOINT.addListener(handlePhoneNavBreakpointChange);
 }
 
 /**
@@ -846,7 +997,16 @@ function updateNav(path) {
   }
 
   // Scroll bottom nav to the active page
-  scrollNavToActive();
+  if (isPhoneNavMenuEnabled()) {
+    const current = document.querySelector('#phone-nav-menu-trigger .nav-bottom__menu-current');
+    if (current) current.textContent = getNavItemLabel(path);
+    const trigger = document.querySelector('#phone-nav-menu-trigger');
+    if (trigger) {
+      trigger.setAttribute('aria-label', `${t('nav.navigation')}: ${getNavItemLabel(path)}`);
+    }
+  } else {
+    scrollNavToActive();
+  }
 
   // Module accent colour is set in navigate() where route is already resolved.
 }
@@ -1008,6 +1168,7 @@ window.planium = {
   setThemeColor,
   applyBackground,
   refreshOptionalNavItems,
+  refreshNavigation,
   refresh: () => {
     const route = ROUTES.find(r => r.path === currentPath);
     if (route) renderPage(route, null, { noTransition: true });

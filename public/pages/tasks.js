@@ -255,6 +255,7 @@ function renderDueDate(dateStr) {
 
 function renderTaskCard(task, opts = {}) {
   const { expandedSubtasks = false } = opts;
+  const { isFirst = false } = opts;
   const isDone     = task.status === 'done';
   const isSelected = state.selectedIds.has(task.id);
   const accentEnabled = showPriorityAccent();
@@ -278,7 +279,7 @@ function renderTaskCard(task, opts = {}) {
     : '';
 
   return `
-    <div class="task-card${accentEnabled ? priorityCardClass(task.priority) : ''} ${isDone ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''}" data-task-id="${task.id}" data-action="open-task">
+    <div class="task-card${accentEnabled ? priorityCardClass(task.priority) : ''} ${isDone ? 'task-card--done' : ''} ${isSelected ? 'task-card--selected' : ''} ${isFirst ? 'task-card--first' : ''}" data-task-id="${task.id}" data-action="open-task">
       <div class="task-card__main">
         <button class="task-select-cb" data-action="toggle-select" data-id="${task.id}"
                 aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
@@ -365,12 +366,14 @@ function renderTaskGroups(tasks) {
   }
 
   let html = '';
+  let firstGroupRendered = false;
 
   if (pending.length) {
     html += `
       <div class="task-group">
-        ${pending.map((tk) => renderTaskCard(tk)).join('')}
+        ${pending.map((tk, idx) => renderTaskCard(tk, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
       </div>`;
+    firstGroupRendered = true;
   }
 
   if (inProgress.length) {
@@ -379,18 +382,23 @@ function renderTaskGroups(tasks) {
         <div class="task-group__divider">
           <span>${t('tasks.statusInProgress')} (${inProgress.length})</span>
         </div>
-        ${inProgress.map((tk) => renderTaskCard(tk)).join('')}
+        ${inProgress.map((tk, idx) => renderTaskCard(tk, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
       </div>`;
+    firstGroupRendered = true;
   }
 
   if (notYetDue.length) {
-    html += `
+    html += pending.length || inProgress.length ? `
       <div class="task-group">
         <div class="task-group__divider">
           <span>${t('tasks.notYetDue')}</span>
         </div>
-        ${notYetDue.map((tk) => renderTaskCard(tk)).join('')}
+        ${notYetDue.map((tk, idx) => renderTaskCard(tk, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
+      </div>` : `
+      <div class="task-group">
+        ${notYetDue.map((tk, idx) => renderTaskCard(tk, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
       </div>`;
+    firstGroupRendered = true;
   }
 
   if (done.length) {
@@ -403,8 +411,9 @@ function renderTaskGroups(tasks) {
             ${t('tasks.personalListClearDone')}
           </button>
         </div>
-        ${done.map((tk) => renderTaskCard(tk)).join('')}
+        ${done.map((tk, idx) => renderTaskCard(tk, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
       </div>`;
+    firstGroupRendered = true;
   }
 
   return html;
@@ -1614,7 +1623,8 @@ function formatPersonalDueDate(iso) {
   return { cls, label };
 }
 
-function renderPersonalItemRow(item) {
+function renderPersonalItemRow(item, opts = {}) {
+  const { isFirst = false } = opts;
   const due = formatPersonalDueDate(item.due_date);
   const isSelected = state.personalSelectedIds.has(item.id);
   const list = state.taskLists.find((l) => l.id === state.activeTab);
@@ -1628,7 +1638,7 @@ function renderPersonalItemRow(item) {
   const statusIcon = PERSONAL_STATUS_ICON[status] ?? 'circle';
   const cardAction = isTrashed ? '' : 'data-action="open-personal-item"';
   return `
-    <div class="task-card${accentEnabled ? priorityCardClass(item.priority) : ''} ${status === 'done' ? 'task-card--done' : ''} ${isTrashed ? 'task-card--trashed' : ''} ${isSelected ? 'task-card--selected' : ''}" data-item-id="${item.id}" ${cardAction}>
+    <div class="task-card${accentEnabled ? priorityCardClass(item.priority) : ''} ${status === 'done' ? 'task-card--done' : ''} ${isTrashed ? 'task-card--trashed' : ''} ${isSelected ? 'task-card--selected' : ''} ${isFirst ? 'task-card--first' : ''}" data-item-id="${item.id}" ${cardAction}>
       <div class="task-card__main">
         ${!isTrashed ? `
           <button class="task-select-cb" data-action="toggle-personal-select" data-item-id="${item.id}"
@@ -1694,7 +1704,7 @@ function renderPersonalItems() {
   }
 
   if (state.personalFilters.status) {
-    return `<div class="task-group">${sortTasksForList(filtered).map(renderPersonalItemRow).join('')}</div>`;
+    return `<div class="task-group">${sortTasksForList(filtered).map((item, idx) => renderPersonalItemRow(item, { isFirst: idx === 0 })).join('')}</div>`;
   }
 
   const active = filtered.filter((i) => getPersonalItemStatus(i) !== 'done');
@@ -1703,18 +1713,24 @@ function renderPersonalItems() {
   const done = sortDoneTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'done'));
   const trash = state.personalTrashItems;
   let html = '';
+  let firstGroupRendered = false;
 
   if (pending.length) {
-    html += `<div class="task-group">${pending.map(renderPersonalItemRow).join('')}</div>`;
+    html += `<div class="task-group">${pending.map((item, idx) => renderPersonalItemRow(item, { isFirst: !firstGroupRendered && idx === 0 })).join('')}</div>`;
+    firstGroupRendered = true;
   }
   if (notYetDue.length) {
-    html += `
+    html += pending.length ? `
       <div class="task-group">
         <div class="task-group__divider">
           <span>${t('tasks.notYetDue')}</span>
         </div>
-        ${notYetDue.map(renderPersonalItemRow).join('')}
+        ${notYetDue.map((item, idx) => renderPersonalItemRow(item, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
+      </div>` : `
+      <div class="task-group">
+        ${notYetDue.map((item, idx) => renderPersonalItemRow(item, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
       </div>`;
+    firstGroupRendered = true;
   }
   if (done.length) {
     html += `
@@ -1726,8 +1742,9 @@ function renderPersonalItems() {
             ${t('tasks.personalListClearDone')}
           </button>
         </div>
-        ${done.map(renderPersonalItemRow).join('')}
+        ${done.map((item, idx) => renderPersonalItemRow(item, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
       </div>`;
+    firstGroupRendered = true;
   }
   if (trash.length) {
     html += `
@@ -1739,7 +1756,7 @@ function renderPersonalItems() {
             ${t('tasks.clearTrash')}
           </button>
         </div>
-        ${trash.map((item) => renderPersonalItemRow(item)).join('')}
+        ${trash.map((item, idx) => renderPersonalItemRow(item, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
       </div>`;
   }
   return html || `<div class="personal-list__empty">${t('tasks.personalListEmpty')}</div>`;

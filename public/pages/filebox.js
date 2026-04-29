@@ -592,9 +592,6 @@ export async function render(container, _context) {
           </button>
         </div>
         <div class="filebox-toolbar__actions">
-          <button type="button" class="btn btn--primary filebox-toolbar__btn" id="filebox-upload-btn" aria-label="Upload files" title="Upload files">
-            <i data-lucide="upload" aria-hidden="true"></i><span>Upload</span>
-          </button>
           <button type="button" class="btn btn--ghost filebox-toolbar__btn" id="filebox-select-btn" aria-pressed="false" aria-label="Enter select mode" title="Select files">
             <i data-lucide="check-square" aria-hidden="true"></i><span>Select</span>
           </button>
@@ -611,6 +608,9 @@ export async function render(container, _context) {
       <div class="filebox-dropzone" id="filebox-dropzone" role="button" tabindex="0" aria-label="Upload files"></div>
 
       <div class="filebox-list" id="filebox-list"></div>
+      <button type="button" class="page-fab filebox-fab" id="filebox-upload-fab" aria-label="Upload files" title="Upload files" style="--module-accent: var(--module-filebox);">
+          <i data-lucide="upload" aria-hidden="true"></i>
+      </button>
     </div>
   `;
 
@@ -630,7 +630,7 @@ export async function render(container, _context) {
 
   // Upload button + file input
   const fileInput = container.querySelector('#filebox-file-input');
-  container.querySelector('#filebox-upload-btn').addEventListener('click', () => fileInput.click());
+  container.querySelector('#filebox-upload-fab')?.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
     uploadFiles(fileInput.files);
     fileInput.value = '';

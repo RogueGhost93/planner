@@ -1053,6 +1053,16 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 37,
+    description: 'Notebook labels color support',
+    up: () => {
+      addColumnIfMissing('notebook_tags', 'color', `
+        ALTER TABLE notebook_tags
+        ADD COLUMN color TEXT NOT NULL DEFAULT '#6B7280';
+      `);
+    },
+  },
 ];
 
 /**

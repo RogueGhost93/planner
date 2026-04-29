@@ -1,4 +1,6 @@
-import { api, ApiError } from '/api.js';
+import { api } from '/api.js';
+import { openModal, closeModal } from '/components/modal.js';
+import { openSaveLinkModal } from '/components/save-link-modal.js';
 import { esc } from '/utils/html.js';
 
 export async function render(container) {
@@ -16,164 +18,76 @@ export async function render(container) {
   container.innerHTML = `<div style="padding:var(--space-6);color:var(--color-text-secondary);font-size:14px">Loading…</div>`;
 
   const [listsResult, linkdingResult] = await Promise.allSettled([
-    api.get('/personal-lists'),
+    api.get('/task-lists'),
     api.get('/linkding/status'),
   ]);
 
-  const lists             = listsResult.status === 'fulfilled' ? (listsResult.value.data ?? []) : [];
+  const taskLists         = listsResult.status === 'fulfilled' ? (listsResult.value.data ?? []) : [];
   const linkdingAvailable = linkdingResult.status === 'fulfilled' && linkdingResult.value?.configured;
-  const displayLabel      = sharedTitle || sharedUrl;
+  const displayLabel = sharedTitle || sharedUrl;
 
-  const listOptions = lists.map(l =>
-    `<option value="${esc(String(l.id))}">${esc(l.name)}</option>`
-  ).join('');
+  const taskAvailable = taskLists.length > 0;
+  const chooserState = [
+    !taskAvailable ? 'No task list available' : null,
+    !linkdingAvailable ? 'Bookmarks are not configured' : null,
+  ].filter(Boolean).join(' • ');
 
-  container.innerHTML = `
-    <div style="max-width:480px;margin:0 auto;padding:var(--space-4) var(--space-4) var(--space-8)">
+  container.innerHTML = `<div style="padding:var(--space-6);color:var(--color-text-secondary);font-size:14px">Opening…</div>`;
 
-      <div style="padding:var(--space-3);background:var(--color-surface-secondary);
-                  border-radius:var(--radius-sm);margin-bottom:var(--space-5)">
-        <p style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;
-                  color:var(--color-text-secondary);margin:0 0 4px">Sharing</p>
-        <p style="font-size:14px;color:var(--color-text-primary);
-                  word-break:break-all;line-height:1.4;margin:0">${esc(displayLabel)}</p>
-      </div>
-
-      <!-- Task form -->
-      <section style="margin-bottom:var(--space-6)">
-        <h3 style="font-size:14px;font-weight:600;margin:0 0 var(--space-3)">Add as Task</h3>
-        <form id="task-form" novalidate>
-          <div class="form-group">
-            <label class="label" for="task-title">Title</label>
-            <input id="task-title" class="input" type="text"
-                   value="${esc(sharedTitle || sharedUrl)}" autocomplete="off" required>
-          </div>
-          <div class="form-group">
-            <label class="label" for="task-desc">Description</label>
-            <textarea id="task-desc" class="input" rows="2"
-                      style="resize:vertical">${esc(sharedUrl)}</textarea>
-          </div>
-          ${lists.length > 1 ? `
-          <div class="form-group">
-            <label class="label" for="task-list">List</label>
-            <select id="task-list" class="input" style="min-height:44px">${listOptions}</select>
-          </div>` : ''}
-          <div id="task-error" class="login-error" hidden></div>
-          <button type="submit" class="btn btn--primary" style="width:100%;margin-top:var(--space-2)">
-            Add Task
-          </button>
-        </form>
-      </section>
-
-      ${linkdingAvailable ? `
-      <!-- Bookmark form -->
-      <section style="border-top:1px solid var(--color-border);padding-top:var(--space-5)">
-        <h3 style="font-size:14px;font-weight:600;margin:0 0 var(--space-3)">Save as Bookmark</h3>
-        <form id="bookmark-form" novalidate>
-          <div class="form-group">
-            <label class="label" for="bm-title">Title</label>
-            <input id="bm-title" class="input" type="text"
-                   value="${esc(sharedTitle)}" autocomplete="off">
-          </div>
-          <div class="form-group">
-            <label class="label" for="bm-desc">Description</label>
-            <textarea id="bm-desc" class="input" rows="2" style="resize:vertical"></textarea>
-          </div>
-          <div class="form-group">
-            <label class="label" for="bm-tags">Tags <span style="font-weight:400;color:var(--color-text-secondary)">(comma-separated)</span></label>
-            <input id="bm-tags" class="input" type="text"
-                   placeholder="e.g. dev, tools" autocomplete="off">
-          </div>
-          <label style="display:flex;align-items:center;gap:var(--space-2);
-                        font-size:14px;cursor:pointer;margin-bottom:var(--space-4)">
-            <input type="checkbox" id="bm-unread" checked style="width:16px;height:16px">
-            Mark as unread
-          </label>
-          <div id="bm-error" class="login-error" hidden></div>
-          <button type="submit" class="btn btn--primary" style="width:100%">
-            Save Bookmark
-          </button>
-        </form>
-      </section>` : ''}
-
-    </div>
-  `;
-
-  // ── Task submit ──────────────────────────────────────────
-  container.querySelector('#task-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const btn   = e.target.querySelector('[type=submit]');
-    const errEl = container.querySelector('#task-error');
-    errEl.hidden = true;
-
-    const title  = container.querySelector('#task-title').value.trim();
-    const desc   = container.querySelector('#task-desc').value.trim();
-    const listEl = container.querySelector('#task-list');
-    const listId = listEl ? listEl.value : String(lists[0]?.id ?? '');
-
-    if (!title) {
-      errEl.textContent = 'Title is required';
-      errEl.hidden = false;
-      return;
-    }
-    if (!listId) {
-      errEl.textContent = 'No task list available';
-      errEl.hidden = false;
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-    try {
-      await api.post(`/personal-lists/${listId}/items`, {
-        title,
-        description: desc || null,
-      });
-      window.planium.showToast('Task added', 'success');
-      window.planium.navigate('/tasks');
-    } catch (err) {
-      errEl.textContent = err.message || 'Could not save task';
-      errEl.hidden = false;
-      btn.disabled = false;
-      btn.textContent = 'Add Task';
-    }
-  });
-
-  // ── Bookmark submit ──────────────────────────────────────
-  if (linkdingAvailable) {
-    container.querySelector('#bookmark-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn   = e.target.querySelector('[type=submit]');
-      const errEl = container.querySelector('#bm-error');
-      errEl.hidden = true;
-
-      const title  = container.querySelector('#bm-title').value.trim();
-      const desc   = container.querySelector('#bm-desc').value.trim();
-      const tags   = container.querySelector('#bm-tags').value
-        .split(',').map(t => t.trim()).filter(Boolean);
-      const unread = container.querySelector('#bm-unread').checked;
-
-      btn.disabled = true;
-      btn.textContent = 'Saving…';
-      try {
-        await api.post('/linkding/bookmarks', {
-          url: sharedUrl,
-          title,
-          ...(desc  && { description: desc }),
-          ...(tags.length && { tag_names: tags }),
-          unread,
-        });
-        window.planium.showToast('Bookmark saved', 'success');
-        window.planium.navigate('/bookmarks');
-      } catch (err) {
-        const msg = err instanceof ApiError && err.status === 503
-          ? 'Bookmarks not configured — check Settings'
-          : 'Could not save bookmark';
-        errEl.textContent = msg;
-        errEl.hidden = false;
-        btn.disabled = false;
-        btn.textContent = 'Save Bookmark';
-      }
+  const openDestination = (target) => {
+    closeModal();
+    openSaveLinkModal({
+      initialUrl: sharedUrl,
+      initialTitle: sharedTitle,
+      initialTarget: target,
     });
-  }
+  };
+
+  openModal({
+    title: 'Shared Link',
+    size: 'sm',
+    content: `
+      <div style="display:grid;gap:var(--space-4)">
+        <div>
+          <h1 style="margin:0 0 var(--space-2);font-size:20px;line-height:1.2">What do you want to do with this link?</h1>
+          <p style="margin:0;font-size:14px;line-height:1.5;color:var(--color-text-secondary);word-break:break-word">${esc(displayLabel)}</p>
+        </div>
+
+        ${chooserState ? `
+          <div style="padding:var(--space-3);border-radius:var(--radius-md);background:var(--color-surface-secondary);font-size:13px;color:var(--color-text-secondary)">
+            ${esc(chooserState)}
+          </div>
+        ` : ''}
+
+        <div style="display:grid;gap:var(--space-3)">
+          <button type="button" id="share-as-task" class="btn btn--primary" style="justify-content:center;min-height:48px" ${taskAvailable ? '' : 'disabled'}>
+            Save as Task
+          </button>
+          <button type="button" id="share-as-bookmark" class="btn btn--secondary" style="justify-content:center;min-height:48px" ${linkdingAvailable ? '' : 'disabled'}>
+            Save as Bookmark
+          </button>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end">
+          <button type="button" id="share-cancel" class="btn btn--ghost">Cancel</button>
+        </div>
+      </div>
+    `,
+    onSave(panel) {
+      panel.querySelector('#share-as-task')?.addEventListener('click', () => {
+        if (!taskAvailable) return;
+        openDestination('task');
+      });
+
+      panel.querySelector('#share-as-bookmark')?.addEventListener('click', () => {
+        if (!linkdingAvailable) return;
+        openDestination('linkding');
+      });
+
+      panel.querySelector('#share-cancel')?.addEventListener('click', () => {
+        closeModal();
+        window.planium.navigate('/');
+      });
+    },
+  });
 }

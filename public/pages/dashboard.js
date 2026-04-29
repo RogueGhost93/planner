@@ -97,6 +97,15 @@ function greeting(displayName) {
   return t('dashboard.greetingEvening', { name: esc(displayName) });
 }
 
+function greetingWidgetAccentFillEnabled(user) {
+  if (user?.appearance_greeting_widget_accent_fill != null) {
+    return user.appearance_greeting_widget_accent_fill === true
+      || user.appearance_greeting_widget_accent_fill === 1
+      || user.appearance_greeting_widget_accent_fill === '1';
+  }
+  return localStorage.getItem('planium-greeting-accent-fill') === 'true';
+}
+
 function formatDateTime(isoString) {
   if (!isoString) return '';
   const d = new Date(isoString);
@@ -312,6 +321,7 @@ function skeletonWidget(lines = 3) {
 function renderGreeting(user, stats = {}, headlines = null, weather = null) {
   const { urgentTasks = [] } = stats;
   const quickLink = user?.quick_link || '';
+  const accentFill = greetingWidgetAccentFillEnabled(user);
 
   const now = new Date();
   const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][now.getDay()];
@@ -366,7 +376,7 @@ function renderGreeting(user, stats = {}, headlines = null, weather = null) {
     : '';
 
   return `
-    <div class="widget-greeting">
+    <div class="widget-greeting${accentFill ? ' widget-greeting--accent-fill' : ''}">
 
       <div class="widget-greeting__content">
         <div class="widget-greeting__date-row">
@@ -975,7 +985,7 @@ const NEWS_LS_KEY    = 'planium-show-news';
 const TICKERS_LS_KEY = 'planium-show-tickers';
 
 function isQuoteEnabled() {
-  return localStorage.getItem(QUOTE_LS_KEY) !== 'false';
+  return localStorage.getItem(QUOTE_LS_KEY) === 'true';
 }
 
 function isNewsEnabled() {
@@ -983,7 +993,7 @@ function isNewsEnabled() {
 }
 
 function isTickersEnabled() {
-  return localStorage.getItem(TICKERS_LS_KEY) !== 'false';
+  return localStorage.getItem(TICKERS_LS_KEY) === 'true';
 }
 
 function renderQuoteWidget(quote, span = 'full') {

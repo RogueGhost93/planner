@@ -6,7 +6,7 @@
 import express from 'express';
 import * as db from '../db.js';
 import { createLogger } from '../logger.js';
-import { str, id, collectErrors, MAX_TITLE, MAX_TEXT } from '../middleware/validate.js';
+import { str, id, color, collectErrors, MAX_TITLE, MAX_TEXT } from '../middleware/validate.js';
 
 const log = createLogger('Notebook');
 const router = express.Router();
@@ -130,7 +130,7 @@ function isDescendant(noteId, potentialParentId, userId) {
 }
 
 function listNotes(userId) {
-  return dbConn().prepare(`
+  const rows = dbConn().prepare(`
     SELECT
       n.id,
       n.title,
@@ -155,10 +155,11 @@ function listNotes(userId) {
       n.created_at ASC,
       n.id ASC
   `).all(userId, userId);
+  return attachLabelsToNotes(rows);
 }
 
 function listTrashedNotes(userId) {
-  return dbConn().prepare(`
+  const rows = dbConn().prepare(`
     SELECT
       n.id,
       n.title,
@@ -184,10 +185,11 @@ function listTrashedNotes(userId) {
       n.created_at ASC,
       n.id ASC
   `).all(userId, userId);
+  return attachLabelsToNotes(rows);
 }
 
 function listLockedNotes(userId) {
-  return dbConn().prepare(`
+  const rows = dbConn().prepare(`
     SELECT
       n.id,
       n.title,
@@ -213,6 +215,135 @@ function listLockedNotes(userId) {
       n.created_at ASC,
       n.id ASC
   `).all(userId, userId);
+  return attachLabelsToNotes(rows);
+}
+
+function attachLabelsToNotes(notes) {
+  if (!Array.isArray(notes) || !notes.length) return notes;
+  const ids = notes.map((note) => Number(note.id)).filter(Number.isInteger);
+  if (!ids.length) return notes;
+
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = dbConn().prepare(`
+    SELECT
+      nt.note_id,
+      t.id,
+      t.name,
+      t.color
+    FROM notebook_note_tags nt
+    JOIN notebook_tags t ON t.id = nt.tag_id
+    WHERE nt.note_id IN (${placeholders})
+    ORDER BY nt.note_id ASC, t.name ASC
+  `).all(...ids);
+
+  const byNote = new Map();
+  for (const row of rows) {
+    if (!byNote.has(row.note_id)) byNote.set(row.note_id, []);
+    byNote.get(row.note_id).push({
+      id: row.id,
+      name: row.name,
+      color: row.color,
+    });
+  }
+
+  for (const note of notes) {
+    note.labels = byNote.get(note.id) || [];
+  }
+
+  return notes;
+}
+
+function loadNotebookLabels(userId) {
+  return dbConn().prepare(`
+    SELECT
+      t.id,
+      t.name,
+      t.color,
+      COALESCE(COUNT(DISTINCT nt.note_id), 0) AS note_count
+    FROM notebook_tags t
+    LEFT JOIN notebook_note_tags nt ON nt.tag_id = t.id
+    LEFT JOIN notebook_notes n ON n.id = nt.note_id AND n.created_by = t.user_id
+    WHERE t.user_id = ?
+    GROUP BY t.id
+    ORDER BY t.name ASC
+  `).all(userId);
+}
+
+function loadNotebookLabel(userId, labelId) {
+  return dbConn().prepare(`
+    SELECT
+      t.id,
+      t.name,
+      t.color,
+      COALESCE(COUNT(DISTINCT nt.note_id), 0) AS note_count
+    FROM notebook_tags t
+    LEFT JOIN notebook_note_tags nt ON nt.tag_id = t.id
+    LEFT JOIN notebook_notes n ON n.id = nt.note_id AND n.created_by = t.user_id
+    WHERE t.user_id = ? AND t.id = ?
+    GROUP BY t.id
+  `).get(userId, labelId);
+}
+
+function noteWithLabels(noteId, userId, { trashed = false } = {}) {
+  const note = noteById(noteId, userId, { trashed });
+  if (!note) return null;
+  return attachLabelsToNotes([note])[0] || note;
+}
+
+function validNotebookLabelIds(raw) {
+  if (raw === undefined || raw === null) return { value: [] };
+  if (!Array.isArray(raw)) {
+    return { error: 'label_ids must be an array.' };
+  }
+
+  const seen = new Set();
+  const value = [];
+  for (const entry of raw) {
+    const labelId = parseInt(entry, 10);
+    if (!labelId || seen.has(labelId)) continue;
+    seen.add(labelId);
+    value.push(labelId);
+  }
+  return { value };
+}
+
+function setNotebookLabels(noteId, userId, rawLabelIds) {
+  const parsed = validNotebookLabelIds(rawLabelIds);
+  if (parsed.error) return parsed;
+
+  const labelIds = parsed.value;
+  const note = activeNoteById(noteId, userId);
+  if (!note) {
+    return { error: 'Note not found.' };
+  }
+
+  const conn = dbConn();
+  const ownedLabels = labelIds.length
+    ? conn.prepare(`
+        SELECT id
+        FROM notebook_tags
+        WHERE user_id = ? AND id IN (${labelIds.map(() => '?').join(', ')})
+      `).all(userId, ...labelIds).map((row) => row.id)
+    : [];
+
+  if (ownedLabels.length !== labelIds.length) {
+    return { error: 'Label not found.' };
+  }
+
+  const tx = conn.transaction((ids) => {
+    conn.prepare('DELETE FROM notebook_note_tags WHERE note_id = ?').run(noteId);
+    if (!ids.length) return;
+    const insert = conn.prepare(`
+      INSERT INTO notebook_note_tags (note_id, tag_id)
+      VALUES (?, ?)
+    `);
+    for (const labelId of ids) {
+      insert.run(noteId, labelId);
+    }
+  });
+
+  tx(ownedLabels);
+  return { value: noteWithLabels(noteId, userId) };
 }
 
 function parseNullableParentId(value) {
@@ -453,6 +584,154 @@ router.get('/locked', (req, res) => {
   }
 });
 
+router.get('/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    res.json({ data: loadNotebookLabels(userId) });
+  } catch (err) {
+    log.error('GET /labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.post('/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const vName = str(req.body.name, 'name', { max: 60 });
+    const vColor = color(req.body.color, 'color');
+    const errs = collectErrors([vName, vColor]);
+    if (errs.length) {
+      return res.status(400).json({ error: errs.join(' '), code: 400 });
+    }
+
+    try {
+      const result = dbConn().prepare(`
+        INSERT INTO notebook_tags (name, user_id, color)
+        VALUES (?, ?, ?)
+      `).run(vName.value, userId, vColor.value || '#6B7280');
+      res.status(201).json({ data: loadNotebookLabel(userId, result.lastInsertRowid) });
+    } catch (err) {
+      if (String(err?.message || '').includes('UNIQUE')) {
+        return res.status(409).json({ error: 'Label name already exists.', code: 409 });
+      }
+      throw err;
+    }
+  } catch (err) {
+    log.error('POST /labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.patch('/labels/:labelId', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const labelId = parseInt(req.params.labelId, 10);
+    if (!labelId) {
+      return res.status(400).json({ error: 'Invalid label ID.', code: 400 });
+    }
+
+    const label = dbConn().prepare(`
+      SELECT *
+      FROM notebook_tags
+      WHERE id = ? AND user_id = ?
+    `).get(labelId, userId);
+    if (!label) {
+      return res.status(404).json({ error: 'Label not found.', code: 404 });
+    }
+
+    const checks = [];
+    if (req.body.name !== undefined) checks.push(str(req.body.name, 'name', { max: 60 }));
+    if (req.body.color !== undefined) checks.push(color(req.body.color, 'color'));
+    const errs = collectErrors(checks);
+    if (errs.length) {
+      return res.status(400).json({ error: errs.join(' '), code: 400 });
+    }
+
+    const name = req.body.name !== undefined ? String(req.body.name).trim() : label.name;
+    const nextColor = req.body.color !== undefined ? req.body.color : label.color;
+
+    try {
+      dbConn().prepare(`
+        UPDATE notebook_tags
+        SET name = ?, color = ?
+        WHERE id = ? AND user_id = ?
+      `).run(name, nextColor || '#6B7280', labelId, userId);
+      res.json({ data: loadNotebookLabel(userId, labelId) });
+    } catch (err) {
+      if (String(err?.message || '').includes('UNIQUE')) {
+        return res.status(409).json({ error: 'Label name already exists.', code: 409 });
+      }
+      throw err;
+    }
+  } catch (err) {
+    log.error('PATCH /labels/:labelId', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.delete('/labels/:labelId', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const labelId = parseInt(req.params.labelId, 10);
+    if (!labelId) {
+      return res.status(400).json({ error: 'Invalid label ID.', code: 400 });
+    }
+
+    const result = dbConn().prepare(`
+      DELETE FROM notebook_tags
+      WHERE id = ? AND user_id = ?
+    `).run(labelId, userId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Label not found.', code: 404 });
+    }
+    res.status(204).end();
+  } catch (err) {
+    log.error('DELETE /labels/:labelId', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.get('/:id/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const note = noteById(noteId, userId);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found.', code: 404 });
+    }
+
+    res.json({ data: attachLabelsToNotes([note])[0]?.labels || [] });
+  } catch (err) {
+    log.error('GET /:id/labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.put('/:id/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const result = setNotebookLabels(noteId, userId, req.body.label_ids);
+    if (result.error) {
+      const status = result.error === 'Note not found.' ? 404 : result.error === 'Label not found.' ? 404 : 400;
+      return res.status(status).json({ error: result.error, code: status });
+    }
+
+    res.json({ data: result.value });
+  } catch (err) {
+    log.error('PUT /:id/labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
 router.get('/search', (req, res) => {
   try {
     const userId = req.session.userId;
@@ -492,9 +771,17 @@ router.get('/search', (req, res) => {
             n.content
           ELSE NULL
         END AS excerpt,
-        CASE
+      CASE
           WHEN lower(n.title) LIKE lower(?) ESCAPE '\\' THEN 0
           WHEN lower(n.content) LIKE lower(?) ESCAPE '\\' THEN 1
+          WHEN EXISTS (
+            SELECT 1
+            FROM notebook_note_tags nt
+            JOIN notebook_tags t ON t.id = nt.tag_id
+            WHERE nt.note_id = n.id
+              AND t.user_id = n.created_by
+              AND lower(t.name) LIKE lower(?) ESCAPE '\\'
+          ) THEN 2
           ELSE 2
         END AS relevance
       FROM notebook_notes n
@@ -509,6 +796,14 @@ router.get('/search', (req, res) => {
         AND (
           lower(n.title) LIKE lower(?) ESCAPE '\\'
           OR lower(n.content) LIKE lower(?) ESCAPE '\\'
+          OR EXISTS (
+            SELECT 1
+            FROM notebook_note_tags nt
+            JOIN notebook_tags t ON t.id = nt.tag_id
+            WHERE nt.note_id = n.id
+              AND t.user_id = n.created_by
+              AND lower(t.name) LIKE lower(?) ESCAPE '\\'
+          )
         )
       ORDER BY relevance ASC, n.updated_at DESC
       LIMIT 50
@@ -519,12 +814,14 @@ router.get('/search', (req, res) => {
       likePattern,
       likePattern,
       likePattern,
+      likePattern,
       userId,
+      likePattern,
       likePattern,
       likePattern,
     );
 
-    res.json({ data: results });
+    res.json({ data: attachLabelsToNotes(results) });
   } catch (err) {
     log.error('GET /search', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
@@ -605,7 +902,7 @@ router.get('/:id', (req, res) => {
 
     res.json({
       data: {
-        ...note,
+        ...attachLabelsToNotes([note])[0],
         child_count: children.length,
       },
     });
@@ -656,7 +953,7 @@ router.post('/', (req, res) => {
 
     normalizeSiblingOrder(parentId, userId);
 
-    const note = ownedNote(result.lastInsertRowid, userId);
+    const note = noteWithLabels(result.lastInsertRowid, userId);
     res.status(201).json({ data: note });
   } catch (err) {
     log.error('POST /', err);
@@ -748,7 +1045,7 @@ router.put('/:id', (req, res) => {
       parentsToNormalize.forEach((parentId) => normalizeSiblingOrder(parentId, userId, { locked: note.locked_at != null }));
     }
 
-    const updated = ownedNote(noteId, userId);
+    const updated = noteWithLabels(noteId, userId);
     res.json({ data: updated });
   } catch (err) {
     log.error('PUT /:id', err);
