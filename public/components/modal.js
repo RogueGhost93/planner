@@ -190,7 +190,7 @@ function _doClose() {
  */
 export function openModal({ title, content, onSave, onDelete, onClose, size = 'md' } = {}) {
   // Vorheriges Modal schließen (kein Stacking)
-  if (activeOverlay) closeModal();
+  if (activeOverlay) _doClose();
 
   // Focus-Restore vorbereiten
   previouslyFocused = document.activeElement;

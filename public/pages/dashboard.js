@@ -280,6 +280,10 @@ function setDashboardEditMode(container, enabled) {
     btn.classList.toggle('fab-settings--active', enabled);
     btn.setAttribute('aria-pressed', String(enabled));
   }
+  const testBoardBtn = container.querySelector('#dashboard-test-board-edit-toggle');
+  if (testBoardBtn) {
+    testBoardBtn.setAttribute('aria-pressed', String(enabled));
+  }
 }
 
 // --------------------------------------------------------
@@ -1199,21 +1203,34 @@ function isTickersEnabled() {
 
 function renderQuoteWidget(quote, span = 'full', height = 'normal') {
   if (!quote || !isQuoteEnabled()) return '';
-  const compact = height === 'xxs' || height === 'xs';
   const quoteText = String(quote.quote ?? '').trim();
-  const previewText = compact
-    ? quoteText.split(/\s+/).slice(0, compact && height === 'xxs' ? 16 : 28).join(' ')
-    : quoteText;
-  const excerpt = compact
-    ? `<div class="quote-widget__excerpt">${esc(previewText)}${previewText.length < quoteText.length ? '…' : ''}</div>`
-    : `<blockquote class="quote-widget__text">${esc(quoteText)}</blockquote>`;
-  const author = quote.author
-    ? compact
-      ? height === 'xxs'
-        ? ''
-        : `<div class="quote-widget__author">\u2014 ${esc(quote.author)}</div>`
-      : `<span class="quote-widget__author">\u2014 ${esc(quote.author)}</span>`
-    : '';
+  const author = quote.author ? `<span class="quote-widget__author">\u2014 ${esc(quote.author)}</span>` : '';
+  const compact = height === 'xxs' || height === 'xs' || height === 'short';
+  if (isDashboardTestVariant()) {
+    const authorHtml = quote.author
+      ? `<div style="margin-top:6px;font-size:11px;line-height:1.2;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">— ${esc(quote.author)}</div>`
+      : '';
+    const bodyStyle = compact
+      ? 'display:flex;flex-direction:column;gap:4px;align-items:flex-start;justify-content:flex-start;min-height:0;padding:6px 16px 10px;overflow:hidden;'
+      : 'display:flex;flex-direction:column;gap:6px;align-items:flex-start;justify-content:flex-start;min-height:0;padding:10px 16px 12px;overflow:hidden;';
+    const textStyle = compact
+      ? 'margin:0;font-size:13px;line-height:1.35;color:var(--color-text-primary);font-style:italic;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;'
+      : 'margin:0;font-size:14px;line-height:1.45;color:var(--color-text-primary);font-style:italic;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;';
+    return `
+      <div class="widget quote-widget ${widgetSpanClass(span)} ${widgetHeightClass(height)}"
+           id="quote-widget" data-widget-id="quote-widget" data-widget-span="${span}" data-widget-height="${height}">
+        ${widgetHeader(null, t('dashboard.quoteOfTheDay'), null, null, null, null, null, { widgetId: 'quote-widget', span })}
+        <div class="widget__body quote-widget__body" style="${bodyStyle}">
+          <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;width:100%;">
+            <i data-lucide="quote" class="quote-widget__icon" aria-hidden="true" style="flex:0 0 auto;width:${compact ? 14 : 18}px;height:${compact ? 14 : 18}px;margin-top:2px;"></i>
+            <div class="quote-widget__content" style="display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 auto;">
+              <div class="quote-widget__copy" style="${textStyle}">${esc(quoteText)}</div>
+              ${authorHtml ? `<div style="display:block;padding-left:18px;">${authorHtml}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }
   return `
     <div class="widget quote-widget ${widgetSpanClass(span)} ${widgetHeightClass(height)}${compact ? ' quote-widget--compact' : ''}"
          id="quote-widget" data-widget-id="quote-widget" data-widget-span="${span}" data-widget-height="${height}">
@@ -1221,7 +1238,7 @@ function renderQuoteWidget(quote, span = 'full', height = 'normal') {
       <div class="widget__body quote-widget__body${compact ? ' quote-widget__body--compact' : ''}">
         <i data-lucide="quote" class="quote-widget__icon" aria-hidden="true"></i>
         <div class="quote-widget__content">
-          ${excerpt}
+          <blockquote class="quote-widget__text">${esc(quoteText)}</blockquote>
           ${author}
         </div>
       </div>
@@ -1515,6 +1532,7 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
 
   const desktopQuery = window.matchMedia('(min-width: 1024px)');
   const isEditMode = () => container.querySelector('.dashboard')?.classList.contains('dashboard--edit-mode');
+  const canInteract = () => isEditMode() && (desktopQuery.matches || isDashboardTestVariant());
   const slotsById = new Map(
     [...board.querySelectorAll('.dashboard-test-board__slot')].map((slot) => [slot.dataset.boardWidgetId, slot])
   );
@@ -1596,7 +1614,7 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
   };
 
   const beginInteraction = (event, type, dir = null) => {
-    if (!desktopQuery.matches || !isEditMode()) return;
+    if (!canInteract()) return;
     const slot = event.target.closest('.dashboard-test-board__slot');
     if (!slot) return;
     const id = slot.dataset.boardWidgetId;
@@ -1621,7 +1639,7 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
   };
 
   board.addEventListener('pointerdown', (event) => {
-    if (!desktopQuery.matches || !isEditMode()) return;
+    if (!canInteract()) return;
     const resizeHandle = event.target.closest('[data-action="test-resize"]');
     if (resizeHandle) {
       event.preventDefault();
@@ -2457,8 +2475,15 @@ export async function render(container, { user }) {
           ${testBoardHtml}
         </div>
       </div>
-        ${renderLegacyBoardNotes(boardNotes)}
-      </div>
+      ${renderLegacyBoardNotes(boardNotes)}
+      <button class="dashboard-test-board__edit-toggle" id="dashboard-test-board-edit-toggle" type="button"
+              aria-pressed="${isDashboardEditModeEnabled() ? 'true' : 'false'}"
+              aria-label="Toggle edit mode" title="Toggle edit mode">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M12 20h9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </button>
       ${renderFab(user)}
     `;
 
@@ -2505,6 +2530,16 @@ export async function render(container, { user }) {
     wireQuickNotes(container);
     wireWebviewCards(container);
     if (window.lucide) window.lucide.createIcons();
+    const testEditToggle = container.querySelector('#dashboard-test-board-edit-toggle');
+    if (testEditToggle) {
+      testEditToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const enabled = !container.querySelector('.dashboard')?.classList.contains('dashboard--edit-mode');
+        setDashboardEditMode(container, enabled);
+        testEditToggle.setAttribute('aria-pressed', String(enabled));
+      });
+    }
     return;
   }
 
