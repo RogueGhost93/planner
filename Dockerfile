@@ -19,6 +19,8 @@ FROM node:22-slim
 
 RUN apt-get update && apt-get install -y \
     libsqlcipher0 \
+    ffmpeg \
+    poppler-utils \
     gosu \
     && rm -rf /var/lib/apt/lists/*
 

@@ -29,16 +29,24 @@
   }
 }
 
+.widget-layout--height-xs {
+  --widget-fixed-height: 200px;
+}
+
 .widget-layout--height-short {
-  --widget-fixed-height: 320px;
+  --widget-fixed-height: 250px;
 }
 
 .widget-layout--height-normal {
-  --widget-fixed-height: 410px;
+  --widget-fixed-height: 350px;
 }
 
 .widget-layout--height-tall {
-  --widget-fixed-height: 520px;
+  --widget-fixed-height: 450px;
+}
+
+.widget-layout--height-xlarge {
+  --widget-fixed-height: 600px;
 }
 
 @media (min-width: 1440px) {
@@ -86,7 +94,7 @@
     grid-column: span 2;
   }
 
-  /* Fixed widget height — sized for 6 calendar event rows */
+  /* Fixed widget height presets */
   .widget:not(#quote-widget):not(.widget--meals):not(.widget--board-notes) {
     height: var(--widget-fixed-height, 410px);
   }

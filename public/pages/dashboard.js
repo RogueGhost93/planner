@@ -221,11 +221,7 @@ function nextWidgetSpan(span = '1') {
 
 function widgetHeightButton(widgetId, height = 'normal') {
   const nextHeight = nextDashboardWidgetHeight(height);
-  const nextLabel = nextHeight === 'short'
-    ? 'short'
-    : nextHeight === 'tall'
-      ? 'tall'
-      : 'normal';
+  const nextLabel = dashboardWidgetHeightLabel(nextHeight);
   return `
     <button class="widget__height-btn" type="button"
             data-action="cycle-widget-height" data-widget-id="${widgetId}"
@@ -1100,16 +1096,19 @@ function wireDashboardLayout(container, layoutState, data) {
       if (!widget) return;
       const current = widget.dataset.widgetHeight || 'normal';
       const next = nextDashboardWidgetHeight(current);
+      const nextLabel = dashboardWidgetHeightLabel(next);
       layoutState.heights[widgetId] = next;
       widget.dataset.widgetHeight = next;
       widget.classList.remove(
+        'widget-layout--height-xs',
         'widget-layout--height-short',
         'widget-layout--height-normal',
         'widget-layout--height-tall',
+        'widget-layout--height-xlarge',
       );
       widget.classList.add(widgetHeightClass(next));
       heightBtn.querySelector('.widget__height-btn-label').textContent = dashboardWidgetHeightLabel(next);
-      heightBtn.setAttribute('aria-label', `Resize widget height to ${next}`);
+      heightBtn.setAttribute('aria-label', `Resize widget height to ${nextLabel}`);
       saveLayout();
       return;
     }

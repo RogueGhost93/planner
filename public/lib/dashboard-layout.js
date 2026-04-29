@@ -9,7 +9,7 @@ export const DASHBOARD_WIDGETS = [
 export const DASHBOARD_WIDGET_VISIBILITY_KEY = 'planium-dashboard-widget-visibility';
 
 const DASHBOARD_WIDGET_SPANS = new Set(['1', '2', 'full']);
-const DASHBOARD_WIDGET_HEIGHTS = new Set(['short', 'normal', 'tall']);
+const DASHBOARD_WIDGET_HEIGHTS = new Set(['xs', 'short', 'normal', 'tall', 'xlarge']);
 const DASHBOARD_LAYOUT_TOKEN = /^[A-Za-z0-9:_-]+$/;
 
 function normalizeDashboardWidgetIds(value) {
@@ -89,14 +89,19 @@ export function dashboardWidgetHeightClass(height = 'normal') {
 }
 
 export function nextDashboardWidgetHeight(height = 'normal') {
+  if (height === 'xs') return 'short';
   if (height === 'short') return 'normal';
   if (height === 'normal') return 'tall';
-  return 'short';
+  if (height === 'tall') return 'xlarge';
+  return 'xs';
 }
 
 export function dashboardWidgetHeightLabel(height = 'normal') {
+  if (height === 'xs') return 'XS';
   if (height === 'short') return 'S';
+  if (height === 'normal') return 'M';
   if (height === 'tall') return 'L';
+  if (height === 'xlarge') return 'XL';
   return 'M';
 }
 
