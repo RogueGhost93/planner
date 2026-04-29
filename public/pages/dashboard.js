@@ -176,10 +176,16 @@ function dashboardTestBoardCellSize(board) {
   return { colWidth, rowHeight, columnGap, rowGap };
 }
 
-function dashboardTestBoardRectToStyle(rect) {
+function dashboardTestBoardRectToPixels(rect, metrics) {
+  const left = rect.x * (metrics.colWidth + metrics.columnGap);
+  const top = rect.y * (metrics.rowHeight + metrics.rowGap);
+  const width = (rect.w * metrics.colWidth) + ((rect.w - 1) * metrics.columnGap);
+  const height = (rect.h * metrics.rowHeight) + ((rect.h - 1) * metrics.rowGap);
   return {
-    gridColumn: `${rect.x + 1} / span ${rect.w}`,
-    gridRow: `${rect.y + 1} / span ${rect.h}`,
+    left: `${left}px`,
+    top: `${top}px`,
+    width: `${width}px`,
+    height: `${height}px`,
   };
 }
 
