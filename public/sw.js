@@ -12,9 +12,9 @@
  *   API: Always network (no caching of user data)
  */
 
-const SHELL_CACHE   = 'planium-shell-v218';
-const PAGES_CACHE   = 'planium-pages-v218';
-const ASSETS_CACHE  = 'planium-assets-v218';
+const SHELL_CACHE   = 'planium-shell-v232';
+const PAGES_CACHE   = 'planium-pages-v232';
+const ASSETS_CACHE  = 'planium-assets-v232';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App shell: needed immediately for first render
@@ -25,6 +25,7 @@ const APP_SHELL = [
   '/router.js',
   '/i18n.js',
   '/rrule-ui.js',
+  '/lib/dev-tools.js',
   '/locales/en.json',
   '/sw-register.js',
   '/lucide.min.js',

@@ -10,6 +10,7 @@ import { esc } from '/utils/html.js';
 import { initNotifications, stopNotifications } from '/components/task-notifications.js';
 import { openModal, closeModal } from '/components/modal.js';
 import { init as initPTR } from '/utils/pullToRefresh.js';
+import { isDevToolsEnabled } from '/lib/dev-tools.js';
 
 // --------------------------------------------------------
 // Route definitions
@@ -18,6 +19,7 @@ import { init as initPTR } from '/utils/pullToRefresh.js';
 const ROUTES = [
   { path: '/setup',    page: '/pages/setup.js',    requiresAuth: false, module: null        },
   { path: '/login',    page: '/pages/login.js',    requiresAuth: false, module: null        },
+  { path: '/dashboard-test', page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
   { path: '/',         page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
   { path: '/tasks',    page: '/pages/tasks.js',     requiresAuth: true, module: 'tasks'     },
   { path: '/lists',    page: '/pages/lists.js',     requiresAuth: true, module: 'lists'     },
@@ -86,6 +88,7 @@ const ALL_ACCENTS = [
 
 const NAV_ITEM_DEFS = [
   { path: '/',         labelKey: 'nav.dashboard', icon: 'layout-dashboard' },
+  { path: '/dashboard-test', label: 'Dashboard Test', icon: 'flask-conical' },
   { path: '/tasks',    labelKey: 'nav.tasks',     icon: 'check-square'     },
   { path: '/lists',    labelKey: 'nav.lists',     icon: 'list-checks'      },
   { path: '/notes',    labelKey: 'nav.notes',     icon: 'sticky-note'      },
@@ -326,7 +329,7 @@ let isNavigating = false;
 // Router
 // --------------------------------------------------------
 
-const ROUTE_ORDER = ['/', '/tasks', '/lists', '/notes', '/notebook', '/calendar', '/news',
+const ROUTE_ORDER = ['/', '/dashboard-test', '/tasks', '/lists', '/notes', '/notebook', '/calendar', '/news',
                      '/web', '/meals', '/contacts', '/settings'];
 
 function getDirection(fromPath, toPath) {
@@ -355,6 +358,10 @@ async function navigate(path, userOrPushState = true, pushState = true) {
       initNotifications(currentUser);
     } else {
       pushState = userOrPushState;
+    }
+
+    if (path === '/dashboard-test' && !isDevToolsEnabled()) {
+      path = '/';
     }
 
     // Remember old path before currentPath is updated - for direction calculation
@@ -766,7 +773,7 @@ function navItems() {
   return currentNavOrder.map((path) => byPath.get(path)).filter(Boolean).map((item) => ({
     ...item,
     label: item.label ?? t(item.labelKey),
-  }));
+  })).filter((item) => item.path !== '/dashboard-test' || isDevToolsEnabled());
 }
 
 function navItemHtml({ path, label, icon }, hidden = false) {

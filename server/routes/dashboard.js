@@ -13,13 +13,41 @@ const log = createLogger('Dashboard');
 
 const router = express.Router();
 
-const DASHBOARD_LAYOUT_KEY = 'dashboard_layout';
+const DASHBOARD_LAYOUT_KEYS = {
+  main: 'dashboard_layout',
+  test: 'dashboard_layout_test',
+};
 
-function readDashboardLayout(userId) {
+const QUICK_NOTE_KEYS = {
+  main: {
+    public: 'quick_note_public',
+    private: 'quick_note',
+  },
+  test: {
+    public: 'quick_note_public_test',
+    private: 'quick_note_test',
+  },
+};
+
+function dashboardVariantForReq(req) {
+  return req.baseUrl.endsWith('/dashboard-test') ? 'test' : 'main';
+}
+
+function dashboardLayoutKeyForReq(req) {
+  return DASHBOARD_LAYOUT_KEYS[dashboardVariantForReq(req)] ?? DASHBOARD_LAYOUT_KEYS.main;
+}
+
+function quickNoteKeyForReq(req, scope) {
+  const variant = dashboardVariantForReq(req);
+  const keys = QUICK_NOTE_KEYS[variant] ?? QUICK_NOTE_KEYS.main;
+  return scope === 'private' ? keys.private : keys.public;
+}
+
+function readDashboardLayout(userId, req) {
   try {
     const row = db.get()
       .prepare(`SELECT value FROM user_settings WHERE user_id = ? AND key = ?`)
-      .get(userId, DASHBOARD_LAYOUT_KEY);
+      .get(userId, dashboardLayoutKeyForReq(req));
     if (!row?.value) return defaultDashboardLayout();
     return normalizeDashboardLayout(JSON.parse(row.value));
   } catch (err) {
@@ -28,8 +56,8 @@ function readDashboardLayout(userId) {
   }
 }
 
-function saveDashboardLayout(userId, layout) {
-  const current = readDashboardLayout(userId);
+function saveDashboardLayout(userId, layout, req) {
+  const current = readDashboardLayout(userId, req);
   const normalized = normalizeDashboardLayout(layout);
   const saved = {
     ...normalized,
@@ -40,7 +68,7 @@ function saveDashboardLayout(userId, layout) {
   db.get().prepare(`
     INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
     ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
-  `).run(userId, DASHBOARD_LAYOUT_KEY, JSON.stringify(saved));
+  `).run(userId, dashboardLayoutKeyForReq(req), JSON.stringify(saved));
   return saved;
 }
 
@@ -228,7 +256,7 @@ router.get('/', (req, res) => {
     result.listItems = [];
   }
 
-  result.layout = readDashboardLayout(req.session.userId);
+  result.layout = readDashboardLayout(req.session.userId, req);
 
   res.json(result);
   } catch (err) {
@@ -239,7 +267,7 @@ router.get('/', (req, res) => {
 
 router.get('/layout', (req, res) => {
   try {
-    res.json({ data: { layout: readDashboardLayout(req.session.userId) } });
+    res.json({ data: { layout: readDashboardLayout(req.session.userId, req) } });
   } catch (err) {
     log.error('dashboard layout GET:', err.message);
     res.status(500).json({ error: 'Layout konnte nicht geladen werden.', code: 500 });
@@ -252,7 +280,7 @@ router.get('/layout', (req, res) => {
  */
 router.put('/layout', (req, res) => {
   try {
-    const normalized = saveDashboardLayout(req.session.userId, req.body?.layout ?? req.body ?? {});
+    const normalized = saveDashboardLayout(req.session.userId, req.body?.layout ?? req.body ?? {}, req);
     res.json({ ok: true, data: { layout: normalized } });
   } catch (err) {
     log.error('dashboard layout save:', err.message);
@@ -267,16 +295,17 @@ router.put('/layout', (req, res) => {
 router.get('/quick-note', (req, res) => {
   try {
     const scope = req.query.scope === 'private' ? 'private' : 'public';
+    const key = quickNoteKeyForReq(req, scope);
     let text = '';
     if (scope === 'public') {
       const row = db.get()
-        .prepare("SELECT value FROM app_settings WHERE key = 'quick_note_public'")
-        .get();
+        .prepare('SELECT value FROM app_settings WHERE key = ?')
+        .get(key);
       text = row?.value ?? '';
     } else {
       const row = db.get()
-        .prepare("SELECT value FROM user_settings WHERE user_id = ? AND key = 'quick_note'")
-        .get(req.session.userId);
+        .prepare('SELECT value FROM user_settings WHERE user_id = ? AND key = ?')
+        .get(req.session.userId, key);
       text = row?.value ?? '';
     }
     res.json({ data: { text } });
@@ -295,16 +324,17 @@ router.put('/quick-note', (req, res) => {
   try {
     const scope = req.query.scope === 'private' ? 'private' : 'public';
     const text = String(req.body.text ?? '').slice(0, 10000);
+    const key = quickNoteKeyForReq(req, scope);
     if (scope === 'public') {
       db.get().prepare(`
-        INSERT INTO app_settings (key, value) VALUES ('quick_note_public', ?)
+        INSERT INTO app_settings (key, value) VALUES (?, ?)
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
-      `).run(text);
+      `).run(key, text);
     } else {
       db.get().prepare(`
-        INSERT INTO user_settings (user_id, key, value) VALUES (?, 'quick_note', ?)
+        INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
         ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
-      `).run(req.session.userId, text);
+      `).run(req.session.userId, key, text);
     }
     res.json({ ok: true });
   } catch (err) {

@@ -4,8 +4,9 @@
  * Abhängigkeiten: /api.js, /components/modal.js
  */
 
-import { api, ApiError } from '/api.js';
+import { api } from '/api.js';
 import { openModal, closeModal } from '/components/modal.js';
+import { openNewBookmarkModal } from '/pages/bookmarks.js';
 import { esc } from '/utils/html.js';
 
 /**
@@ -115,18 +116,12 @@ export async function openSaveLinkModal(options = '', initialTitle = '') {
         </div>
       ` : ''}
 
-      ${linkdingConfigured ? `
-        <div class="form-group" id="linkding-options-group">
-          <label class="settings-toggle-label" for="save-link-mark-read">
-            <input type="checkbox" id="save-link-mark-read" />
-            <span>Mark as read</span>
-          </label>
-        </div>
-      ` : ''}
-
       <div id="save-link-error" class="form-error" hidden></div>
 
-      <button type="submit" class="btn btn--primary" style="align-self:flex-end">Save Link</button>
+      <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-4);display:flex;justify-content:flex-end;gap:var(--space-2)">
+        <button type="button" class="btn btn--ghost" id="save-link-cancel">Cancel</button>
+        <button type="submit" class="btn btn--primary" style="align-self:flex-end">Save Link</button>
+      </div>
     </form>
   `;
 
@@ -145,9 +140,13 @@ export async function openSaveLinkModal(options = '', initialTitle = '') {
   const targetRadios = form.querySelectorAll('input[name="save-link-target"]');
   const taskListGroup = form.querySelector('#task-list-group');
   const taskListSelect = form.querySelector('#save-link-task-list');
-  const linkdingGroup = form.querySelector('#linkding-options-group');
-  const markReadCheck = form.querySelector('#save-link-mark-read');
   const errorEl = form.querySelector('#save-link-error');
+  const submitBtn = form.querySelector('button[type="submit"]');
+
+  const updateSubmitLabel = () => {
+    if (!submitBtn) return;
+    submitBtn.textContent = selectedTarget === 'task' ? 'Continue' : 'Save Link';
+  };
 
   // Show/hide task list select based on target
   targetRadios.forEach((radio) => {
@@ -156,9 +155,6 @@ export async function openSaveLinkModal(options = '', initialTitle = '') {
       if (taskListGroup) {
         taskListGroup.style.display = selectedTarget === 'task' ? 'block' : 'none';
       }
-      if (linkdingGroup) {
-        linkdingGroup.style.display = selectedTarget === 'linkding' ? 'block' : 'none';
-      }
     });
   });
 
@@ -166,9 +162,7 @@ export async function openSaveLinkModal(options = '', initialTitle = '') {
   if (taskListGroup) {
     taskListGroup.style.display = selectedTarget === 'task' ? 'block' : 'none';
   }
-  if (linkdingGroup) {
-    linkdingGroup.style.display = selectedTarget === 'linkding' ? 'block' : 'none';
-  }
+  updateSubmitLabel();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -190,39 +184,53 @@ export async function openSaveLinkModal(options = '', initialTitle = '') {
       return;
     }
 
-    const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
 
     try {
-      const payload = {
-        url,
-        title,
-        target,
-        markAsRead: markReadCheck?.checked ?? false,
-      };
-
       if (target === 'task') {
-        payload.taskListId = parseInt(taskListSelect.value, 10);
+        const taskListId = parseInt(taskListSelect?.value, 10);
+        if (!Number.isFinite(taskListId)) {
+          throw new Error('Task list is required');
+        }
+
+        const { openItemEditDialog } = await import('/pages/tasks.js');
+
+        openItemEditDialog({
+          item: {
+            title: title || url,
+            description: url,
+            labels: [],
+            priority: 'none',
+            due_date: '',
+            due_time: '',
+            alarm_at: null,
+            recurrence_rule: null,
+          },
+          listId: taskListId,
+          container: document.createElement('div'),
+          onSaved: () => {
+            window.planium.showToast('Task added', 'success');
+            window.planium.navigate('/tasks');
+          },
+        });
+        return;
       }
 
-      await api.post('/save-link', payload);
-
-      const message = target === 'linkding'
-        ? 'Link saved to Linkding'
-        : 'Task created successfully';
-
-      window.planium?.showToast(message, 'success');
-      closeModal();
+      openNewBookmarkModal(null, {
+        url,
+        title: title || '',
+        description: '',
+        tags: [],
+        unread: true,
+      });
     } catch (err) {
-      if (err instanceof ApiError) {
-        errorEl.textContent = err.data?.error ?? err.message;
-      } else {
-        errorEl.textContent = err.message || 'Failed to save link';
-      }
+      errorEl.textContent = err.message || 'Failed to save link';
       errorEl.hidden = false;
       submitBtn.disabled = false;
     }
   });
+
+  form.querySelector('#save-link-cancel')?.addEventListener('click', () => closeModal());
 
   urlInput.focus();
 }

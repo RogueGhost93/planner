@@ -134,7 +134,7 @@ export async function render(container, { user }) {
         <div style="padding:2rem;text-align:center;color:var(--color-text-disabled);">${t('budget.loadingIndicator')}</div>
       </div>
       <button class="page-fab" id="fab-new-budget" aria-label="${t('budget.newEntryFabLabel')}">
-        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+        <i data-lucide="plus" aria-hidden="true"></i>
       </button>
     </div>
   `;
@@ -506,4 +506,3 @@ async function deleteEntry(id) {
 // --------------------------------------------------------
 // Hilfsfunktion
 // --------------------------------------------------------
-

@@ -696,7 +696,7 @@ export async function render(container, { user }) {
       <div id="list-content" style="flex:1;display:flex;flex-direction:column;overflow:hidden"></div>
       <div class="fab-container" id="lists-fab">
         <button class="fab-main" id="fab-main" aria-label="${t('shopping.fabMenuLabel')}" aria-expanded="false">
-          <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+          <i data-lucide="plus" aria-hidden="true"></i>
         </button>
         <div class="fab-actions" id="fab-actions" aria-hidden="true">
           <button class="fab-action__btn" data-fab-action="add-item">

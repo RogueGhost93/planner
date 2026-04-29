@@ -64,7 +64,7 @@ export async function render(container, { user }) {
       </div>
       <div id="notes-grid" class="notes-grid"></div>
       <button class="page-fab" id="fab-new-note" aria-label="${t('notes.addNoteLabel')}">
-        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+        <i data-lucide="plus" aria-hidden="true"></i>
       </button>
     </div>
   `;

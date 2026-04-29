@@ -187,11 +187,13 @@ export async function render(container, { user }) {
         </div>
       </main>
       </div>
-      <button type="button" class="page-fab bookmarks-fab" id="bookmarks-add-fab" aria-label="Add bookmark" title="Add bookmark" style="--module-accent: var(--module-bookmarks);">
+      <button type="button" class="page-fab" id="bookmarks-add-fab" aria-label="Add bookmark" title="Add bookmark">
         <i data-lucide="plus" aria-hidden="true"></i>
       </button>
     </div>
   `;
+
+  if (window.lucide) window.lucide.createIcons();
 
   bindEvents(container);
   maybeHandleBookmarkletLaunch(container);
@@ -856,7 +858,7 @@ function normalizeBookmarkUrl(value) {
   }
 }
 
-function openNewBookmarkModal(container, prefill = {}) {
+export function openNewBookmarkModal(container = null, prefill = {}) {
   const bookmarkletCode = buildBookmarklet();
   const content = `
     <form id="bookmark-create-form" class="bookmarks-save-form" style="display:grid;gap:var(--space-3)">
@@ -956,8 +958,12 @@ function openNewBookmarkModal(container, prefill = {}) {
 
           window.planium?.showToast('Bookmark saved', 'success');
           closeModal();
-          await loadBookmarks(container);
-          await loadTags(container);
+          if (container && container.querySelector('#bookmarks-container')) {
+            await loadBookmarks(container);
+            await loadTags(container);
+          } else {
+            window.planium?.navigate('/bookmarks');
+          }
         } catch (err) {
           window.planium?.showToast(err.message || 'Failed to save bookmark', 'danger');
           saveBtn.disabled = false;

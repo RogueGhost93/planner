@@ -10,6 +10,7 @@ import { esc } from '/utils/html.js';
 import { showConfirm } from '/components/modal.js';
 import { openDashboardWidgetPicker } from '/components/dashboard-widget-picker.js';
 import { previewTone } from '/components/task-notifications.js';
+import { isDevToolsEnabled, setDevToolsEnabled } from '/lib/dev-tools.js';
 import {
   loadWebviewConfig,
   saveWebviewConfig,
@@ -165,6 +166,7 @@ export async function render(container, { user }) {
       ? (appleStatus.lastSync ? t('settings.configuredLastSync', { date: formatDateTime(appleStatus.lastSync) }) : t('settings.configured'))
       : t('settings.notConnected');
   const showPhoneNavMode = isPhoneViewport();
+  const devToolsEnabled = isDevToolsEnabled();
 
   container.innerHTML = `
     <div class="page settings-page">
@@ -277,6 +279,18 @@ export async function render(container, { user }) {
               <input type="checkbox" id="show-tickers" ${localStorage.getItem('planium-show-tickers') === 'true' ? 'checked' : ''} />
               <span class="toggle-switch__slider"></span>
             </label>
+          </div>
+
+          <div class="settings-toggle-row" style="margin-top:var(--space-4)">
+            <label class="settings-toggle-label" for="dev-tools-enabled">Dev tools</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="dev-tools-enabled" ${devToolsEnabled ? 'checked' : ''} />
+              <span class="toggle-switch__slider"></span>
+            </label>
+          </div>
+          <span class="form-hint">Shows the hidden dashboard test board on this device only.</span>
+          <div style="margin-top:var(--space-2);display:flex;gap:var(--space-2);flex-wrap:wrap">
+            <button class="btn btn--secondary" type="button" id="open-dashboard-test" ${devToolsEnabled ? '' : 'disabled'}>Open test board</button>
           </div>
 
           <div style="margin-top:var(--space-4);padding-top:var(--space-4);border-top:1px solid var(--color-border-subtle)">
@@ -827,6 +841,29 @@ function bindEvents(container, user, webviewStatus) {
       }
     });
   }
+
+  const devToolsToggle = container.querySelector('#dev-tools-enabled');
+  const openTestBoardBtn = container.querySelector('#open-dashboard-test');
+  if (devToolsToggle) {
+    devToolsToggle.addEventListener('change', () => {
+      setDevToolsEnabled(devToolsToggle.checked);
+      if (openTestBoardBtn) {
+        openTestBoardBtn.disabled = !devToolsToggle.checked;
+      }
+      window.planium?.refreshNavigation?.();
+      if (!devToolsToggle.checked && window.location.pathname === '/dashboard-test') {
+        window.planium?.navigate('/');
+      }
+      window.planium?.showToast(
+        devToolsToggle.checked ? 'Dev tools enabled' : 'Dev tools disabled',
+        'success'
+      );
+    });
+  }
+  openTestBoardBtn?.addEventListener('click', () => {
+    if (!devToolsToggle?.checked) return;
+    window.planium?.navigate('/dashboard-test');
+  });
 
   const webviewList = container.querySelector('#webview-settings-list');
   const webviewStatusText = container.querySelector('#webview-status-text');

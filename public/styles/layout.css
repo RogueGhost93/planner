@@ -544,7 +544,7 @@
   width: 52px;
   height: 52px;
   border-radius: var(--radius-full);
-  background-color: var(--module-accent, var(--color-accent));
+  background-color: var(--color-accent);
   color: #fff;
   box-shadow: var(--shadow-lg);
   display: flex;
@@ -555,6 +555,18 @@
   flex-shrink: 0;
   transition: transform var(--transition-base), background-color var(--transition-fast);
 }
+
+.fab-container .fab-main i,
+.fab-container .fab-main svg {
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
+.fab-container .fab-main:hover {
+  background-color: var(--color-accent-hover);
+}
+
 .fab-container .fab-main:active { transform: scale(0.95); }
 .fab-container--open .fab-main { transform: rotate(45deg); background-color: var(--neutral-600); }
 
@@ -601,7 +613,7 @@
   width: 52px;
   height: 52px;
   border-radius: var(--radius-full);
-  background-color: var(--module-accent, var(--color-accent));
+  background-color: var(--color-accent);
   color: #ffffff;
   box-shadow: var(--shadow-lg);
   display: flex;
@@ -614,8 +626,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.page-fab i,
+.page-fab svg {
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+
 .page-fab:hover {
-  background-color: color-mix(in srgb, var(--module-accent, var(--color-accent)) 85%, black);
+  background-color: var(--color-accent-hover);
 }
 
 .page-fab:active {

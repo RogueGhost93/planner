@@ -610,8 +610,8 @@ export async function render(container, _context) {
       <div class="filebox-dropzone" id="filebox-dropzone" role="button" tabindex="0" aria-label="Upload files"></div>
 
       <div class="filebox-list" id="filebox-list"></div>
-      <button type="button" class="page-fab filebox-fab" id="filebox-upload-fab" aria-label="Upload files" title="Upload files" style="--module-accent: var(--module-filebox);">
-          <i data-lucide="upload" aria-hidden="true"></i>
+      <button type="button" class="page-fab filebox-fab" id="filebox-upload-fab" aria-label="Upload files" title="Upload files">
+          <i data-lucide="plus" aria-hidden="true"></i>
       </button>
     </div>
   `;

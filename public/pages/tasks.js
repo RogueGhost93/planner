@@ -2134,7 +2134,7 @@ function renderPersonalView(container) {
       <div id="personal-items-container"></div>
     </div>
     <button class="page-fab" id="fab-new-personal-item" aria-label="${t('tasks.personalListAdd')}">
-      <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+      <i data-lucide="plus" aria-hidden="true"></i>
     </button>
   `;
 
@@ -3092,9 +3092,12 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
         <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6);display:flex;justify-content:space-between;align-items:center;gap:var(--space-3)">
           ${item.id ? `<button type="button" class="btn btn--ghost" id="pi-delete-btn"
                   style="color:var(--color-danger)">${t('common.delete')}</button>` : '<span></span>'}
-          <button type="submit" class="btn btn--primary" id="pi-submit">
-            ${item.id ? t('common.save') : (t('common.add') ?? 'Add')}
-          </button>
+          <div style="display:flex;gap:var(--space-2)">
+            <button type="button" class="btn btn--ghost" id="pi-cancel-btn">${t('common.cancel') ?? 'Cancel'}</button>
+            <button type="submit" class="btn btn--primary" id="pi-submit">
+              ${item.id ? t('common.save') : (t('common.add') ?? 'Add')}
+            </button>
+          </div>
         </div>
       </form>
     `,
@@ -3170,6 +3173,8 @@ export function openItemEditDialog({ item, container, listId = null, onSaved = n
           errEl.hidden = false;
         }
       });
+
+      panel.querySelector('#pi-cancel-btn')?.addEventListener('click', () => closeModal());
 
       panel.querySelector('#personal-item-form')?.addEventListener('submit', async (e) => {
         e.preventDefault();

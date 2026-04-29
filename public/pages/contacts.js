@@ -90,7 +90,7 @@ export async function render(container, { user }) {
       </div>
       <div id="contacts-list" class="contacts-list"></div>
       <button class="page-fab" id="fab-new-contact" aria-label="${t('contacts.newContactLabel')}">
-        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+        <i data-lucide="plus" aria-hidden="true"></i>
       </button>
     </div>
   `;

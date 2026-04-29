@@ -61,14 +61,195 @@ subscribePersonalItemChange((change) => {
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
-const DASHBOARD_EDIT_MODE_KEY = 'planium-dashboard-edit-mode';
+
+function isDashboardTestVariant() {
+  return window.location.pathname === '/dashboard-test';
+}
+
+function dashboardApiPath(path = '') {
+  return `${isDashboardTestVariant() ? '/dashboard-test' : '/dashboard'}${path}`;
+}
+
+function dashboardStorageKey(base) {
+  return isDashboardTestVariant() ? `${base}:test` : base;
+}
+
+function dashboardTestTemplateKey() {
+  return dashboardStorageKey('planium-dashboard-test-template-v3');
+}
+
+const DASHBOARD_TEST_BOARD_KEY = 'planium-dashboard-test-board-v1';
+const DASHBOARD_TEST_BOARD_COLUMNS = 12;
+const DASHBOARD_TEST_BOARD_ROW_HEIGHT = 88;
+const DASHBOARD_TEST_BOARD_GAP = 16;
+const DASHBOARD_TEST_BOARD_MIN_COLS = 2;
+const DASHBOARD_TEST_BOARD_MIN_ROWS = 2;
+const DASHBOARD_TEST_BOARD_DEFAULTS = {
+  'quote-widget': { x: 0, y: 0, w: 12, h: 2 },
+  'tasks-widget': { x: 0, y: 2, w: 8, h: 4 },
+  'events-widget': { x: 8, y: 2, w: 4, h: 2 },
+  'shopping-widget': { x: 8, y: 4, w: 4, h: 2 },
+  'quick-notes-widget': { x: 8, y: 6, w: 4, h: 3 },
+};
+
+function applyDashboardTestBoardTemplate(layoutState) {
+  if (!isDashboardTestVariant()) return false;
+  if (localStorage.getItem(dashboardTestTemplateKey()) === 'true') return false;
+
+  layoutState.order = [
+    'quote-widget',
+    'events-widget',
+    'shopping-widget',
+    'quick-notes-widget',
+    'tasks-widget',
+  ];
+  layoutState.spans['quote-widget'] = 'full';
+  layoutState.heights['quote-widget'] = 'short';
+  layoutState.spans['tasks-widget'] = '2';
+  layoutState.heights['tasks-widget'] = 'xlarge';
+  layoutState.spans['events-widget'] = '1';
+  layoutState.heights['events-widget'] = 'short';
+  layoutState.spans['shopping-widget'] = '1';
+  layoutState.heights['shopping-widget'] = 'short';
+  layoutState.spans['quick-notes-widget'] = '1';
+  layoutState.heights['quick-notes-widget'] = 'short';
+
+  localStorage.setItem(dashboardTestTemplateKey(), 'true');
+  return true;
+}
+
+function normalizeDashboardTestBoardRect(value, fallback = { x: 0, y: 0, w: 4, h: 3 }) {
+  const rect = value && typeof value === 'object' ? value : fallback;
+  const x = Number.isFinite(Number(rect.x)) ? Math.max(0, Math.floor(Number(rect.x))) : fallback.x;
+  const y = Number.isFinite(Number(rect.y)) ? Math.max(0, Math.floor(Number(rect.y))) : fallback.y;
+  const w = Number.isFinite(Number(rect.w)) ? Math.floor(Number(rect.w)) : fallback.w;
+  const h = Number.isFinite(Number(rect.h)) ? Math.floor(Number(rect.h)) : fallback.h;
+  const safeW = Math.max(DASHBOARD_TEST_BOARD_MIN_COLS, Math.min(DASHBOARD_TEST_BOARD_COLUMNS, w));
+  return {
+    x: Math.max(0, Math.min(Math.max(0, DASHBOARD_TEST_BOARD_COLUMNS - safeW), x)),
+    y: Math.max(0, y),
+    w: safeW,
+    h: Math.max(DASHBOARD_TEST_BOARD_MIN_ROWS, h),
+  };
+}
+
+function loadDashboardTestBoardState(widgetIds = []) {
+  const defaults = {};
+  let yCursor = 0;
+  for (const id of widgetIds) {
+    const fallback = DASHBOARD_TEST_BOARD_DEFAULTS[id] ?? { x: 0, y: yCursor, w: 4, h: 3 };
+    defaults[id] = normalizeDashboardTestBoardRect(fallback, fallback);
+    yCursor = Math.max(yCursor, defaults[id].y + defaults[id].h);
+  }
+
+  try {
+    const raw = localStorage.getItem(DASHBOARD_TEST_BOARD_KEY);
+    if (!raw) {
+      return { rects: defaults };
+    }
+    const parsed = JSON.parse(raw);
+    const rects = {};
+    for (const id of widgetIds) {
+      rects[id] = normalizeDashboardTestBoardRect(parsed?.rects?.[id], defaults[id]);
+    }
+    return { rects };
+  } catch {
+    return { rects: defaults };
+  }
+}
+
+function saveDashboardTestBoardState(state) {
+  try {
+    localStorage.setItem(DASHBOARD_TEST_BOARD_KEY, JSON.stringify({ rects: state.rects }));
+  } catch {
+    // ignore write failures; test board remains usable in-memory
+  }
+}
+
+function dashboardTestBoardCellSize(board) {
+  const styles = window.getComputedStyle(board);
+  const rowHeight = parseFloat(styles.gridAutoRows) || DASHBOARD_TEST_BOARD_ROW_HEIGHT;
+  const columnGap = parseFloat(styles.columnGap) || DASHBOARD_TEST_BOARD_GAP;
+  const rowGap = parseFloat(styles.rowGap) || DASHBOARD_TEST_BOARD_GAP;
+  const width = board.getBoundingClientRect().width || 0;
+  const colWidth = Math.max(1, (width - (columnGap * (DASHBOARD_TEST_BOARD_COLUMNS - 1))) / DASHBOARD_TEST_BOARD_COLUMNS);
+  return { colWidth, rowHeight, columnGap, rowGap };
+}
+
+function dashboardTestBoardRectToStyle(rect) {
+  return {
+    gridColumn: `${rect.x + 1} / span ${rect.w}`,
+    gridRow: `${rect.y + 1} / span ${rect.h}`,
+  };
+}
+
+function dashboardTestBoardOccupied(rows, x, y, w, h) {
+  for (let r = y; r < y + h; r += 1) {
+    if (!rows[r]) rows[r] = Array(DASHBOARD_TEST_BOARD_COLUMNS).fill(false);
+    for (let c = x; c < x + w; c += 1) {
+      if (rows[r][c]) return true;
+    }
+  }
+  return false;
+}
+
+function dashboardTestBoardMark(rows, x, y, w, h) {
+  for (let r = y; r < y + h; r += 1) {
+    if (!rows[r]) rows[r] = Array(DASHBOARD_TEST_BOARD_COLUMNS).fill(false);
+    for (let c = x; c < x + w; c += 1) {
+      rows[r][c] = true;
+    }
+  }
+}
+
+function dashboardTestBoardFindSpot(rows, rect) {
+  const maxWidth = DASHBOARD_TEST_BOARD_COLUMNS - rect.w;
+  for (let y = rect.y; y < rect.y + 800; y += 1) {
+    for (let x = 0; x <= maxWidth; x += 1) {
+      if (!dashboardTestBoardOccupied(rows, x, y, rect.w, rect.h)) {
+        return { x, y, w: rect.w, h: rect.h };
+      }
+    }
+  }
+  return { ...rect };
+}
+
+function packDashboardTestBoardRects(rects, order, activeId = null) {
+  const rows = [];
+  const packed = {};
+  const ids = activeId ? [activeId, ...order.filter((id) => id !== activeId)] : order.slice();
+  for (const id of ids) {
+    const rect = normalizeDashboardTestBoardRect(rects[id], DASHBOARD_TEST_BOARD_DEFAULTS[id] ?? { x: 0, y: 0, w: 4, h: 3 });
+    const placed = dashboardTestBoardFindSpot(rows, rect);
+    packed[id] = placed;
+    dashboardTestBoardMark(rows, placed.x, placed.y, placed.w, placed.h);
+  }
+  return packed;
+}
+
+function renderDashboardTestBoardSlot(widgetId, widgetHtml, rect) {
+  const style = `grid-column:${rect.x + 1} / span ${rect.w};grid-row:${rect.y + 1} / span ${rect.h};`;
+  return `
+    <div class="dashboard-test-board__slot" data-board-widget-id="${widgetId}" style="${style}">
+      ${widgetHtml}
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--nw" data-action="test-resize" data-dir="nw"></div>
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--n" data-action="test-resize" data-dir="n"></div>
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--ne" data-action="test-resize" data-dir="ne"></div>
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--e" data-action="test-resize" data-dir="e"></div>
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--se" data-action="test-resize" data-dir="se"></div>
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--s" data-action="test-resize" data-dir="s"></div>
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--sw" data-action="test-resize" data-dir="sw"></div>
+      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--w" data-action="test-resize" data-dir="w"></div>
+    </div>
+  `;
+}
 
 function isDashboardEditModeEnabled() {
-  return localStorage.getItem(DASHBOARD_EDIT_MODE_KEY) === 'true';
+  return localStorage.getItem(dashboardStorageKey('planium-dashboard-edit-mode')) === 'true';
 }
 
 function setDashboardEditMode(container, enabled) {
-  localStorage.setItem(DASHBOARD_EDIT_MODE_KEY, enabled ? 'true' : 'false');
+  localStorage.setItem(dashboardStorageKey('planium-dashboard-edit-mode'), enabled ? 'true' : 'false');
   container.querySelector('.dashboard')?.classList.toggle('dashboard--edit-mode', enabled);
   const btn = container.querySelector('#fab-edit-mode');
   if (btn) {
@@ -397,7 +578,7 @@ function renderGreeting(user, stats = {}, headlines = null, weather = null) {
 // --------------------------------------------------------
 
 function readWidgetActiveTab(personalLists) {
-  const stored = localStorage.getItem('dashboard-tasks-tab');
+  const stored = localStorage.getItem(dashboardStorageKey('dashboard-tasks-tab'));
   if (stored != null && stored !== 'household') {
     const id = Number(stored);
     if (personalLists.some((l) => l.id === id)) return id;
@@ -834,10 +1015,10 @@ function renderWeatherWidget(_weather) {
 // Quick Notes Widget (both modes server-synced; private is per-user)
 // --------------------------------------------------------
 
-const QN_MODE_KEY   = 'planium-quick-note-mode';
-const QN_LEGACY_KEY = 'planium-quick-note-text';
+const QN_MODE_KEY_BASE   = 'planium-quick-note-mode';
+const QN_LEGACY_KEY_BASE = 'planium-quick-note-text';
 
-function getQNMode() { return localStorage.getItem(QN_MODE_KEY) === 'public' ? 'public' : 'private'; }
+function getQNMode() { return localStorage.getItem(dashboardStorageKey(QN_MODE_KEY_BASE)) === 'public' ? 'public' : 'private'; }
 
 function renderQuickNotes(mode = 'private', span = '1', height = 'normal') {
   const isPublic = mode === 'public';
@@ -873,7 +1054,7 @@ function renderQuickNotes(mode = 'private', span = '1', height = 'normal') {
 
 async function fetchQuickNote(mode) {
   try {
-    const res = await api.get(`/dashboard/quick-note?scope=${mode}`);
+    const res = await api.get(dashboardApiPath(`/quick-note?scope=${mode}`));
     return res.data?.text ?? '';
   } catch { return ''; }
 }
@@ -889,12 +1070,12 @@ async function wireQuickNotes(container) {
 
   // One-shot migration: upload any leftover browser-local private note so
   // users upgrading from the localStorage-only version don't lose content.
-  const legacy = localStorage.getItem(QN_LEGACY_KEY);
+  const legacy = localStorage.getItem(dashboardStorageKey(QN_LEGACY_KEY_BASE));
   if (mode === 'private' && !text && legacy) {
-    await api.put('/dashboard/quick-note?scope=private', { text: legacy }).catch(() => {});
+    await api.put(dashboardApiPath('/quick-note?scope=private'), { text: legacy }).catch(() => {});
     text = legacy;
   }
-  if (legacy != null) localStorage.removeItem(QN_LEGACY_KEY);
+  if (legacy != null) localStorage.removeItem(dashboardStorageKey(QN_LEGACY_KEY_BASE));
   editor.value = text;
 
   let _saveTimer = null;
@@ -902,7 +1083,7 @@ async function wireQuickNotes(container) {
     clearTimeout(_saveTimer);
     const scope = getQNMode();
     _saveTimer = setTimeout(() => {
-      api.put(`/dashboard/quick-note?scope=${scope}`, { text: editor.value }).catch(console.error);
+      api.put(dashboardApiPath(`/quick-note?scope=${scope}`), { text: editor.value }).catch(console.error);
     }, 400);
   });
 
@@ -910,7 +1091,7 @@ async function wireQuickNotes(container) {
   if (toggleBtn) {
     toggleBtn.addEventListener('click', async () => {
       const newMode = getQNMode() === 'private' ? 'public' : 'private';
-      localStorage.setItem(QN_MODE_KEY, newMode);
+      localStorage.setItem(dashboardStorageKey(QN_MODE_KEY_BASE), newMode);
       const isPublic = newMode === 'public';
 
       // In-place updates — no outerHTML swap, no layout jerk
@@ -963,7 +1144,7 @@ async function wireQuickNotes(container) {
             clearTimeout(_dialogSaveTimer);
             const scope = getQNMode();
             _dialogSaveTimer = setTimeout(() => {
-              api.put(`/dashboard/quick-note?scope=${scope}`, { text: dialogEditor.value }).catch(console.error);
+              api.put(dashboardApiPath(`/quick-note?scope=${scope}`), { text: dialogEditor.value }).catch(console.error);
             }, 400);
           });
         },
@@ -1045,6 +1226,76 @@ function wireDashboardLayout(container, layoutState, data) {
 
   const widgetNodes = () => [...grid.querySelectorAll('.widget[data-widget-id]')];
   const widgetOrder = () => widgetNodes().map((el) => el.dataset.widgetId).filter(Boolean);
+  const canEditLayout = () => desktopQuery.matches && (isEditMode() || isDashboardTestVariant());
+
+  let masonryRaf = 0;
+  const syncWidgetMasonry = () => {
+    if (!isDashboardTestVariant()) return;
+    masonryRaf = 0;
+    const widgets = widgetNodes();
+    if (!desktopQuery.matches) {
+      widgets.forEach((widget) => {
+        widget.style.gridColumn = '';
+        widget.style.gridRow = '';
+      });
+      return;
+    }
+
+    const occupied = [];
+    const ensureRows = (rowCount) => {
+      while (occupied.length < rowCount) {
+        occupied.push(Array(TEST_BOARD_COLUMN_COUNT).fill(false));
+      }
+    };
+    const canPlace = (rowIndex, colIndex, colSpan, rowSpan) => {
+      ensureRows(rowIndex + rowSpan);
+      for (let r = rowIndex; r < rowIndex + rowSpan; r += 1) {
+        for (let c = colIndex; c < colIndex + colSpan; c += 1) {
+          if (occupied[r][c]) return false;
+        }
+      }
+      return true;
+    };
+    const occupy = (rowIndex, colIndex, colSpan, rowSpan) => {
+      ensureRows(rowIndex + rowSpan);
+      for (let r = rowIndex; r < rowIndex + rowSpan; r += 1) {
+        for (let c = colIndex; c < colIndex + colSpan; c += 1) {
+          occupied[r][c] = true;
+        }
+      }
+    };
+
+    widgets.forEach((widget) => {
+      widget.style.gridColumn = '';
+      widget.style.gridRow = '';
+    });
+
+    widgets.forEach((widget) => {
+      if (!widget.isConnected) return;
+      const span = widget.dataset.widgetSpan || '1';
+      const height = widget.dataset.widgetHeight || 'normal';
+      const colSpan = TEST_BOARD_SPAN_WIDTHS[span] ?? 4;
+      const rowSpan = TEST_BOARD_SPAN_ROWS[height] ?? 3;
+      let placed = false;
+
+      for (let rowIndex = 0; !placed; rowIndex += 1) {
+        for (let colIndex = 0; colIndex <= TEST_BOARD_COLUMN_COUNT - colSpan; colIndex += 1) {
+          if (!canPlace(rowIndex, colIndex, colSpan, rowSpan)) continue;
+          occupy(rowIndex, colIndex, colSpan, rowSpan);
+          widget.style.gridColumn = `${colIndex + 1} / span ${colSpan}`;
+          widget.style.gridRow = `${rowIndex + 1} / span ${rowSpan}`;
+          placed = true;
+          break;
+        }
+      }
+    });
+  };
+
+  const scheduleWidgetMasonry = () => {
+    if (!isDashboardTestVariant()) return;
+    window.cancelAnimationFrame(masonryRaf);
+    masonryRaf = window.requestAnimationFrame(syncWidgetMasonry);
+  };
 
   const applyOrder = (order) => {
     const nodeById = new Map(widgetNodes().map((el) => [el.dataset.widgetId, el]));
@@ -1058,7 +1309,7 @@ function wireDashboardLayout(container, layoutState, data) {
   const saveLayout = () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      api.put('/dashboard/layout', { layout: stripDashboardLayoutVisibility(layoutState) }).catch((err) => {
+      api.put(dashboardApiPath('/layout'), { layout: stripDashboardLayoutVisibility(layoutState) }).catch((err) => {
         window.planium?.showToast(err.message, 'danger');
       });
     }, 120);
@@ -1090,7 +1341,7 @@ function wireDashboardLayout(container, layoutState, data) {
     if (heightBtn) {
       e.preventDefault();
       e.stopPropagation();
-      if (!desktopQuery.matches || !isEditMode()) return;
+      if (!canEditLayout()) return;
       const widgetId = heightBtn.dataset.widgetId;
       const widget = container.querySelector(`[data-widget-id="${widgetId}"]`);
       if (!widget) return;
@@ -1109,6 +1360,7 @@ function wireDashboardLayout(container, layoutState, data) {
       widget.classList.add(widgetHeightClass(next));
       heightBtn.querySelector('.widget__height-btn-label').textContent = dashboardWidgetHeightLabel(next);
       heightBtn.setAttribute('aria-label', `Resize widget height to ${nextLabel}`);
+      scheduleWidgetMasonry();
       saveLayout();
       return;
     }
@@ -1117,7 +1369,7 @@ function wireDashboardLayout(container, layoutState, data) {
     if (!sizeBtn) return;
     e.preventDefault();
     e.stopPropagation();
-    if (!desktopQuery.matches || !isEditMode()) return;
+    if (!canEditLayout()) return;
     const widgetId = sizeBtn.dataset.widgetId;
     const widget = container.querySelector(`[data-widget-id="${widgetId}"]`);
     if (!widget) return;
@@ -1129,6 +1381,7 @@ function wireDashboardLayout(container, layoutState, data) {
     widget.classList.add(widgetSpanClass(next));
     sizeBtn.querySelector('.widget__size-btn-label').textContent = next === 'full' ? 'Full' : next;
     sizeBtn.setAttribute('aria-label', `Resize widget to ${next === 'full' ? 'full width' : `${next} column${next === '1' ? '' : 's'}`}`);
+    scheduleWidgetMasonry();
     saveLayout();
   });
 
@@ -1191,7 +1444,7 @@ function wireDashboardLayout(container, layoutState, data) {
     if (JSON.stringify(newOrder) === JSON.stringify(oldOrder)) return;
     layoutState.order = newOrder;
     try {
-      await api.put('/dashboard/layout', { layout: stripDashboardLayoutVisibility(layoutState) });
+      await api.put(dashboardApiPath('/layout'), { layout: stripDashboardLayoutVisibility(layoutState) });
     } catch (err) {
       layoutState.order = oldOrder;
       applyOrder(oldOrder);
@@ -1208,6 +1461,131 @@ function wireDashboardLayout(container, layoutState, data) {
     dragPtrId = null;
     didDrag = false;
   });
+
+  window.addEventListener('resize', scheduleWidgetMasonry, { signal: _fabController.signal });
+  scheduleWidgetMasonry();
+}
+
+function wireDashboardTestBoard(container, boardState, widgetIds) {
+  const board = container.querySelector('#dashboard-test-board');
+  if (!board) return;
+
+  const desktopQuery = window.matchMedia('(min-width: 1024px)');
+  const isEditMode = () => container.querySelector('.dashboard')?.classList.contains('dashboard--edit-mode');
+  const slotsById = new Map(
+    [...board.querySelectorAll('.dashboard-test-board__slot')].map((slot) => [slot.dataset.boardWidgetId, slot])
+  );
+
+  const applyRects = (rects) => {
+    for (const id of widgetIds) {
+      const slot = slotsById.get(id);
+      const rect = rects[id];
+      if (!slot || !rect) continue;
+      slot.style.gridColumn = `${rect.x + 1} / span ${rect.w}`;
+      slot.style.gridRow = `${rect.y + 1} / span ${rect.h}`;
+    }
+  };
+
+  const commitRects = (activeId = null) => {
+    boardState.rects = packDashboardTestBoardRects(boardState.rects, widgetIds, activeId);
+    applyRects(boardState.rects);
+    saveDashboardTestBoardState(boardState);
+  };
+
+  let interaction = null;
+
+  const endInteraction = () => {
+    if (!interaction) return;
+    const { id, rect } = interaction;
+    boardState.rects[id] = normalizeDashboardTestBoardRect(rect, boardState.rects[id]);
+    commitRects(id);
+    interaction = null;
+    board.classList.remove('dashboard__test-board--dragging');
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', endInteraction);
+    window.removeEventListener('pointercancel', endInteraction);
+  };
+
+  const onPointerMove = (event) => {
+    if (!interaction || event.pointerId !== interaction.pointerId) return;
+    const { colWidth, rowHeight, columnGap, rowGap } = interaction.metrics;
+    const cellX = Math.round((event.clientX - interaction.startX) / (colWidth + columnGap));
+    const cellY = Math.round((event.clientY - interaction.startY) / (rowHeight + rowGap));
+    const base = interaction.startRect;
+    let next = { ...base };
+
+    if (interaction.type === 'move') {
+      next.x = base.x + cellX;
+      next.y = base.y + cellY;
+    } else {
+      const dir = interaction.dir;
+      if (dir.includes('e')) next.w = base.w + cellX;
+      if (dir.includes('s')) next.h = base.h + cellY;
+      if (dir.includes('w')) {
+        next.x = base.x + cellX;
+        next.w = base.w - cellX;
+      }
+      if (dir.includes('n')) {
+        next.y = base.y + cellY;
+        next.h = base.h - cellY;
+      }
+    }
+
+    next = normalizeDashboardTestBoardRect(next, base);
+    interaction.rect = next;
+    const slot = slotsById.get(interaction.id);
+    if (slot) {
+      slot.style.gridColumn = `${next.x + 1} / span ${next.w}`;
+      slot.style.gridRow = `${next.y + 1} / span ${next.h}`;
+    }
+  };
+
+  const beginInteraction = (event, type, dir = null) => {
+    if (!desktopQuery.matches || !isEditMode()) return;
+    const slot = event.target.closest('.dashboard-test-board__slot');
+    if (!slot) return;
+    const id = slot.dataset.boardWidgetId;
+    const startRect = boardState.rects[id];
+    if (!startRect) return;
+    interaction = {
+      id,
+      type,
+      dir,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startRect: { ...startRect },
+      rect: { ...startRect },
+      metrics: dashboardTestBoardCellSize(board),
+    };
+    board.classList.add('dashboard__test-board--dragging');
+    try { event.target.setPointerCapture(event.pointerId); } catch {}
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', endInteraction, { once: true });
+    window.addEventListener('pointercancel', endInteraction, { once: true });
+  };
+
+  board.addEventListener('pointerdown', (event) => {
+    if (!desktopQuery.matches || !isEditMode()) return;
+    const resizeHandle = event.target.closest('[data-action="test-resize"]');
+    if (resizeHandle) {
+      event.preventDefault();
+      beginInteraction(event, 'resize', resizeHandle.dataset.dir);
+      return;
+    }
+
+    const moveHandle = event.target.closest('.widget__drag-handle');
+    if (!moveHandle) return;
+    if (!moveHandle.closest('.dashboard-test-board__slot')) return;
+    event.preventDefault();
+    beginInteraction(event, 'move');
+  });
+
+  window.addEventListener('resize', () => {
+    commitRects();
+  }, { signal: _fabController.signal });
+
+  applyRects(boardState.rects);
 }
 
 // --------------------------------------------------------
@@ -1705,8 +2083,9 @@ function wireTasksWidget(container, dashData, refreshWidget) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const tab = btn.dataset.tab;
-      if (localStorage.getItem('dashboard-tasks-tab') === tab) return;
-      localStorage.setItem('dashboard-tasks-tab', tab);
+      const tabKey = dashboardStorageKey('dashboard-tasks-tab');
+      if (localStorage.getItem(tabKey) === tab) return;
+      localStorage.setItem(tabKey, tab);
       softSwitchTab(tab);
     });
   });
@@ -1915,7 +2294,7 @@ export async function render(container, { user }) {
   let webview   = { configured: false, items: [] };
   try {
     const [dashRes, weatherRes, quoteRes, newsRes, webviewRes] = await Promise.all([
-      api.get('/dashboard'),
+      api.get(dashboardApiPath('')),
       api.get('/weather').catch(() => ({ data: null })),
       isQuoteEnabled() ? api.get('/quotes/today').catch(() => null) : Promise.resolve(null),
       isNewsEnabled() ? api.get('/freshrss/headlines').catch(() => ({ data: null })) : Promise.resolve({ data: null }),
@@ -1942,6 +2321,10 @@ export async function render(container, { user }) {
   const urgentTasks = [...householdUrgent, ...personalUrgent];
   const stats = { urgentTasks };
   const layoutState = normalizeDashboardLayoutForDevice(data.layout);
+  const seededTestBoard = applyDashboardTestBoardTemplate(layoutState);
+  if (seededTestBoard) {
+    api.put(dashboardApiPath('/layout'), { layout: stripDashboardLayoutVisibility(layoutState) }).catch(() => {});
+  }
   const hiddenWidgets = new Set(layoutState.hidden ?? []);
   const webviewItems = (webview.items ?? []).filter((item) => item && item.url);
   const pinnedNotes = (data.pinnedNotes ?? []).filter((note) => note && note.id != null);
@@ -1982,6 +2365,86 @@ export async function render(container, { user }) {
       })];
     }),
   ]);
+
+  if (isDashboardTestVariant()) {
+    const visibleWidgetIds = layoutState.order
+      .filter((id) => !hiddenWidgets.has(id))
+      .filter((id) => widgetHtmlById[id] || dynamicWidgetHtmlById[id]);
+    const boardWidgetIds = [
+      ...visibleWidgetIds,
+      ...webviewItems.map((item) => dashboardLayoutItemId('webview', item.id))
+        .filter((id) => !visibleWidgetIds.includes(id) && dynamicWidgetHtmlById[id]),
+    ];
+    const testBoardState = loadDashboardTestBoardState(boardWidgetIds);
+    const packedRects = packDashboardTestBoardRects(testBoardState.rects, boardWidgetIds);
+    testBoardState.rects = packedRects;
+    saveDashboardTestBoardState(testBoardState);
+
+    const testBoardHtml = boardWidgetIds.map((id) => {
+      const widgetHtml = widgetHtmlById[id] ?? dynamicWidgetHtmlById[id];
+      return renderDashboardTestBoardSlot(id, widgetHtml, packedRects[id]);
+    }).join('');
+
+    container.innerHTML = `
+      <div class="dashboard dashboard--test-board${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}">
+        <h1 class="sr-only">${t('dashboard.title')}</h1>
+        <div class="dashboard__grid">
+          ${renderGreeting(user, stats, headlines, weather)}
+          <div class="dashboard__test-board" id="dashboard-test-board">
+            ${testBoardHtml}
+          </div>
+        </div>
+        ${renderLegacyBoardNotes(boardNotes)}
+      </div>
+      ${renderFab(user)}
+    `;
+
+    wireLinks(container);
+    wireGreetingLink(container);
+    wireWeatherChip(container, weather);
+    wireNewsRotation(container, headlines, _fabController.signal);
+    wireDashboardTestBoard(container, testBoardState, boardWidgetIds);
+    if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
+    scheduleMidnightQuoteRefresh(container, _fabController.signal);
+    initFab(container, _fabController.signal, user, (savedNote) => {
+      if (!savedNote) return;
+      data.pinnedNotes = Array.isArray(data.pinnedNotes) ? data.pinnedNotes.slice() : [];
+      const idx = data.pinnedNotes.findIndex((n) => n.id === savedNote.id);
+      if (savedNote.pinned) {
+        if (idx === -1) data.pinnedNotes.unshift(savedNote);
+        else data.pinnedNotes[idx] = savedNote;
+      } else if (idx !== -1) {
+        data.pinnedNotes.splice(idx, 1);
+      }
+      updateBoardNotesSection(container, data.pinnedNotes);
+    });
+
+    function refreshTasksWidget() {
+      const widgetEl = container.querySelector('#tasks-widget');
+      if (!widgetEl) return;
+      const html = renderTasksWidget(
+        data.personalLists ?? [],
+        data.personalItems ?? [],
+        widgetEl.dataset.widgetSpan ?? layoutState.spans['tasks-widget'],
+        widgetEl.dataset.widgetHeight ?? layoutState.heights['tasks-widget'] ?? 'normal',
+      );
+      widgetEl.outerHTML = html;
+      if (window.lucide) window.lucide.createIcons();
+      wireTasksWidget(container, data, refreshTasksWidget);
+      wireLinks(container);
+    }
+
+    currentDashboardData = data;
+    currentRefreshTasksWidget = refreshTasksWidget;
+    wireTasksWidget(container, data, refreshTasksWidget);
+    wireShoppingWidget(container, data);
+    wireEventsWidget(container, data);
+    wireQuickNotes(container);
+    wireWebviewCards(container);
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
   const orderedWidgets = layoutState.order
     .filter((id) => !hiddenWidgets.has(id))
     .map((id) => widgetHtmlById[id] ?? dynamicWidgetHtmlById[id])
@@ -1996,7 +2459,7 @@ export async function render(container, { user }) {
     .join('');
 
   container.innerHTML = `
-    <div class="dashboard${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}">
+    <div class="dashboard${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}${isDashboardTestVariant() ? ' dashboard--test-board' : ''}">
       <h1 class="sr-only">${t('dashboard.title')}</h1>
       <div class="dashboard__grid">
         ${renderGreeting(user, stats, headlines, weather)}

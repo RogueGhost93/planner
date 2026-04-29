@@ -6,7 +6,16 @@ export const DASHBOARD_WIDGETS = [
   { id: 'quick-notes-widget', labelKey: 'dashboard.quickNotesTitle', defaultSpan: '1', visibleByDefault: true },
 ];
 
-export const DASHBOARD_WIDGET_VISIBILITY_KEY = 'planium-dashboard-widget-visibility';
+const DASHBOARD_WIDGET_VISIBILITY_KEY_BASE = 'planium-dashboard-widget-visibility';
+
+function dashboardVariantSuffix() {
+  if (typeof window === 'undefined' || !window.location) return '';
+  return window.location.pathname === '/dashboard-test' ? '-test' : '';
+}
+
+function dashboardWidgetVisibilityKey() {
+  return `${DASHBOARD_WIDGET_VISIBILITY_KEY_BASE}${dashboardVariantSuffix()}`;
+}
 
 const DASHBOARD_WIDGET_SPANS = new Set(['1', '2', 'full']);
 const DASHBOARD_WIDGET_HEIGHTS = new Set(['xs', 'short', 'normal', 'tall', 'xlarge']);
@@ -29,7 +38,7 @@ function normalizeDashboardWidgetIds(value) {
 }
 
 function readStoredDashboardWidgetHiddenIds() {
-  const raw = localStorage.getItem(DASHBOARD_WIDGET_VISIBILITY_KEY);
+  const raw = localStorage.getItem(dashboardWidgetVisibilityKey());
   if (raw == null) return null;
   try {
     return normalizeDashboardWidgetIds(JSON.parse(raw));
@@ -44,14 +53,14 @@ export function loadDashboardWidgetHiddenIds(fallbackHidden = []) {
 
   const hidden = normalizeDashboardWidgetIds(fallbackHidden);
   if (hidden.length > 0) {
-    localStorage.setItem(DASHBOARD_WIDGET_VISIBILITY_KEY, JSON.stringify(hidden));
+    localStorage.setItem(dashboardWidgetVisibilityKey(), JSON.stringify(hidden));
   }
   return new Set(hidden);
 }
 
 export function saveDashboardWidgetHiddenIds(hiddenIds = []) {
   const hidden = normalizeDashboardWidgetIds(hiddenIds);
-  localStorage.setItem(DASHBOARD_WIDGET_VISIBILITY_KEY, JSON.stringify(hidden));
+  localStorage.setItem(dashboardWidgetVisibilityKey(), JSON.stringify(hidden));
   return hidden;
 }
 

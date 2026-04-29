@@ -37,7 +37,6 @@ export async function render(container) {
 
   const openDestination = (target) => {
     handled = true;
-    closeModal();
     openSaveLinkModal({
       initialUrl: sharedUrl,
       initialTitle: sharedTitle,

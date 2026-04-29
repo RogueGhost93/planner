@@ -195,7 +195,7 @@ export async function render(container, { user }) {
       <div class="cal-toolbar" id="cal-toolbar"></div>
       <div id="cal-body" style="flex:1;display:flex;flex-direction:column;overflow:hidden;"></div>
       <button class="page-fab" id="fab-new-event" aria-label="${t('calendar.newEvent')}">
-        <i data-lucide="plus" style="width:24px;height:24px" aria-hidden="true"></i>
+        <i data-lucide="plus" aria-hidden="true"></i>
       </button>
     </div>
   `;

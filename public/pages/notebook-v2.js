@@ -2250,7 +2250,7 @@ function renderShell(container) {
           <div class="notebook-editor-host"></div>
         </main>
       </div>
-      <div class="fab-container notebook-quick-fab ${state.quickCreateOpen ? 'fab-container--open' : ''}" style="--module-accent: var(--module-notebook);">
+      <div class="fab-container notebook-quick-fab ${state.quickCreateOpen ? 'fab-container--open' : ''}">
         <button class="fab-main notebook-fab__toggle" aria-label="${esc(t('notebook.newRoot'))}" title="${esc(t('notebook.newRoot'))}">
           <i data-lucide="plus" aria-hidden="true"></i>
         </button>

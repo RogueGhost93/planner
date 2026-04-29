@@ -11,6 +11,12 @@ import {
 } from '/lib/dashboard-layout.js';
 import { loadWebviewConfig, webviewItemLabel } from '/components/webview-manager.js';
 
+function dashboardLayoutApiPath() {
+  return window.location.pathname === '/dashboard-test'
+    ? '/dashboard-test/layout'
+    : '/dashboard/layout';
+}
+
 function widgetPickerRows(layout, widgets) {
   const hidden = new Set(layout.hidden ?? []);
   return widgets.map((widget) => {
@@ -32,7 +38,7 @@ function widgetPickerRows(layout, widgets) {
 
 async function loadCurrentLayout() {
   try {
-    const res = await api.get('/dashboard/layout');
+    const res = await api.get(dashboardLayoutApiPath());
     const layout = normalizeDashboardLayout(res.data?.layout);
     return {
       ...layout,
