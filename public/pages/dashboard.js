@@ -1199,15 +1199,29 @@ function isTickersEnabled() {
 
 function renderQuoteWidget(quote, span = 'full', height = 'normal') {
   if (!quote || !isQuoteEnabled()) return '';
-  const author = quote.author ? `<span class="quote-widget__author">\u2014 ${esc(quote.author)}</span>` : '';
+  const compact = height === 'xxs' || height === 'xs';
+  const quoteText = String(quote.quote ?? '').trim();
+  const previewText = compact
+    ? quoteText.split(/\s+/).slice(0, compact && height === 'xxs' ? 16 : 28).join(' ')
+    : quoteText;
+  const excerpt = compact
+    ? `<div class="quote-widget__excerpt">${esc(previewText)}${previewText.length < quoteText.length ? '…' : ''}</div>`
+    : `<blockquote class="quote-widget__text">${esc(quoteText)}</blockquote>`;
+  const author = quote.author
+    ? compact
+      ? height === 'xxs'
+        ? ''
+        : `<div class="quote-widget__author">\u2014 ${esc(quote.author)}</div>`
+      : `<span class="quote-widget__author">\u2014 ${esc(quote.author)}</span>`
+    : '';
   return `
-    <div class="widget quote-widget ${widgetSpanClass(span)} ${widgetHeightClass(height)}"
+    <div class="widget quote-widget ${widgetSpanClass(span)} ${widgetHeightClass(height)}${compact ? ' quote-widget--compact' : ''}"
          id="quote-widget" data-widget-id="quote-widget" data-widget-span="${span}" data-widget-height="${height}">
       ${widgetHeader(null, t('dashboard.quoteOfTheDay'), null, null, null, null, null, { widgetId: 'quote-widget', span })}
-      <div class="widget__body quote-widget__body">
+      <div class="widget__body quote-widget__body${compact ? ' quote-widget__body--compact' : ''}">
         <i data-lucide="quote" class="quote-widget__icon" aria-hidden="true"></i>
         <div class="quote-widget__content">
-          <blockquote class="quote-widget__text">${esc(quote.quote)}</blockquote>
+          ${excerpt}
           ${author}
         </div>
       </div>
