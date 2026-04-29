@@ -70,6 +70,7 @@
     "unlockFolderLabel": "Unlock folder",
     "lockedEmpty": "Locked folder is empty",
     "lockedEmptyHint": "Locked notes will appear here after you move them into the folder.",
+    "lockedFolderSeparate": "Locked notes stay in the Locked folder.",
     "lockLabel": "Lock note",
     "unlockLabel": "Unlock note",
     "lockPasswordPrompt": "Enter your Planium password to unlock the Locked folder.",

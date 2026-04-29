@@ -22,8 +22,14 @@ const PHONE_LAYOUT_QUERY = '(max-width: 719px)';
 
 const state = {
   notes: [],
+  lockedNotes: [],
+  trashedNotes: [],
   noteMap: new Map(),
-  childrenMap: new Map(),
+  childrenMap: {
+    notes: new Map(),
+    locked: new Map(),
+    trash: new Map(),
+  },
   activeNoteId: null,
   folder: loadFolder(),
   lockedUnlocked: loadLockedUnlocked(),
@@ -124,6 +130,13 @@ function parentKey(parentId) {
   return parentId == null ? 'root' : `parent:${parentId}`;
 }
 
+function groupForNote(note) {
+  if (!note) return 'notes';
+  if (note.trashed_at != null) return 'trash';
+  if (note.locked_at != null) return 'locked';
+  return 'notes';
+}
+
 function sortNotes(notes) {
   return [...notes].sort((a, b) => (
     (a.sort_order ?? 0) - (b.sort_order ?? 0)
@@ -132,21 +145,28 @@ function sortNotes(notes) {
   ));
 }
 
-function syncIndexes(notes) {
-  state.notes = notes.map((note) => ({ ...note }));
-  state.noteMap = new Map();
-  state.childrenMap = new Map();
+function syncGroup(kind, notes) {
+  const list = notes.map((note) => ({ ...note }));
+  state[`${kind}Notes`] = list;
+  state.childrenMap[kind] = new Map();
 
-  for (const note of state.notes) {
+  for (const note of list) {
     state.noteMap.set(note.id, note);
     const key = parentKey(note.parent_id);
-    if (!state.childrenMap.has(key)) state.childrenMap.set(key, []);
-    state.childrenMap.get(key).push(note);
+    if (!state.childrenMap[kind].has(key)) state.childrenMap[kind].set(key, []);
+    state.childrenMap[kind].get(key).push(note);
   }
 
-  for (const [key, list] of state.childrenMap.entries()) {
-    state.childrenMap.set(key, sortNotes(list));
+  for (const [key, items] of state.childrenMap[kind].entries()) {
+    state.childrenMap[kind].set(key, sortNotes(items));
   }
+}
+
+function syncIndexes(groups) {
+  state.noteMap = new Map();
+  syncGroup('notes', groups.notes || []);
+  syncGroup('locked', groups.locked || []);
+  syncGroup('trash', groups.trash || []);
 
   if (!state.activeNoteId || !state.noteMap.has(state.activeNoteId)) {
     state.activeNoteId = pickDefaultNoteId();
@@ -157,14 +177,18 @@ function getNote(noteId) {
   return state.noteMap.get(noteId) || null;
 }
 
-function getChildren(parentId) {
-  return state.childrenMap.get(parentKey(parentId)) || [];
+function getChildren(parentId, kind = 'notes') {
+  return state.childrenMap[kind]?.get(parentKey(parentId)) || [];
 }
 
 function pickDefaultNoteId() {
-  const roots = getChildren(null);
+  const roots = getChildren(null, 'notes');
   if (roots.length) return roots[0].id;
-  return state.notes[0]?.id ?? null;
+  const lockedRoots = getChildren(null, 'locked');
+  if (lockedRoots.length) return lockedRoots[0].id;
+  const trashRoots = getChildren(null, 'trash');
+  if (trashRoots.length) return trashRoots[0].id;
+  return null;
 }
 
 function getBreadcrumb(noteId) {
@@ -236,53 +260,115 @@ function renderSidebar() {
   if (!sidebarBodyEl) return;
   sidebarBodyEl.classList.toggle('is-drop-root', Boolean(state.dragOverRoot));
 
-  const roots = getChildren(null);
-  const treeHtml = state.folder === 'locked' && !state.lockedUnlocked
-    ? `
-      <div class="notebook-empty-sidebar">
-        <i data-lucide="lock" aria-hidden="true"></i>
-        <h2>${esc(t('notebook.lockedTitle'))}</h2>
-        <p>${esc(t('notebook.lockedHint'))}</p>
-        <button class="btn btn--primary notebook-unlock-folder">${esc(t('notebook.unlockFolderLabel'))}</button>
+  if (state.searchQuery) {
+    sidebarBodyEl.innerHTML = `
+      <div class="notebook-folders" role="navigation" aria-label="${esc(t('notebook.title'))}">
+        <button class="notebook-folder ${state.folder === 'notes' ? 'is-active' : ''}" data-folder="notes">
+          <i data-lucide="book-open" aria-hidden="true"></i>
+          <span>${esc(t('notebook.notesFolder'))}</span>
+        </button>
+        <button class="notebook-folder ${state.folder === 'locked' ? 'is-active' : ''}" data-folder="locked">
+          <i data-lucide="lock" aria-hidden="true"></i>
+          <span>${esc(t('notebook.lockedLabel'))}</span>
+        </button>
+        <button class="notebook-folder ${state.folder === 'trash' ? 'is-active' : ''}" data-folder="trash">
+          <i data-lucide="trash-2" aria-hidden="true"></i>
+          <span>${esc(t('notebook.trashLabel'))}</span>
+        </button>
       </div>
-    `
-    : state.searchQuery
-    ? renderSearchResults()
-    : roots.length
-      ? `<div class="notebook-tree" role="tree" aria-label="${esc(t('notebook.title'))}">
-          <ul class="notebook-tree__list">${renderTreeNodes(roots, 0)}</ul>
-      </div>`
-    : `
-      <div class="notebook-empty-sidebar">
-        <i data-lucide="${state.folder === 'trash' ? 'trash-2' : state.folder === 'locked' ? 'lock' : 'book-open'}" aria-hidden="true"></i>
-        <h2>${esc(state.folder === 'trash' ? t('notebook.trashEmpty') : state.folder === 'locked' ? t('notebook.lockedEmpty') : t('notebook.empty'))}</h2>
-        <p>${esc(state.folder === 'trash' ? t('notebook.trashEmptyHint') : state.folder === 'locked' ? t('notebook.lockedEmptyHint') : t('notebook.emptyHint'))}</p>
-        ${state.folder === 'notes' ? `<button class="btn btn--primary notebook-new-root-btn">${esc(t('notebook.newRoot'))}</button>` : ''}
+      <div class="notebook-search-results">
+        <div class="notebook-search-results__meta">
+          ${esc(t('notebook.searchSummary', { count: state.searchResults.length }))}
+        </div>
+        <div class="notebook-search-results__list">
+          ${state.searchResults.length
+            ? state.searchResults.map(renderSearchResult).join('')
+            : `
+              <div class="notebook-empty-sidebar">
+                <i data-lucide="search-x" aria-hidden="true"></i>
+                <h2>${esc(t('notebook.noResultsTitle'))}</h2>
+                <p>${esc(t('notebook.noResultsHint', { query: state.searchQuery }))}</p>
+              </div>
+            `}
+        </div>
       </div>
     `;
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
   sidebarBodyEl.innerHTML = `
     <div class="notebook-folders" role="navigation" aria-label="${esc(t('notebook.title'))}">
       <button class="notebook-folder ${state.folder === 'notes' ? 'is-active' : ''}" data-folder="notes">
         <i data-lucide="book-open" aria-hidden="true"></i>
         <span>${esc(t('notebook.notesFolder'))}</span>
       </button>
-      <button class="notebook-folder ${state.folder === 'trash' ? 'is-active' : ''}" data-folder="trash">
-        <i data-lucide="trash-2" aria-hidden="true"></i>
-        <span>${esc(t('notebook.trashLabel'))}</span>
-      </button>
       <button class="notebook-folder ${state.folder === 'locked' ? 'is-active' : ''}" data-folder="locked">
         <i data-lucide="lock" aria-hidden="true"></i>
         <span>${esc(t('notebook.lockedLabel'))}</span>
       </button>
+      <button class="notebook-folder ${state.folder === 'trash' ? 'is-active' : ''}" data-folder="trash">
+        <i data-lucide="trash-2" aria-hidden="true"></i>
+        <span>${esc(t('notebook.trashLabel'))}</span>
+      </button>
     </div>
-    ${treeHtml}
+    ${renderSidebarSection('notes')}
+    ${renderSidebarSection('locked')}
+    ${renderSidebarSection('trash')}
   `;
   if (window.lucide) window.lucide.createIcons();
 }
 
-function renderTreeNodes(nodes, depth) {
+function renderSidebarSection(kind) {
+  const roots = getChildren(null, kind);
+  if (kind === 'locked' && !state.lockedUnlocked) {
+    return `
+      <section class="notebook-section notebook-section--locked">
+        <div class="notebook-section__header">
+          <i data-lucide="lock" aria-hidden="true"></i>
+          <span>${esc(t('notebook.lockedLabel'))}</span>
+        </div>
+        <div class="notebook-empty-sidebar">
+          <h2>${esc(t('notebook.lockedTitle'))}</h2>
+          <p>${esc(t('notebook.lockedHint'))}</p>
+          <button class="btn btn--primary notebook-unlock-folder">${esc(t('notebook.unlockFolderLabel'))}</button>
+        </div>
+      </section>
+    `;
+  }
+
+  if (!roots.length) {
+    return `
+      <section class="notebook-section notebook-section--${kind}">
+        <div class="notebook-section__header">
+          <i data-lucide="${kind === 'trash' ? 'trash-2' : kind === 'locked' ? 'lock' : 'book-open'}" aria-hidden="true"></i>
+          <span>${esc(kind === 'trash' ? t('notebook.trashLabel') : kind === 'locked' ? t('notebook.lockedLabel') : t('notebook.notesFolder'))}</span>
+        </div>
+        <div class="notebook-empty-sidebar">
+          <h2>${esc(kind === 'trash' ? t('notebook.trashEmpty') : kind === 'locked' ? t('notebook.lockedEmpty') : t('notebook.empty'))}</h2>
+          <p>${esc(kind === 'trash' ? t('notebook.trashEmptyHint') : kind === 'locked' ? t('notebook.lockedEmptyHint') : t('notebook.emptyHint'))}</p>
+          ${kind === 'notes' ? `<button class="btn btn--primary notebook-new-root-btn">${esc(t('notebook.newRoot'))}</button>` : ''}
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="notebook-section notebook-section--${kind}">
+      <div class="notebook-section__header">
+        <i data-lucide="${kind === 'trash' ? 'trash-2' : kind === 'locked' ? 'lock' : 'book-open'}" aria-hidden="true"></i>
+        <span>${esc(kind === 'trash' ? t('notebook.trashLabel') : kind === 'locked' ? t('notebook.lockedLabel') : t('notebook.notesFolder'))}</span>
+      </div>
+      <div class="notebook-tree" role="tree" aria-label="${esc(t('notebook.title'))}">
+        <ul class="notebook-tree__list">${renderTreeNodes(roots, 0, kind)}</ul>
+      </div>
+    </section>
+  `;
+}
+
+function renderTreeNodes(nodes, depth, kind = 'notes') {
   return nodes.map((node) => {
-    const children = getChildren(node.id);
+    const children = getChildren(node.id, kind);
     const collapsed = state.collapsed.has(node.id);
     const active = node.id === state.activeNoteId ? 'is-active' : '';
     const hasChildren = children.length > 0;
@@ -292,7 +378,7 @@ function renderTreeNodes(nodes, depth) {
 
     return `
       <li class="notebook-tree__node" style="--depth:${depth}">
-        <div class="notebook-tree__row ${active}${isDropTarget}" draggable="${state.folder === 'trash' ? 'false' : 'true'}" data-drag-note-id="${node.id}">
+        <div class="notebook-tree__row ${active}${isDropTarget}" draggable="${kind === 'trash' ? 'false' : 'true'}" data-drag-note-id="${node.id}" data-note-kind="${kind}">
           <button class="notebook-tree__toggle" data-action="toggle" data-note-id="${node.id}" ${hasChildren ? '' : 'disabled'}>
             <i data-lucide="${hasChildren ? toggleIcon : 'dot'}" aria-hidden="true"></i>
           </button>
@@ -300,14 +386,10 @@ function renderTreeNodes(nodes, depth) {
             <span class="notebook-tree__title">${esc(node.title || t('notebook.untitled'))}</span>
             ${childCount}
           </button>
-          ${state.folder === 'trash' ? `
+          ${kind === 'trash' ? `
             <button class="notebook-tree__child" data-action="restore" data-note-id="${node.id}" aria-label="${esc(t('notebook.restoreLabel'))}">
               <i data-lucide="rotate-ccw" aria-hidden="true"></i>
             </button>
-            <button class="notebook-tree__delete" data-action="delete-permanent" data-note-id="${node.id}" aria-label="${esc(t('notebook.deleteForeverLabel'))}">
-              <i data-lucide="trash-2" aria-hidden="true"></i>
-            </button>
-          ` : state.folder === 'locked' ? `
             <button class="notebook-tree__delete" data-action="delete-permanent" data-note-id="${node.id}" aria-label="${esc(t('notebook.deleteForeverLabel'))}">
               <i data-lucide="trash-2" aria-hidden="true"></i>
             </button>
@@ -323,7 +405,7 @@ function renderTreeNodes(nodes, depth) {
             </button>
           `}
         </div>
-        ${hasChildren && !collapsed ? `<ul class="notebook-tree__list">${renderTreeNodes(children, depth + 1)}</ul>` : ''}
+        ${hasChildren && !collapsed ? `<ul class="notebook-tree__list">${renderTreeNodes(children, depth + 1, kind)}</ul>` : ''}
       </li>
     `;
   }).join('');
@@ -468,7 +550,7 @@ function renderEditor() {
   }
 
   const breadcrumb = renderBreadcrumb(note);
-  const noteChildren = getChildren(note.id);
+  const noteChildren = getChildren(note.id, groupForNote(note));
   const effectiveLayout = getEffectiveLayout();
 
   editorHostEl.innerHTML = `
@@ -857,20 +939,20 @@ function ensureUniqueNames(nodes) {
 }
 
 function normalizeExportTree() {
-  const roots = getChildren(null).map((node) => ({
+  const roots = getChildren(null, 'notes').map((node) => ({
     id: node.id,
     title: node.title,
     content: node.content || '',
     created_at: node.created_at,
     updated_at: node.updated_at,
-    children: getChildren(node.id).map(function walk(child) {
+    children: getChildren(node.id, 'notes').map(function walk(child) {
       return {
         id: child.id,
         title: child.title,
         content: child.content || '',
         created_at: child.created_at,
         updated_at: child.updated_at,
-        children: getChildren(child.id).map(walk),
+        children: getChildren(child.id, 'notes').map(walk),
       };
     }),
   }));
@@ -1296,13 +1378,16 @@ function updateEditorStatus(text = '') {
 }
 
 async function loadNotes() {
-  const path = state.folder === 'trash'
-    ? '/notebook/trash'
-    : state.folder === 'locked'
-      ? '/notebook/locked'
-      : '/notebook';
-  const res = await api.get(path);
-  syncIndexes(Array.isArray(res.data) ? res.data : []);
+  const [notesRes, lockedRes, trashRes] = await Promise.all([
+    api.get('/notebook'),
+    api.get('/notebook/locked'),
+    api.get('/notebook/trash'),
+  ]);
+  syncIndexes({
+    notes: Array.isArray(notesRes.data) ? notesRes.data : [],
+    locked: Array.isArray(lockedRes.data) ? lockedRes.data : [],
+    trash: Array.isArray(trashRes.data) ? trashRes.data : [],
+  });
 }
 
 async function runSearch(query) {
@@ -1320,7 +1405,7 @@ async function runSearch(query) {
     return;
   }
 
-  const res = await api.get(`/notebook/search?q=${encodeURIComponent(query)}${state.folder === 'trash' ? '&trashed=1' : state.folder === 'locked' ? '&locked=1' : ''}`);
+  const res = await api.get(`/notebook/search?q=${encodeURIComponent(query)}&scope=all`);
   state.searchResults = Array.isArray(res.data) ? res.data : [];
   renderSidebar();
 }
@@ -1384,7 +1469,7 @@ function updateNoteInState(updated) {
   state.noteMap.set(updated.id, { ...state.noteMap.get(updated.id), ...updated });
 
   const parentId = state.noteMap.get(updated.id)?.parent_id ?? null;
-  syncIndexes(state.notes);
+  syncIndexes({ notes: state.notes, locked: state.lockedNotes, trash: state.trashedNotes });
   if (parentId != null) state.collapsed.delete(parentId);
 }
 
@@ -1450,15 +1535,14 @@ function scheduleSave() {
 }
 
 async function createNote(parentId = null) {
-  if (state.folder !== 'notes') {
-    state.folder = 'notes';
-    saveFolder();
-  }
   await saveCurrentNote().catch(() => {});
+  const parent = parentId != null ? getNote(parentId) : getNote(state.activeNoteId);
+  const locked = state.folder === 'locked' || parent?.locked_at != null;
   const payload = {
     title: t('notebook.untitled'),
     content: '',
     parent_id: parentId,
+    locked,
   };
 
   const res = await api.post('/notebook', payload);
@@ -1480,9 +1564,10 @@ async function trashNote(noteId) {
   if (state.activeNoteId === noteId) {
     state.activeNoteId = null;
   }
+  const kind = groupForNote(note);
   const fallback = note.parent_id != null && getNote(note.parent_id)
     ? note.parent_id
-    : getChildren(null)[0]?.id ?? null;
+    : getChildren(null, kind)[0]?.id ?? null;
   state.folder = 'trash';
   saveFolder();
   await refreshNotebook({ selectId: fallback });
@@ -1510,9 +1595,10 @@ async function deleteNoteForever(noteId) {
   if (state.activeNoteId === noteId) {
     state.activeNoteId = null;
   }
+  const noteKind = groupForNote(note);
   const fallback = note.parent_id != null && getNote(note.parent_id)
     ? note.parent_id
-    : getChildren(null)[0]?.id ?? null;
+    : getChildren(null, noteKind)[0]?.id ?? null;
   await refreshNotebook({ selectId: fallback });
 }
 
@@ -1545,8 +1631,9 @@ async function unlockNote(noteId) {
 async function moveCurrentNote(kind) {
   const note = getNote(state.activeNoteId);
   if (!note || note.trashed_at != null) return;
+  const noteKind = groupForNote(note);
 
-  const siblings = getChildren(note.parent_id);
+  const siblings = getChildren(note.parent_id, noteKind);
   const index = siblings.findIndex((sibling) => sibling.id === note.id);
 
   if (kind === 'move-up') {
@@ -1562,7 +1649,7 @@ async function moveCurrentNote(kind) {
     const newParent = siblings[index - 1];
     await api.put(`/notebook/${note.id}`, {
       parent_id: newParent.id,
-      sort_order: getChildren(newParent.id).length,
+      sort_order: getChildren(newParent.id, noteKind).length,
     });
   } else if (kind === 'outdent') {
     if (note.parent_id == null) return;
@@ -1570,7 +1657,7 @@ async function moveCurrentNote(kind) {
     const grandParentId = parent?.parent_id ?? null;
     await api.put(`/notebook/${note.id}`, {
       parent_id: grandParentId,
-      sort_order: getChildren(grandParentId).length,
+      sort_order: getChildren(grandParentId, noteKind).length,
     });
   }
 
@@ -1581,11 +1668,16 @@ async function moveNoteToParent(noteId, parentId) {
   const note = getNote(noteId);
   if (!note) return;
   if (note.parent_id === parentId) return;
+  const noteKind = groupForNote(note);
+  const parent = parentId != null ? getNote(parentId) : null;
+  if (noteKind === 'locked' && parent && parent.locked_at == null) {
+    return;
+  }
 
   await saveCurrentNote().catch(() => {});
   await api.put(`/notebook/${noteId}`, {
     parent_id: parentId,
-    sort_order: getChildren(parentId).length,
+    sort_order: getChildren(parentId, noteKind).length,
   });
   await refreshNotebook({ selectId: noteId });
 }
@@ -2042,7 +2134,7 @@ function wireEvents(container) {
         if (dragged.trashed_at != null) {
           await restoreNote(noteId);
         } else if (dragged.locked_at != null) {
-          await unlockNote(noteId);
+          window.planium.showToast(t('notebook.lockedFolderSeparate'), 'danger');
         } else {
           await moveNoteToParent(noteId, null);
         }
@@ -2092,7 +2184,7 @@ export async function render(container) {
     await loadNotes();
   } catch (err) {
     console.error('Failed to load notebook notes:', err);
-    syncIndexes([]);
+    syncIndexes({ notes: [], locked: [], trash: [] });
   }
 
   if (searchInputEl) searchInputEl.value = state.searchQuery;

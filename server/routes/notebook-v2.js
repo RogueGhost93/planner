@@ -452,6 +452,7 @@ router.get('/search', (req, res) => {
     const query = String(req.query.q ?? '').trim();
     const trashedMode = String(req.query.trashed ?? '') === '1';
     const lockedMode = String(req.query.locked ?? '') === '1';
+    const scope = String(req.query.scope ?? 'all');
     if (!query) {
       return res.json({ data: [] });
     }
@@ -491,7 +492,15 @@ router.get('/search', (req, res) => {
         END AS relevance
       FROM notebook_notes n
       WHERE n.created_by = ?
-        AND ${trashedMode ? 'n.trashed_at IS NOT NULL' : lockedMode ? 'n.trashed_at IS NULL AND n.locked_at IS NOT NULL' : 'n.trashed_at IS NULL AND n.locked_at IS NULL'}
+        AND ${
+          scope === 'all'
+            ? '1=1'
+            : trashedMode
+              ? 'n.trashed_at IS NOT NULL'
+              : lockedMode
+                ? 'n.trashed_at IS NULL AND n.locked_at IS NOT NULL'
+                : 'n.trashed_at IS NULL AND n.locked_at IS NULL'
+        }
         AND (
           lower(n.title) LIKE lower(?) ESCAPE '\\'
           OR lower(n.content) LIKE lower(?) ESCAPE '\\'
@@ -601,6 +610,7 @@ router.post('/', (req, res) => {
       : str(req.body.content, 'content', { max: NOTEBOOK_TEXT_MAX, required: false });
     const vParent = parseNullableParentId(req.body.parent_id);
     const errs = collectErrors([vTitle, vContent, vParent]);
+    const isLocked = Boolean(req.body.locked);
 
     if (errs.length) {
       return res.status(400).json({ error: errs.join(' '), code: 400 });
@@ -624,9 +634,9 @@ router.post('/', (req, res) => {
         `).get(userId, parentId).next_sort_order;
 
     const result = dbConn().prepare(`
-      INSERT INTO notebook_notes (title, content, parent_id, sort_order, created_by)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(vTitle.value, vContent.value || '', parentId, nextSortOrder, userId);
+      INSERT INTO notebook_notes (title, content, parent_id, sort_order, created_by, locked_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(vTitle.value, vContent.value || '', parentId, nextSortOrder, userId, isLocked ? nowIso() : null);
 
     normalizeSiblingOrder(parentId, userId);
 
