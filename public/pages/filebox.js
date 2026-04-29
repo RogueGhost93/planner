@@ -62,6 +62,10 @@ function isPreviewFile(name) {
   return PREVIEW_THUMBNAIL_EXTS.has(ext);
 }
 
+function useThumbnailPreviews() {
+  return !window.matchMedia('(max-width: 767px)').matches;
+}
+
 function thumbFallbackIconFor(name) {
   const ext = (name.split('.').pop() || '').toLowerCase();
   if (['mp4','mov','webm','mkv','avi','m4v','ogv'].includes(ext)) return 'video';
@@ -399,6 +403,7 @@ function renderDropzone() {
 function renderList() {
   const listEl = _container?.querySelector('#filebox-list');
   if (!listEl) return;
+  const showThumbnails = useThumbnailPreviews();
   renderToolbarState();
 
   if (state.loading) {
@@ -432,7 +437,7 @@ function renderList() {
           ${state.selectedNames.has(f.name) ? '<i data-lucide="check" aria-hidden="true"></i>' : ''}
         </button>
       ` : ''}
-      ${isPreviewFile(f.name) ? `
+      ${showThumbnails && isPreviewFile(f.name) ? `
         <span class="filebox-item__thumb filebox-item__thumb--image" aria-hidden="true">
           <img class="filebox-item__thumb-img" src="${thumbnailUrlFor(f.name)}" alt="" loading="lazy" decoding="async">
           <i data-lucide="${thumbFallbackIconFor(f.name)}" class="filebox-item__thumb-fallback" aria-hidden="true"></i>

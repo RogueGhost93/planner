@@ -2,7 +2,13 @@ import { api } from '/api.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { openModal, closeModal } from '/components/modal.js';
-import { DASHBOARD_WIDGETS, defaultDashboardLayout, normalizeDashboardLayout } from '/lib/dashboard-layout.js';
+import {
+  DASHBOARD_WIDGETS,
+  defaultDashboardLayout,
+  loadDashboardWidgetHiddenIds,
+  normalizeDashboardLayout,
+  saveDashboardWidgetHiddenIds,
+} from '/lib/dashboard-layout.js';
 import { loadWebviewConfig, webviewItemLabel } from '/components/webview-manager.js';
 
 function widgetPickerRows(layout, widgets) {
@@ -27,9 +33,17 @@ function widgetPickerRows(layout, widgets) {
 async function loadCurrentLayout() {
   try {
     const res = await api.get('/dashboard/layout');
-    return normalizeDashboardLayout(res.data?.layout);
+    const layout = normalizeDashboardLayout(res.data?.layout);
+    return {
+      ...layout,
+      hidden: [...loadDashboardWidgetHiddenIds(layout.hidden)],
+    };
   } catch (_) {
-    return defaultDashboardLayout();
+    const layout = defaultDashboardLayout();
+    return {
+      ...layout,
+      hidden: [...loadDashboardWidgetHiddenIds(layout.hidden)],
+    };
   }
 }
 
@@ -81,26 +95,23 @@ export async function openDashboardWidgetPicker({ onSaved } = {}) {
             .filter((input) => input.checked)
             .map((input) => input.dataset.dashboardWidget)
         );
-        const nextLayout = {
-          order: layout.order.slice(),
-          hidden: widgets.map((widget) => widget.id).filter((id) => !visible.has(id)),
-          spans: { ...layout.spans },
-          heights: { ...layout.heights },
-        };
-
-        status.hidden = false;
-        status.textContent = 'Saving...';
-
+        const hidden = widgets.map((widget) => widget.id).filter((id) => !visible.has(id));
         try {
-          const res = await api.put('/dashboard/layout', { layout: nextLayout });
-          const savedLayout = normalizeDashboardLayout(res.data?.layout ?? nextLayout);
+          saveDashboardWidgetHiddenIds(hidden);
+          status.hidden = false;
+          status.textContent = 'Saving...';
+
           closeModal();
           if (typeof onSaved === 'function') {
-            onSaved(savedLayout);
+            onSaved({
+              ...layout,
+              hidden,
+            });
           } else {
             window.location.reload();
           }
         } catch (error) {
+          status.hidden = false;
           status.textContent = error?.message || 'Could not save widget layout.';
         }
       });

@@ -1308,6 +1308,12 @@ a.price-ticker:hover {
   }
 }
 
+@media (max-width: 767px) {
+  .fab-edit-toggle {
+    display: none;
+  }
+}
+
 .shopping-widget__list {
   padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-border);
@@ -2189,6 +2195,26 @@ a.price-ticker:hover {
   transition: border-color var(--transition-fast), opacity var(--transition-fast);
 }
 
+.personal-widget-item__check i {
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+
+.personal-widget-item__check--in_progress {
+  border-color: var(--color-success);
+  color: var(--color-success);
+  background-color: color-mix(in srgb, var(--color-success) 12%, transparent);
+  opacity: 1;
+}
+
+.personal-widget-item__check--done {
+  border-color: var(--color-success);
+  color: #fff;
+  background-color: var(--color-success);
+  opacity: 1;
+}
+
 .personal-widget-item__check::before {
   content: '';
   position: absolute;
@@ -2198,6 +2224,14 @@ a.price-ticker:hover {
 .personal-widget-item__check:hover {
   border-color: var(--color-accent);
   opacity: 1;
+}
+
+.personal-widget-item__check--in_progress:hover {
+  border-color: var(--color-success);
+}
+
+.personal-widget-item__check--done:hover {
+  border-color: var(--color-success);
 }
 
 .personal-widget-item__body {

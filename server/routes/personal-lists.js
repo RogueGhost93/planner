@@ -14,6 +14,7 @@ import { nextOccurrence } from '../services/recurrence.js';
 
 const VALID_PERSONAL_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'];
 const VALID_PERSONAL_STATUSES = ['open', 'in_progress', 'done'];
+const NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
 const PERSONAL_LABEL_COLORS = [
   '#2563EB', '#0B7A73', '#16A34A', '#C2410C',
   '#DC2626', '#7C3AED', '#DB2777', '#0F766E',
@@ -400,6 +401,7 @@ router.get('/:id/items', (req, res) => {
           WHEN 'done' THEN 2
           ELSE 0
         END,
+        CASE WHEN ${personalStatusExpr('t')} = 'done' THEN COALESCE(t.done_at, t.updated_at) END DESC,
         CASE t.priority WHEN 'urgent' THEN 0 ELSE 1 END,
         CASE WHEN t.due_date IS NULL THEN 1 ELSE 0 END,
         t.due_date ASC,
@@ -448,14 +450,15 @@ router.post('/:id/items', (req, res) => {
         .prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM personal_tasks WHERE list_id = ?')
         .get(req.params.id).m;
       const done = vStatus.value === 'done' ? 1 : 0;
+      const doneAtSql = done ? NOW_SQL : 'NULL';
       const result = PERSONAL_TASK_HAS_STATUS
         ? db.get().prepare(`
-            INSERT INTO personal_tasks (list_id, title, description, priority, status, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, sort_order, done, deleted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            INSERT INTO personal_tasks (list_id, title, description, priority, status, done_at, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, sort_order, done, deleted_at)
+            VALUES (?, ?, ?, ?, ?, ${doneAtSql}, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
           `).run(req.params.id, vTitle.value, description, vPriority.value, vStatus.value, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, maxOrder + 1, done)
         : db.get().prepare(`
-            INSERT INTO personal_tasks (list_id, title, description, priority, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, sort_order, done, deleted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
+            INSERT INTO personal_tasks (list_id, title, description, priority, done_at, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, sort_order, done, deleted_at)
+            VALUES (?, ?, ?, ?, ${doneAtSql}, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
           `).run(req.params.id, vTitle.value, description, vPriority.value, due_date, due_time, alarm_at, is_recurring, recurrence_rule, assigned_to, maxOrder + 1, done);
       syncPersonalItemLabels(req.params.id, result.lastInsertRowid, labelNames);
       return result.lastInsertRowid;
@@ -550,6 +553,7 @@ router.patch('/:id/items/:itemId', (req, res) => {
     const requestedStatus = req.body.status !== undefined
       ? req.body.status
       : (req.body.done !== undefined ? (req.body.done ? 'done' : 'open') : undefined);
+    let finalStatus = requestedStatus;
     if (requestedStatus !== undefined) {
       const v = oneOf(requestedStatus, VALID_PERSONAL_STATUSES, 'status');
       if (v.error) return res.status(400).json({ error: v.error, code: 400 });
@@ -559,6 +563,7 @@ router.patch('/:id/items/:itemId', (req, res) => {
       }
       updates.push('done = ?');
       params.push(v.value === 'done' ? 1 : 0);
+      finalStatus = v.value;
     }
 
     if (updates.length) {
@@ -578,6 +583,11 @@ router.patch('/:id/items/:itemId', (req, res) => {
         if (statusIdx !== -1) params[statusIdx] = 'open';
         const doneIdx = updates.indexOf('done = ?');
         if (doneIdx !== -1) params[doneIdx] = 0;
+        finalStatus = 'open';
+      }
+
+      if (requestedStatus !== undefined) {
+        updates.push(`done_at = ${finalStatus === 'done' ? NOW_SQL : 'NULL'}`);
       }
 
       params.push(req.params.itemId);

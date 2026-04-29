@@ -105,6 +105,7 @@ const MIGRATIONS = [
                                 CHECK(priority IN ('none', 'urgent')),
         status          TEXT    NOT NULL DEFAULT 'open'
                                 CHECK(status IN ('open', 'done')),
+        done_at         TEXT,
         due_date        TEXT,
         due_time        TEXT,
         assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -347,6 +348,7 @@ const MIGRATIONS = [
                                   CHECK(priority IN ('none', 'low', 'medium', 'high', 'urgent')),
           status          TEXT    NOT NULL DEFAULT 'open'
                                   CHECK(status IN ('open', 'in_progress', 'done')),
+          done_at         TEXT,
           due_date        TEXT,
           due_time        TEXT,
           assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -424,6 +426,7 @@ const MIGRATIONS = [
                                 CHECK(priority IN ('none', 'urgent')),
         status          TEXT    NOT NULL DEFAULT 'open'
                                 CHECK(status IN ('open', 'in_progress', 'done')),
+        done_at         TEXT,
         due_date        TEXT,
         due_time        TEXT,
         assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -436,14 +439,14 @@ const MIGRATIONS = [
       );
 
       INSERT INTO tasks_new (
-        id, title, description, category, priority, status, due_date, due_time,
+        id, title, description, category, priority, status, done_at, due_date, due_time,
         assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
         created_at, updated_at
       )
       SELECT
         id, title, description, category,
         CASE WHEN priority = 'urgent' THEN 'urgent' ELSE 'none' END,
-        status, due_date, due_time,
+        status, done_at, due_date, due_time,
         assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
         created_at, updated_at
       FROM tasks;
@@ -590,6 +593,7 @@ const MIGRATIONS = [
         list_id    INTEGER NOT NULL REFERENCES task_lists(id) ON DELETE CASCADE,
         title      TEXT    NOT NULL,
         done       INTEGER NOT NULL DEFAULT 0,
+        done_at    TEXT,
         deleted_at TEXT,
         sort_order INTEGER NOT NULL DEFAULT 0,
         created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
@@ -652,6 +656,7 @@ const MIGRATIONS = [
                                 CHECK(priority IN ('none', 'urgent')),
         status          TEXT    NOT NULL DEFAULT 'open'
                                 CHECK(status IN ('open', 'done')),
+        done_at         TEXT,
         due_date        TEXT,
         due_time        TEXT,
         assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -664,12 +669,12 @@ const MIGRATIONS = [
       );
 
       INSERT INTO tasks_new (
-        id, title, description, category, priority, status, due_date, due_time,
+        id, title, description, category, priority, status, done_at, due_date, due_time,
         assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
         created_at, updated_at
       )
       SELECT
-        id, title, description, category, priority, status, due_date, due_time,
+        id, title, description, category, priority, status, done_at, due_date, due_time,
         assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
         created_at, updated_at
       FROM tasks;
@@ -723,6 +728,7 @@ const MIGRATIONS = [
                                 CHECK(priority IN ('none', 'low', 'medium', 'high', 'urgent')),
         status          TEXT    NOT NULL DEFAULT 'open'
                                 CHECK(status IN ('open', 'done')),
+        done_at         TEXT,
         due_date        TEXT,
         due_time        TEXT,
         assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -735,12 +741,12 @@ const MIGRATIONS = [
       );
 
       INSERT INTO tasks_new (
-        id, title, description, category, priority, status, due_date, due_time,
+        id, title, description, category, priority, status, done_at, due_date, due_time,
         assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
         created_at, updated_at
       )
       SELECT
-        id, title, description, category, priority, status, due_date, due_time,
+        id, title, description, category, priority, status, done_at, due_date, due_time,
         assigned_to, created_by, is_recurring, recurrence_rule, parent_task_id,
         created_at, updated_at
       FROM tasks;
@@ -831,11 +837,12 @@ const MIGRATIONS = [
           FROM users
           WHERE id != (SELECT owner_id FROM task_lists WHERE is_household = 1 LIMIT 1);
 
-        INSERT INTO personal_tasks (list_id, title, description, priority, due_date, due_time, assigned_to, is_recurring, recurrence_rule, done, sort_order, created_at)
+        INSERT INTO personal_tasks (list_id, title, description, priority, due_date, due_time, assigned_to, is_recurring, recurrence_rule, done, done_at, sort_order, created_at)
           SELECT hl.id, t.title, t.description, COALESCE(t.priority, 'none'),
                  t.due_date, t.due_time, t.assigned_to,
                  COALESCE(t.is_recurring, 0), t.recurrence_rule,
                  CASE WHEN t.status = 'done' THEN 1 ELSE 0 END,
+                 CASE WHEN t.status = 'done' THEN COALESCE(t.done_at, t.updated_at) ELSE NULL END,
                  t.rowid, t.created_at
           FROM tasks t
           JOIN (SELECT id FROM task_lists WHERE is_household = 1 LIMIT 1) hl
@@ -1008,6 +1015,22 @@ const MIGRATIONS = [
         ON CONFLICT(key) DO UPDATE SET value = excluded.value
       `).run(JSON.stringify(items));
       db.prepare("DELETE FROM app_settings WHERE key = 'webview_url'").run();
+    },
+  },
+  {
+    version: 34,
+    description: 'Add completion timestamps to tasks',
+    up: () => {
+      addColumnIfMissing('tasks', 'done_at', 'ALTER TABLE tasks ADD COLUMN done_at TEXT;');
+      addColumnIfMissing('personal_tasks', 'done_at', 'ALTER TABLE personal_tasks ADD COLUMN done_at TEXT;');
+      db.exec(`
+        UPDATE tasks
+          SET done_at = COALESCE(done_at, updated_at)
+          WHERE status = 'done' AND done_at IS NULL;
+        UPDATE personal_tasks
+          SET done_at = COALESCE(done_at, updated_at)
+          WHERE done = 1 AND done_at IS NULL;
+      `);
     },
   },
 ];

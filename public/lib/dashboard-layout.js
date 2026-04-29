@@ -6,9 +6,54 @@ export const DASHBOARD_WIDGETS = [
   { id: 'quick-notes-widget', labelKey: 'dashboard.quickNotesTitle', defaultSpan: '1', visibleByDefault: true },
 ];
 
+export const DASHBOARD_WIDGET_VISIBILITY_KEY = 'planium-dashboard-widget-visibility';
+
 const DASHBOARD_WIDGET_SPANS = new Set(['1', '2', 'full']);
 const DASHBOARD_WIDGET_HEIGHTS = new Set(['short', 'normal', 'tall']);
 const DASHBOARD_LAYOUT_TOKEN = /^[A-Za-z0-9:_-]+$/;
+
+function normalizeDashboardWidgetIds(value) {
+  const values = Array.isArray(value)
+    ? value
+    : value instanceof Set
+      ? [...value]
+      : [];
+  const seen = new Set();
+  const result = [];
+  for (const id of values) {
+    if (typeof id !== 'string' || !DASHBOARD_LAYOUT_TOKEN.test(id) || seen.has(id)) continue;
+    seen.add(id);
+    result.push(id);
+  }
+  return result;
+}
+
+function readStoredDashboardWidgetHiddenIds() {
+  const raw = localStorage.getItem(DASHBOARD_WIDGET_VISIBILITY_KEY);
+  if (raw == null) return null;
+  try {
+    return normalizeDashboardWidgetIds(JSON.parse(raw));
+  } catch {
+    return [];
+  }
+}
+
+export function loadDashboardWidgetHiddenIds(fallbackHidden = []) {
+  const stored = readStoredDashboardWidgetHiddenIds();
+  if (stored !== null) return new Set(stored);
+
+  const hidden = normalizeDashboardWidgetIds(fallbackHidden);
+  if (hidden.length > 0) {
+    localStorage.setItem(DASHBOARD_WIDGET_VISIBILITY_KEY, JSON.stringify(hidden));
+  }
+  return new Set(hidden);
+}
+
+export function saveDashboardWidgetHiddenIds(hiddenIds = []) {
+  const hidden = normalizeDashboardWidgetIds(hiddenIds);
+  localStorage.setItem(DASHBOARD_WIDGET_VISIBILITY_KEY, JSON.stringify(hidden));
+  return hidden;
+}
 
 export function defaultDashboardLayout() {
   return {
@@ -23,6 +68,20 @@ export function defaultDashboardLayout() {
       return acc;
     }, {}),
   };
+}
+
+export function normalizeDashboardLayoutForDevice(value) {
+  const layout = normalizeDashboardLayout(value);
+  const hidden = loadDashboardWidgetHiddenIds(layout.hidden);
+  return {
+    ...layout,
+    hidden: [...hidden],
+  };
+}
+
+export function stripDashboardLayoutVisibility(value) {
+  const { hidden: _hidden, ...layout } = normalizeDashboardLayout(value);
+  return layout;
 }
 
 export function dashboardWidgetHeightClass(height = 'normal') {

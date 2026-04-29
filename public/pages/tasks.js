@@ -116,6 +116,20 @@ export function sortTasksForList(tasks) {
   });
 }
 
+function doneTaskSortValue(task) {
+  const raw = task?.done_at || task?.updated_at || task?.created_at || '';
+  const time = Date.parse(raw);
+  return Number.isFinite(time) ? time : 0;
+}
+
+export function sortDoneTasksForList(tasks) {
+  return tasks.slice().sort((a, b) => {
+    const doneDiff = doneTaskSortValue(b) - doneTaskSortValue(a);
+    if (doneDiff !== 0) return doneDiff;
+    return b.id - a.id;
+  });
+}
+
 // --------------------------------------------------------
 // Render-Bausteine
 // --------------------------------------------------------
@@ -336,7 +350,7 @@ function renderTaskGroups(tasks) {
   const inProgress = sortTasksForList(tasks.filter((t) => t.status === 'in_progress'));
   const pending = sortTasksForList(open.filter((t) => isRecurringTaskDue(t)));
   const notYetDue = sortTasksForList(open.filter((t) => !isRecurringTaskDue(t)));
-  const done = sortTasksForList(tasks.filter((t) => t.status === 'done'));
+  const done = sortDoneTasksForList(tasks.filter((t) => t.status === 'done'));
 
   if (!pending.length && !inProgress.length && !notYetDue.length && !done.length) {
     return `<div class="empty-state">
@@ -1658,7 +1672,7 @@ function renderPersonalItems() {
   const active = filtered.filter((i) => getPersonalItemStatus(i) !== 'done');
   const pending = sortTasksForList(active.filter((i) => isRecurringTaskDue(i)));
   const notYetDue = sortTasksForList(active.filter((i) => !isRecurringTaskDue(i)));
-  const done = sortTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'done'));
+  const done = sortDoneTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'done'));
   const trash = state.personalTrashItems;
   let html = '';
 
@@ -1825,7 +1839,7 @@ function renderPersonalKanban(container) {
   const filtered = getFilteredPersonalItems();
   const open = sortTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'open'));
   const inProgress = sortTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'in_progress'));
-  const done = sortTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'done'));
+  const done = sortDoneTasksForList(filtered.filter((i) => getPersonalItemStatus(i) === 'done'));
 
   wrap.innerHTML = `
     <div class="kanban-board">

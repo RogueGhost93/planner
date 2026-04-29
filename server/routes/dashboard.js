@@ -29,12 +29,19 @@ function readDashboardLayout(userId) {
 }
 
 function saveDashboardLayout(userId, layout) {
+  const current = readDashboardLayout(userId);
   const normalized = normalizeDashboardLayout(layout);
+  const saved = {
+    ...normalized,
+    hidden: layout && Object.prototype.hasOwnProperty.call(layout, 'hidden')
+      ? normalized.hidden
+      : current.hidden,
+  };
   db.get().prepare(`
     INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
     ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
-  `).run(userId, DASHBOARD_LAYOUT_KEY, JSON.stringify(normalized));
-  return normalized;
+  `).run(userId, DASHBOARD_LAYOUT_KEY, JSON.stringify(saved));
+  return saved;
 }
 
 /**

@@ -16,7 +16,8 @@ import {
   dashboardWidgetHeightClass,
   dashboardWidgetHeightLabel,
   nextDashboardWidgetHeight,
-  normalizeDashboardLayout,
+  normalizeDashboardLayoutForDevice,
+  stripDashboardLayoutVisibility,
 } from '/lib/dashboard-layout.js';
 import {
   renderWebviewCard,
@@ -391,9 +392,21 @@ function personalDueLabel(iso) {
   return { cls: '', label: formatDate(target) };
 }
 
+function getPersonalWidgetItemStatus(item) {
+  return item?.status ?? (item?.done ? 'done' : 'open');
+}
+
+function setPersonalWidgetItemStatus(item, status) {
+  item.status = status;
+  item.done = status === 'done' ? 1 : 0;
+}
+
+const PERSONAL_WIDGET_STATUS_CYCLE = { open: 'in_progress', in_progress: 'done', done: 'open' };
+const PERSONAL_WIDGET_STATUS_ICON = { open: 'circle', in_progress: 'circle-dot', done: 'check-circle' };
+
 function filterWidgetItems(items) {
   return items.filter((i) => {
-    if (i.done) return false;
+    if (getPersonalWidgetItemStatus(i) === 'done') return false;
     if (!i.due_date) return true;
     const diff = diffCalendarDays(i.due_date);
     if (diff < 0) return true;
@@ -450,12 +463,20 @@ function selectionIsInsideElement(element) {
   });
 }
 
+function isPhoneViewport() {
+  return window.matchMedia('(max-width: 767px)').matches;
+}
+
 function renderPersonalListBody(list, items) {
   const pending = sortWidgetItems(filterWidgetItems(items));
   const accentEnabled = showPriorityAccent();
   const flagEnabled = showPriorityFlags();
+  const showItemActions = !isPhoneViewport();
   const itemsHtml = pending.length
     ? pending.map((it) => {
+        const status = getPersonalWidgetItemStatus(it);
+        const nextStatus = PERSONAL_WIDGET_STATUS_CYCLE[status] ?? 'open';
+        const statusIcon = PERSONAL_WIDGET_STATUS_ICON[status] ?? 'circle';
         const priority = it.priority && it.priority !== 'none' ? it.priority : null;
         const priorityLabel = priority ? (t(`tasks.priority${priority.charAt(0).toUpperCase()}${priority.slice(1)}`) ?? priority) : '';
         const due = personalDueLabel(it.due_date);
@@ -476,14 +497,19 @@ function renderPersonalListBody(list, items) {
             </div>` : '';
         return `
         <div class="personal-widget-item ${priority && accentEnabled ? `personal-widget-item--priority personal-widget-item--priority-${priority}` : ''}" data-item-id="${it.id}" data-action="open-personal-widget-item" data-list-id="${list.id}">
-          <button class="personal-widget-item__check"
+          <button class="personal-widget-item__check personal-widget-item__check--${status}"
                   data-action="toggle-personal-widget-item"
                   data-list-id="${list.id}" data-item-id="${it.id}"
-                  aria-label="Mark as done"></button>
+                  data-next-status="${nextStatus}"
+                  aria-label="${t('tasks.cycleStatus')}"
+                  title="${t('tasks.cycleStatus')}">
+            <i data-lucide="${statusIcon}" style="width:10px;height:10px;pointer-events:none" aria-hidden="true"></i>
+          </button>
           <div class="personal-widget-item__body">
             <span class="personal-widget-item__title">${linkify(it.title)}</span>
             ${meta}
           </div>
+          ${showItemActions ? `
           <button class="personal-widget-item__edit"
                   data-action="edit-personal-widget-item"
                   data-list-id="${list.id}" data-item-id="${it.id}"
@@ -492,6 +518,7 @@ function renderPersonalListBody(list, items) {
             <i data-lucide="pencil" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
           </button>
           ${deleteBtnHtml('delete-personal-widget-item', `data-list-id="${list.id}" data-item-id="${it.id}"`, t('common.delete'))}
+          ` : ''}
         </div>`;
       }).join('')
     : `<div class="widget__empty" style="padding:var(--space-4)">
@@ -993,7 +1020,7 @@ function wireDashboardLayout(container, layoutState, data) {
   const saveLayout = () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      api.put('/dashboard/layout', { layout: layoutState }).catch((err) => {
+      api.put('/dashboard/layout', { layout: stripDashboardLayoutVisibility(layoutState) }).catch((err) => {
         window.planium?.showToast(err.message, 'danger');
       });
     }, 120);
@@ -1123,7 +1150,7 @@ function wireDashboardLayout(container, layoutState, data) {
     if (JSON.stringify(newOrder) === JSON.stringify(oldOrder)) return;
     layoutState.order = newOrder;
     try {
-      await api.put('/dashboard/layout', { layout: layoutState });
+      await api.put('/dashboard/layout', { layout: stripDashboardLayoutVisibility(layoutState) });
     } catch (err) {
       layoutState.order = oldOrder;
       applyOrder(oldOrder);
@@ -1425,16 +1452,40 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
       e.stopPropagation();
       const listId = Number(btn.dataset.listId);
       const itemId = Number(btn.dataset.itemId);
-      const itemEl = btn.closest('.personal-widget-item');
-      itemEl.classList.add('personal-widget-item--checking');
-      setTimeout(() => itemEl.remove(), 250);
+      const item = (dashData.personalItems || []).find((i) => i.id === itemId);
+      if (!item) return;
+      const currentStatus = getPersonalWidgetItemStatus(item);
+      const nextStatus = btn.dataset.nextStatus || PERSONAL_WIDGET_STATUS_CYCLE[currentStatus] || 'open';
+      if (currentStatus === nextStatus) return;
+      const wasDone = currentStatus === 'done';
+      const willBeDone = nextStatus === 'done';
+      setPersonalWidgetItemStatus(item, nextStatus);
+      const list = (dashData.personalLists || []).find((l) => l.id === listId);
+      if (list && wasDone !== willBeDone) {
+        list.pending_count += willBeDone ? -1 : 1;
+      }
+      refreshWidget();
       try {
-        await api.patch(`/personal-lists/${listId}/items/${itemId}`, { done: true });
-        const idx = (dashData.personalItems || []).findIndex((i) => i.id === itemId);
-        if (idx >= 0) dashData.personalItems[idx].done = 1;
+        const res = await api.patch(`/personal-lists/${listId}/items/${itemId}`, { status: nextStatus });
+        const updated = res.data?.data ?? res.data ?? null;
+        if (updated) {
+          const idx = (dashData.personalItems || []).findIndex((i) => i.id === itemId);
+          if (idx >= 0) dashData.personalItems[idx] = { ...dashData.personalItems[idx], ...updated };
+        }
+        const finalStatus = getPersonalWidgetItemStatus(updated ?? item);
+        if (list && willBeDone !== (finalStatus === 'done')) {
+          list.pending_count += willBeDone ? 1 : -1;
+          refreshWidget();
+        } else if (updated) {
+          refreshWidget();
+        }
       } catch {
-        window.planium?.showToast('Could not update item', 'danger');
+        setPersonalWidgetItemStatus(item, currentStatus);
+        if (list && wasDone !== willBeDone) {
+          list.pending_count += willBeDone ? 1 : -1;
+        }
         refreshWidget();
+        window.planium?.showToast('Could not update item', 'danger');
       }
     });
   });
@@ -1732,7 +1783,7 @@ export async function render(container, { user }) {
     .map((it) => ({ id: it.id, title: it.title, kind: 'personal', list_id: it.list_id }));
   const urgentTasks = [...householdUrgent, ...personalUrgent];
   const stats = { urgentTasks };
-  const layoutState = normalizeDashboardLayout(data.layout);
+  const layoutState = normalizeDashboardLayoutForDevice(data.layout);
   const hiddenWidgets = new Set(layoutState.hidden ?? []);
   const webviewItems = (webview.items ?? []).filter((item) => item && item.url);
   const pinnedNotes = (data.pinnedNotes ?? []).filter((note) => note && note.id != null);

@@ -9,7 +9,6 @@ import { t, formatDate, formatTime } from '/i18n.js';
 import { esc } from '/utils/html.js';
 import { showConfirm } from '/components/modal.js';
 import { openDashboardWidgetPicker } from '/components/dashboard-widget-picker.js';
-import { defaultDashboardLayout, normalizeDashboardLayout } from '/lib/dashboard-layout.js';
 import { previewTone } from '/components/task-notifications.js';
 import {
   loadWebviewConfig,
@@ -122,7 +121,6 @@ export async function render(container, { user }) {
   let fileboxStatus  = { enabled: false };
   let webviewStatus  = { configured: false, items: [], show_in_tabs: true };
   let taskLists      = [];
-  let dashboardLayout = defaultDashboardLayout();
   const myConfigs    = {};
 
   try {
@@ -806,27 +804,6 @@ function bindEvents(container, user, webviewStatus) {
   if (showTickers) {
     showTickers.addEventListener('change', () => {
       localStorage.setItem('planium-show-tickers', showTickers.checked ? 'true' : 'false');
-    });
-  }
-
-  const dashboardWidgetVisibility = container.querySelector('[data-dashboard-widget-visibility]');
-  if (dashboardWidgetVisibility) {
-    dashboardWidgetVisibility.addEventListener('change', async (e) => {
-      const input = e.target.closest('[data-dashboard-widget]');
-      if (!input) return;
-      const widgetId = input.dataset.dashboardWidget;
-      const nextLayout = normalizeDashboardLayout(dashboardLayout);
-      const hidden = new Set(nextLayout.hidden);
-      if (input.checked) hidden.delete(widgetId); else hidden.add(widgetId);
-      const payload = { ...nextLayout, hidden: [...hidden] };
-      try {
-        const res = await api.put('/dashboard/layout', { layout: payload });
-        dashboardLayout = normalizeDashboardLayout(res.data?.layout ?? payload);
-        window.planium?.showToast(t('settings.dashboardWidgetsSavedToast'), 'success');
-      } catch (err) {
-        input.checked = !input.checked;
-        window.planium?.showToast(err.message, 'danger');
-      }
     });
   }
 

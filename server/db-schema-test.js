@@ -29,6 +29,7 @@ const MIGRATIONS_SQL = {
                               CHECK(priority IN ('low', 'medium', 'high', 'urgent')),
       status          TEXT    NOT NULL DEFAULT 'open'
                               CHECK(status IN ('open', 'in_progress', 'done')),
+      done_at         TEXT,
       due_date        TEXT,
       due_time        TEXT,
       assigned_to     INTEGER REFERENCES users(id) ON DELETE SET NULL,
