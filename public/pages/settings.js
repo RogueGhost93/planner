@@ -1728,7 +1728,7 @@ function renderPersonalOverride(integration, myConfig) {
         <div id="${integration.id}-override-error" class="form-error" hidden></div>
         <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
           <button class="btn btn--primary"   id="${integration.id}-override-save"  type="button">Save</button>
-          <button class="btn btn--secondary" id="${integration.id}-override-clear" type="button">Clear override</button>
+          <button class="btn btn--secondary" id="${integration.id}-override-clear" type="button">Clear</button>
         </div>
       </div>
     </div>
@@ -1756,7 +1756,7 @@ function bindPersonalOverrideEvents(container, integration) {
     try {
       await api.put(`${endpoint}/my-config`, { useGlobal: toggle.checked });
       window.planium?.showToast(
-        toggle.checked ? `${label}: using shared connection` : `${label}: using your override`,
+        toggle.checked ? `${label}: using shared connection` : `${label}: using your connection`,
         'default',
       );
     } catch (err) {
@@ -1772,11 +1772,11 @@ function bindPersonalOverrideEvents(container, integration) {
     for (const f of fields) {
       const v = root.querySelector(`#${id}-override-${f.key}`).value.trim();
       if (v) body[f.key] = v;
-    }
-    saveBtn.disabled = true;
+      }
+      saveBtn.disabled = true;
     try {
       await api.put(`${endpoint}/my-config`, body);
-      window.planium?.showToast(`${label}: override saved`, 'success');
+      window.planium?.showToast(`${label}: connection saved`, 'success');
       window.planium?.navigate('/settings');
     } catch (err) {
       showError(errorEl, err.data?.error ?? err.message ?? 'Failed to save');
@@ -1786,12 +1786,12 @@ function bindPersonalOverrideEvents(container, integration) {
 
   clearBtn?.addEventListener('click', async () => {
     const message = allowShared
-      ? `Clear your ${label} override and use the shared connection?`
+      ? `Clear your ${label} connection and use the shared connection?`
       : `Clear your ${label} connection?`;
     if (!await showConfirm(message)) return;
     try {
       await api.delete(`${endpoint}/my-config`);
-      window.planium?.showToast(`${label}: override cleared`, 'default');
+      window.planium?.showToast(`${label}: connection cleared`, 'default');
       window.planium?.navigate('/settings');
     } catch (err) {
       showError(errorEl, err.data?.error ?? err.message);
