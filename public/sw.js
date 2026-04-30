@@ -12,9 +12,9 @@
  *   API: Always network (no caching of user data)
  */
 
-const SHELL_CACHE   = 'planium-shell-v252';
-const PAGES_CACHE   = 'planium-pages-v252';
-const ASSETS_CACHE  = 'planium-assets-v252';
+const SHELL_CACHE   = 'planium-shell-v259';
+const PAGES_CACHE   = 'planium-pages-v259';
+const ASSETS_CACHE  = 'planium-assets-v259';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App shell: needed immediately for first render
@@ -25,7 +25,6 @@ const APP_SHELL = [
   '/router.js',
   '/i18n.js',
   '/rrule-ui.js',
-  '/lib/dev-tools.js',
   '/locales/en.json',
   '/sw-register.js',
   '/lucide.min.js',
@@ -40,15 +39,14 @@ const APP_SHELL = [
   '/styles/meals.css',
   '/styles/calendar.css',
   '/styles/news.css',
-  '/styles/notes.css',
   '/styles/contacts.css',
   '/styles/budget.css',
   '/styles/settings.css',
   '/styles/notifications.css',
   '/styles/bookmarks.css',
   '/styles/filebox.css',
+  '/styles/board.css',
   '/styles/notebook.css',
-  '/styles/notebook-v2.css',
   '/vendor/marked.esm.js',
   '/components/planium-install-prompt.js',
   '/components/task-notifications.js',
@@ -68,10 +66,10 @@ const PAGE_MODULES = [
   '/pages/dashboard.js',
   '/pages/tasks.js',
   '/pages/lists.js',
+  '/pages/board.js',
   '/pages/meals.js',
   '/pages/calendar.js',
   '/pages/news.js',
-  '/pages/notes.js',
   '/pages/notebook.js',
   '/pages/contacts.js',
   '/pages/budget.js',
@@ -79,7 +77,6 @@ const PAGE_MODULES = [
   '/pages/login.js',
   '/pages/bookmarks.js',
   '/pages/filebox.js',
-  '/pages/notebook-v2.js',
 ];
 
 // --------------------------------------------------------

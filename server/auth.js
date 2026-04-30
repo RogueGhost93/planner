@@ -28,7 +28,7 @@ const NAV_ORDER_PATHS = [
   '/',
   '/tasks',
   '/lists',
-  '/notes',
+  '/board',
   '/notebook',
   '/calendar',
   '/news',
@@ -39,6 +39,10 @@ const NAV_ORDER_PATHS = [
   '/contacts',
   '/settings',
 ];
+
+function canonicalNavPath(path) {
+  return path === '/notes' ? '/board' : path;
+}
 
 // --------------------------------------------------------
 // Session-Store (better-sqlite3, gleiche DB-Instanz wie App)
@@ -183,9 +187,10 @@ function normalizeNavOrder(raw) {
   const seen = new Set();
   const order = [];
   for (const path of source) {
-    if (!NAV_ORDER_PATHS.includes(path) || seen.has(path)) continue;
-    seen.add(path);
-    order.push(path);
+    const canonical = canonicalNavPath(path);
+    if (!NAV_ORDER_PATHS.includes(canonical) || seen.has(canonical)) continue;
+    seen.add(canonical);
+    order.push(canonical);
   }
   for (const path of NAV_ORDER_PATHS) {
     if (seen.has(path)) continue;
@@ -558,7 +563,7 @@ router.patch('/me/preferences', requireAuth, csrfMiddleware, (req, res) => {
   if (appearance_ticker_btc_href != null && String(appearance_ticker_btc_href).length > 2048) {
     return res.status(400).json({ error: 'Ticker link is too long.', code: 400 });
   }
-  if (nav_order != null && (!Array.isArray(nav_order) || nav_order.some((path) => !NAV_ORDER_PATHS.includes(path)))) {
+  if (nav_order != null && (!Array.isArray(nav_order) || nav_order.some((path) => !NAV_ORDER_PATHS.includes(canonicalNavPath(path))))) {
     return res.status(400).json({ error: 'Invalid nav_order.', code: 400 });
   }
   const updates = []; const params = [];

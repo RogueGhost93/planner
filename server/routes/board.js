@@ -1,7 +1,6 @@
 /**
- * Modul: Pinnwand / Notizen (Notes)
- * Zweck: REST-API-Routen für Notizen (CRUD, Pin-Toggle)
- * Abhängigkeiten: express, server/db.js, server/auth.js
+ * Module: Board
+ * Purpose: REST API routes for sticky notes (CRUD, pin toggle).
  */
 
 import { createLogger } from '../logger.js';

@@ -29,17 +29,17 @@
   }
 }
 
-.dashboard--test-board {
-  --test-board-row-height: 88px;
+.dashboard--board {
+  --board-row-height: 88px;
 }
 
-.dashboard--test-board .dashboard-test-board__slot {
+.dashboard--board .dashboard-board__slot {
   position: relative;
   min-width: 0;
   min-height: 0;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle {
+.dashboard--board .dashboard-board__resize-handle {
   display: none;
   position: absolute;
   z-index: 4;
@@ -52,12 +52,12 @@
   touch-action: none;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle:hover {
+.dashboard--board .dashboard-board__resize-handle:hover {
   opacity: 0;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--n,
-.dashboard--test-board .dashboard-test-board__resize-handle--s {
+.dashboard--board .dashboard-board__resize-handle--n,
+.dashboard--board .dashboard-board__resize-handle--s {
   left: 6px;
   right: 6px;
   width: auto;
@@ -65,18 +65,18 @@
   border-radius: 0;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--n {
+.dashboard--board .dashboard-board__resize-handle--n {
   top: -5px;
   cursor: ns-resize;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--s {
+.dashboard--board .dashboard-board__resize-handle--s {
   bottom: -5px;
   cursor: ns-resize;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--e,
-.dashboard--test-board .dashboard-test-board__resize-handle--w {
+.dashboard--board .dashboard-board__resize-handle--e,
+.dashboard--board .dashboard-board__resize-handle--w {
   top: 6px;
   bottom: 6px;
   width: 10px;
@@ -85,81 +85,81 @@
   border-radius: 0;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--e {
+.dashboard--board .dashboard-board__resize-handle--e {
   right: -5px;
   cursor: ew-resize;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--w {
+.dashboard--board .dashboard-board__resize-handle--w {
   left: -5px;
   cursor: ew-resize;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--nw,
-.dashboard--test-board .dashboard-test-board__resize-handle--ne,
-.dashboard--test-board .dashboard-test-board__resize-handle--se,
-.dashboard--test-board .dashboard-test-board__resize-handle--sw {
+.dashboard--board .dashboard-board__resize-handle--nw,
+.dashboard--board .dashboard-board__resize-handle--ne,
+.dashboard--board .dashboard-board__resize-handle--se,
+.dashboard--board .dashboard-board__resize-handle--sw {
   display: none;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--nw {
+.dashboard--board .dashboard-board__resize-handle--nw {
   top: -8px;
   left: -8px;
   cursor: nwse-resize;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--ne {
+.dashboard--board .dashboard-board__resize-handle--ne {
   top: -8px;
   right: -8px;
   cursor: nesw-resize;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--se {
+.dashboard--board .dashboard-board__resize-handle--se {
   right: -8px;
   bottom: -8px;
   cursor: nwse-resize;
 }
 
-.dashboard--test-board .dashboard-test-board__resize-handle--sw {
+.dashboard--board .dashboard-board__resize-handle--sw {
   left: -8px;
   bottom: -8px;
   cursor: nesw-resize;
 }
 
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle {
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle {
   display: block;
 }
 
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--nw,
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--ne,
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--se,
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--sw {
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--nw,
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--ne,
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--se,
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--sw {
   display: block;
   width: 20px;
   height: 20px;
 }
 
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--nw {
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--nw {
   top: -10px;
   left: -10px;
 }
 
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--ne {
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--ne {
   top: -10px;
   right: -10px;
 }
 
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--se {
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--se {
   right: -10px;
   bottom: -10px;
 }
 
-.dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle--sw {
+.dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle--sw {
   left: -10px;
   bottom: -10px;
 }
 
-.dashboard-test-board__edit-toggle {
+.dashboard-board__edit-toggle {
   position: fixed;
   right: max(var(--space-4), env(safe-area-inset-right));
   bottom: calc(var(--nav-height-mobile) + var(--safe-area-inset-bottom) + var(--space-4));
@@ -177,11 +177,11 @@
   cursor: pointer;
 }
 
-.dashboard-test-board__edit-toggle:hover {
+.dashboard-board__edit-toggle:hover {
   background: var(--color-accent-light);
 }
 
-.dashboard-test-board__edit-toggle svg {
+.dashboard-board__edit-toggle svg {
   width: 20px;
   height: 20px;
   display: block;
@@ -349,43 +349,43 @@
 }
 
 @media (min-width: 1024px) {
-  .dashboard--test-board .dashboard__grid {
+  .dashboard--board .dashboard__grid {
     grid-template-columns: 1fr;
     align-items: start;
   }
 
-  .dashboard--test-board .dashboard__test-board {
+  .dashboard--board .dashboard__board {
     position: relative;
     display: block;
     grid-column: 1 / -1;
-    --test-board-gap: var(--space-4);
-    --test-board-row-height: 88px;
-    --test-board-col-width: calc((100% - (var(--test-board-gap) * 11)) / 12);
+    --board-gap: var(--space-4);
+    --board-row-height: 88px;
+    --board-col-width: calc((100% - (var(--board-gap) * 11)) / 12);
     min-height: 320px;
     min-width: 0;
     overflow: visible;
   }
 
-  .dashboard--test-board .dashboard__test-board--pending {
+  .dashboard--board .dashboard__board--pending {
     visibility: hidden;
   }
 
-  .dashboard--test-board .dashboard-test-board__slot {
+  .dashboard--board .dashboard-board__slot {
     position: absolute;
     min-width: 0;
     min-height: 0;
     transition: left 120ms ease, top 120ms ease, width 120ms ease, height 120ms ease;
   }
 
-  .dashboard--test-board .dashboard-test-board__slot--dragging {
+  .dashboard--board .dashboard-board__slot--dragging {
     z-index: 6;
   }
 
-  .dashboard--test-board.dashboard__test-board--dragging .dashboard-test-board__slot {
+  .dashboard--board.dashboard__board--dragging .dashboard-board__slot {
     transition: none;
   }
 
-  .dashboard--test-board .widget {
+  .dashboard--board .widget {
     height: 100%;
     width: 100%;
     min-height: 0;
@@ -394,7 +394,7 @@
     overflow: hidden;
   }
 
-  .dashboard--test-board .widget__body {
+  .dashboard--board .widget__body {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -403,11 +403,11 @@
     flex: 1 1 auto;
   }
 
-  .dashboard--test-board #quote-widget {
+  .dashboard--board #quote-widget {
     min-height: 0;
   }
 
-  .dashboard--test-board #quote-widget .quote-widget__body {
+  .dashboard--board #quote-widget .quote-widget__body {
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
@@ -417,7 +417,7 @@
     padding: var(--space-3) var(--space-4) var(--space-4);
   }
 
-  .dashboard--test-board #quote-widget .quote-widget__content {
+  .dashboard--board #quote-widget .quote-widget__content {
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
@@ -427,8 +427,8 @@
     gap: var(--space-2);
   }
 
-  .dashboard--test-board #quote-widget .quote-widget__text,
-  .dashboard--test-board #quote-widget .quote-widget__excerpt {
+  .dashboard--board #quote-widget .quote-widget__text,
+  .dashboard--board #quote-widget .quote-widget__excerpt {
     margin: 0;
     display: block;
     overflow: hidden;
@@ -439,7 +439,7 @@
     word-break: break-word;
   }
 
-  .dashboard--test-board #quote-widget .quote-widget__author {
+  .dashboard--board #quote-widget .quote-widget__author {
     font-size: var(--text-xs);
     color: var(--color-text-secondary);
     white-space: nowrap;
@@ -447,9 +447,9 @@
     text-overflow: ellipsis;
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xxs .quote-widget__body,
-  .dashboard--test-board #quote-widget.widget-layout--height-xs .quote-widget__body,
-  .dashboard--test-board #quote-widget.widget-layout--height-short .quote-widget__body {
+  .dashboard--board #quote-widget.widget-layout--height-xxs .quote-widget__body,
+  .dashboard--board #quote-widget.widget-layout--height-xs .quote-widget__body,
+  .dashboard--board #quote-widget.widget-layout--height-short .quote-widget__body {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-2);
@@ -457,43 +457,43 @@
     padding-bottom: var(--space-2);
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xxs .quote-widget__icon {
+  .dashboard--board #quote-widget.widget-layout--height-xxs .quote-widget__icon {
     width: 14px;
     height: 14px;
     margin-top: 1px;
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xxs .quote-widget__content,
-  .dashboard--test-board #quote-widget.widget-layout--height-xs .quote-widget__content,
-  .dashboard--test-board #quote-widget.widget-layout--height-short .quote-widget__content {
+  .dashboard--board #quote-widget.widget-layout--height-xxs .quote-widget__content,
+  .dashboard--board #quote-widget.widget-layout--height-xs .quote-widget__content,
+  .dashboard--board #quote-widget.widget-layout--height-short .quote-widget__content {
     width: 100%;
     justify-content: flex-start;
     gap: var(--space-1);
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xxs .quote-widget__text {
+  .dashboard--board #quote-widget.widget-layout--height-xxs .quote-widget__text {
     font-size: var(--text-xs);
     line-height: 1.4;
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xxs .quote-widget__excerpt {
+  .dashboard--board #quote-widget.widget-layout--height-xxs .quote-widget__excerpt {
     font-size: var(--text-xs);
     line-height: 1.4;
     font-style: normal;
     white-space: normal;
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xs .quote-widget__text {
+  .dashboard--board #quote-widget.widget-layout--height-xs .quote-widget__text {
     max-height: 2.8em;
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xs .quote-widget__excerpt {
+  .dashboard--board #quote-widget.widget-layout--height-xs .quote-widget__excerpt {
     max-height: 2.8em;
     white-space: normal;
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-short .quote-widget__text,
-  .dashboard--test-board #quote-widget.widget-layout--height-short .quote-widget__excerpt {
+  .dashboard--board #quote-widget.widget-layout--height-short .quote-widget__text,
+  .dashboard--board #quote-widget.widget-layout--height-short .quote-widget__excerpt {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -501,80 +501,80 @@
     white-space: normal;
   }
 
-  .dashboard--test-board #quote-widget.widget-layout--height-xxs .quote-widget__author {
+  .dashboard--board #quote-widget.widget-layout--height-xxs .quote-widget__author {
     font-size: 11px;
   }
 
-  .dashboard--test-board .widget__drag-handle {
+  .dashboard--board .widget__drag-handle {
     display: none;
   }
 
-  .dashboard--test-board .widget__size-btn,
-  .dashboard--test-board .widget__height-btn {
+  .dashboard--board .widget__size-btn,
+  .dashboard--board .widget__height-btn {
     display: none !important;
   }
 
-  .dashboard--test-board .widget__header-actions {
+  .dashboard--board .widget__header-actions {
     gap: var(--space-1);
   }
 
-  .dashboard--test-board .dashboard-test-board__edit-toggle {
+  .dashboard--board .dashboard-board__edit-toggle {
     display: inline-flex;
   }
 
-  .dashboard--test-board.dashboard--edit-mode .widget__drag-handle {
+  .dashboard--board.dashboard--edit-mode .widget__drag-handle {
     display: inline-flex !important;
   }
 
-  .dashboard--test-board.dashboard--edit-mode .dashboard-test-board__resize-handle {
+  .dashboard--board.dashboard--edit-mode .dashboard-board__resize-handle {
     display: block;
   }
 
-  .dashboard--test-board .widget:not(#quote-widget):not(.widget--meals):not(.widget--board-notes) {
+  .dashboard--board .widget:not(#quote-widget):not(.widget--meals):not(.widget--board-notes) {
     height: 100%;
     min-height: 0;
   }
 
-  .dashboard--test-board #tasks-widget-body {
+  .dashboard--board #tasks-widget-body {
     flex: 1;
     min-height: 0;
   }
 
-  .dashboard--test-board #tasks-widget-body .personal-widget-items {
+  .dashboard--board #tasks-widget-body .personal-widget-items {
     flex: 1;
     min-height: 0;
     overflow: auto;
   }
 
-  .dashboard--test-board #shopping-widget-body {
+  .dashboard--board #shopping-widget-body {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
   }
 
-  .dashboard--test-board #shopping-widget-body .shopping-widget__list {
+  .dashboard--board #shopping-widget-body .shopping-widget__list {
     flex: 1;
     min-height: 0;
     display: flex;
     flex-direction: column;
   }
 
-  .dashboard--test-board #shopping-widget-body .shopping-widget__items {
+  .dashboard--board #shopping-widget-body .shopping-widget__items {
     flex: 1;
     min-height: 0;
   }
 
-  .dashboard--test-board .quick-notes__editor-wrap {
+  .dashboard--board .quick-notes__editor-wrap {
     flex: 1;
     min-height: 0;
   }
 
-  .dashboard--test-board .quick-notes__editor {
+  .dashboard--board .quick-notes__editor {
     min-height: 0;
   }
 
-  .dashboard--test-board .widget__empty {
+  .dashboard--board .widget__empty {
     flex: 1;
     justify-content: center;
   }
@@ -1893,12 +1893,12 @@ a.price-ticker:hover {
     gap: var(--space-1);
   }
 
-  .dashboard--test-board.dashboard--edit-mode .dashboard-test-board__slot {
+  .dashboard--board.dashboard--edit-mode .dashboard-board__slot {
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 24%, transparent);
     border-radius: var(--radius-md);
   }
 
-  .dashboard--test-board.dashboard--edit-mode .widget__drag-handle {
+  .dashboard--board.dashboard--edit-mode .widget__drag-handle {
     display: inline-flex;
   }
 

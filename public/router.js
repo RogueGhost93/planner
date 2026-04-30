@@ -21,8 +21,8 @@ const ROUTES = [
   { path: '/',         page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
   { path: '/tasks',    page: '/pages/tasks.js',     requiresAuth: true, module: 'tasks'     },
   { path: '/lists',    page: '/pages/lists.js',     requiresAuth: true, module: 'lists'     },
-  { path: '/notes',    page: '/pages/notes.js',     requiresAuth: true, module: 'notes'     },
-  { path: '/notebook', page: '/pages/notebook-v2.js', requiresAuth: true, module: 'notebook'  },
+  { path: '/board',    page: '/pages/board.js',     requiresAuth: true, module: 'board'     },
+  { path: '/notebook', page: '/pages/notebook.js', requiresAuth: true, module: 'notebook'  },
   { path: '/calendar', page: '/pages/calendar.js',  requiresAuth: true, module: 'calendar'  },
   { path: '/meals',    page: '/pages/meals.js',     requiresAuth: true, module: 'meals'     },
   { path: '/news',     page: '/pages/news.js',      requiresAuth: true, module: 'news'      },
@@ -88,7 +88,7 @@ const NAV_ITEM_DEFS = [
   { path: '/',         labelKey: 'nav.dashboard', icon: 'layout-dashboard' },
   { path: '/tasks',    labelKey: 'nav.tasks',     icon: 'check-square'     },
   { path: '/lists',    labelKey: 'nav.lists',     icon: 'list-checks'      },
-  { path: '/notes',    labelKey: 'nav.notes',     icon: 'sticky-note'      },
+  { path: '/board',    labelKey: 'nav.board',     icon: 'sticky-note'      },
   { path: '/notebook', labelKey: 'nav.notebook',  icon: 'book-open'        },
   { path: '/calendar', labelKey: 'nav.calendar',  icon: 'calendar'         },
   { path: '/news',     labelKey: 'nav.news',      icon: 'newspaper', optional: true },
@@ -149,6 +149,10 @@ function isPhoneNavMenuEnabled() {
   return isPhoneViewport() && currentPhoneNavMode() === 'menu';
 }
 
+function syncPhoneNavMenuModeClass() {
+  document.body.classList.toggle('phone-nav-menu-mode', isPhoneNavMenuEnabled());
+}
+
 function getNavItemLabel(path) {
   return navItems().find((item) => item.path === path)?.label ?? t('nav.dashboard');
 }
@@ -157,6 +161,7 @@ function refreshBottomNav() {
   const nav = document.querySelector('.nav-bottom');
   if (!nav) return;
   nav.outerHTML = renderBottomNavHtml();
+  syncPhoneNavMenuModeClass();
   wireBottomNav();
   updateNav(currentPath);
 }
@@ -276,8 +281,10 @@ let activePageStyle = null;
 
 function loadPageStyle(moduleName) {
   if (!moduleName) return { ready: Promise.resolve(), cleanup: () => {} };
-  const href = moduleName === 'notebook'
-    ? '/styles/notebook-v2.css'
+  const href = moduleName === 'board'
+    ? '/styles/board.css'
+    : moduleName === 'notebook'
+    ? '/styles/notebook.css'
     : `/styles/${moduleName}.css`;
   if (activePageStyle?.getAttribute('href') === href) {
     return { ready: Promise.resolve(), cleanup: () => {} };
@@ -326,7 +333,7 @@ let isNavigating = false;
 // Router
 // --------------------------------------------------------
 
-const ROUTE_ORDER = ['/', '/tasks', '/lists', '/notes', '/notebook', '/calendar', '/news',
+const ROUTE_ORDER = ['/', '/tasks', '/lists', '/board', '/notebook', '/calendar', '/news',
                      '/web', '/meals', '/contacts', '/settings'];
 
 function getDirection(fromPath, toPath) {
@@ -518,6 +525,7 @@ function renderAppShell(container) {
   });
 
   // Bottom nav: scroll-snap + dot indicator
+  syncPhoneNavMenuModeClass();
   wireBottomNav();
   initRouteSwipe(container);
   wireNavReorder(container);
@@ -539,17 +547,18 @@ function initBottomNavSwipe(container) {
       dots.forEach((d, i) => d.classList.toggle('nav-bottom__dot--active', i === page));
     }, { passive: true });
   }
+}
 
-  if (!nav.classList.contains('nav-bottom--menu')) return;
-
+function wirePhoneNavMenuSwipe(trigger) {
   const SWIPE_THRESHOLD = 50;
   const LOCK_DELTA = 10;
+  let pointerId = null;
   let startX = 0;
   let startY = 0;
   let tracking = false;
   let locked = null;
 
-  const suppressNextClick = (e) => {
+  const suppressClick = (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
   };
@@ -564,27 +573,26 @@ function initBottomNavSwipe(container) {
       : Math.max(0, currentIdx - 1);
     if (nextIdx === currentIdx) return false;
 
-    nav.addEventListener('click', suppressNextClick, { once: true, capture: true });
+    trigger.addEventListener('click', suppressClick, { once: true, capture: true });
     navigate(ROUTE_ORDER[nextIdx]);
     return true;
   };
 
-  nav.addEventListener('touchstart', (e) => {
-    if (e.touches.length !== 1) {
-      tracking = false;
-      return;
-    }
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
+  trigger.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    pointerId = e.pointerId;
+    startX = e.clientX;
+    startY = e.clientY;
     tracking = true;
     locked = null;
-  }, { passive: true });
+    try { trigger.setPointerCapture(pointerId); } catch {}
+  });
 
-  nav.addEventListener('touchmove', (e) => {
-    if (!tracking) return;
+  trigger.addEventListener('pointermove', (e) => {
+    if (!tracking || e.pointerId !== pointerId) return;
 
-    const dx = e.touches[0].clientX - startX;
-    const dy = e.touches[0].clientY - startY;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
 
     if (locked === null) {
       if (Math.abs(dx) > LOCK_DELTA && Math.abs(dx) > Math.abs(dy)) locked = 'h';
@@ -594,20 +602,31 @@ function initBottomNavSwipe(container) {
     if (locked === 'h') {
       e.preventDefault();
     }
-  }, { passive: false });
-
-  nav.addEventListener('touchend', (e) => {
-    if (!tracking) return;
-    tracking = false;
-    if (locked !== 'h') return;
-
-    const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
-    navigateFromSwipe(dx);
   });
 
-  nav.addEventListener('touchcancel', () => {
+  trigger.addEventListener('pointerup', (e) => {
+    if (!tracking || e.pointerId !== pointerId) return;
     tracking = false;
+    try { trigger.releasePointerCapture(pointerId); } catch {}
+
+    if (locked !== 'h') {
+      pointerId = null;
+      locked = null;
+      return;
+    }
+
+    const dx = e.clientX - startX;
+    navigateFromSwipe(dx);
+    pointerId = null;
     locked = null;
+  });
+
+  trigger.addEventListener('pointercancel', (e) => {
+    if (e.pointerId !== pointerId) return;
+    tracking = false;
+    pointerId = null;
+    locked = null;
+    try { trigger.releasePointerCapture(e.pointerId); } catch {}
   });
 }
 
@@ -634,6 +653,14 @@ function isRouteSwipeExcludedTarget(target) {
     '[contenteditable="true"]',
     '.nav-sidebar',
     '.nav-bottom',
+    '.news-toolbar',
+    '.news-toolbar__actions',
+    '.bookmarks-toolbar',
+    '.bookmarks-filter-row',
+    '.notebook-editor__header',
+    '.notebook-editor__actions',
+    '.notebook-editor__toolbar',
+    '.notebook-editor__toolbar-group',
     '.list-tabs-bar',
     '#list-tabs-bar',
     '.task-tabs-bar',
@@ -999,7 +1026,9 @@ function wireBottomNav() {
   if (!nav) return;
 
   if (nav.classList.contains('nav-bottom--menu')) {
-    nav.querySelector('#phone-nav-menu-trigger')?.addEventListener('click', openPhoneNavMenu);
+    const trigger = nav.querySelector('#phone-nav-menu-trigger');
+    trigger?.addEventListener('click', openPhoneNavMenu);
+    if (trigger) wirePhoneNavMenuSwipe(trigger);
     return;
   }
 

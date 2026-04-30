@@ -26,6 +26,7 @@ let bookmarkletHandled = false;
 
 const FILTERS_STORAGE_KEY = 'bookmarks_filters';
 const TAG_SORT_STORAGE_KEY = 'bookmarks_tag_sort';
+const FILTERS_MIGRATION_KEY = 'bookmarks_filters_unread_default_migrated';
 
 function saveFiltersToStorage() {
   const filters = {
@@ -44,7 +45,14 @@ function restoreFiltersFromStorage() {
       const filters = JSON.parse(stored);
       currentSearch = filters.search || '';
       currentTags = Array.isArray(filters.tags) ? filters.tags : [];
-      currentStatusFilter = filters.statusFilter || 'unread';
+      const savedStatus = filters.statusFilter;
+      if (savedStatus === 'all' && localStorage.getItem(FILTERS_MIGRATION_KEY) !== '1') {
+        currentStatusFilter = 'unread';
+        saveFiltersToStorage();
+        localStorage.setItem(FILTERS_MIGRATION_KEY, '1');
+      } else {
+        currentStatusFilter = savedStatus || 'unread';
+      }
       currentLimit = filters.limit || 50;
     } catch (e) {
       console.error('Failed to restore filters:', e);
@@ -1370,7 +1378,7 @@ function bindEvents(container) {
   sidebarClearBtn?.addEventListener('click', () => {
     currentSearch = '';
     currentTags = [];
-    currentStatusFilter = 'all';
+    currentStatusFilter = 'unread';
     currentOffset = 0;
     currentLimit = 50;
     bulkSelected.clear();
@@ -1379,7 +1387,7 @@ function bindEvents(container) {
 
     // Reset input values
     if (searchInput) searchInput.value = '';
-    if (filterSelect) filterSelect.value = 'all';
+    if (filterSelect) filterSelect.value = 'unread';
     if (perPageSelect) perPageSelect.value = '50';
     if (tagsSearchInput) tagsSearchInput.value = '';
     const bulkToggle = container.querySelector('#bookmarks-bulk-toggle');

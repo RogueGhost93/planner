@@ -9,7 +9,7 @@ import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js
 import { t, formatDate, formatTime, getLocale } from '/i18n.js';
 import { esc, linkify } from '/utils/html.js';
 import { openItemEditDialog } from '/pages/tasks.js';
-import { openNoteModal, openNotePreviewModal } from '/pages/notes.js';
+import { openNoteModal, openNotePreviewModal } from '/pages/board.js';
 import { renderPriceTickers, wirePriceTickers } from '/components/price-tickers.js';
 import { showConfirm, openModal, closeModal } from '/components/modal.js';
 import { openDashboardWidgetPicker } from '/components/dashboard-widget-picker.js';
@@ -123,7 +123,7 @@ function clearDashboardPhoneWidgetHeights() {
 }
 
 const DASHBOARD_BOARD_STATE_KEY = 'planium-dashboard-board-state-v1';
-const LEGACY_DASHBOARD_BOARD_STATE_KEY = 'planium-dashboard-test-board-v2';
+const LEGACY_DASHBOARD_BOARD_STATE_KEY = 'planium-dashboard-board-state-legacy-v1';
 const DASHBOARD_BOARD_COLUMNS = 12;
 const DASHBOARD_BOARD_ROW_HEIGHT = 88;
 const DASHBOARD_BOARD_GAP = 16;
@@ -157,7 +157,7 @@ function dashboardBoardDefaultRectForId(id, yCursor = 0) {
   return DASHBOARD_BOARD_DEFAULTS[id] ?? { x: 0, y: yCursor, w: 4, h: 3 };
 }
 
-function applyDashboardTestBoardTemplate(layoutState) {
+function applyDashboardBoardTemplate(layoutState) {
   if (localStorage.getItem(dashboardBoardTemplateKey()) === 'true') return false;
 
   layoutState.order = [
@@ -182,7 +182,7 @@ function applyDashboardTestBoardTemplate(layoutState) {
   return true;
 }
 
-function normalizeDashboardTestBoardRect(value, fallback = { x: 0, y: 0, w: 4, h: 3 }) {
+function normalizeDashboardBoardRect(value, fallback = { x: 0, y: 0, w: 4, h: 3 }) {
   const rect = value && typeof value === 'object' ? value : fallback;
   const x = Number.isFinite(Number(rect.x)) ? Math.max(0, Math.floor(Number(rect.x))) : fallback.x;
   const y = Number.isFinite(Number(rect.y)) ? Math.max(0, Math.floor(Number(rect.y))) : fallback.y;
@@ -202,7 +202,7 @@ function loadDashboardBoardState(widgetIds = []) {
   let yCursor = 0;
   for (const id of widgetIds) {
     const fallback = dashboardBoardDefaultRectForId(id, yCursor);
-    defaults[id] = normalizeDashboardTestBoardRect(fallback, fallback);
+    defaults[id] = normalizeDashboardBoardRect(fallback, fallback);
     yCursor = Math.max(yCursor, defaults[id].y + defaults[id].h);
   }
 
@@ -215,7 +215,7 @@ function loadDashboardBoardState(widgetIds = []) {
     const parsed = JSON.parse(raw);
     const rects = {};
     for (const id of widgetIds) {
-      rects[id] = normalizeDashboardTestBoardRect(parsed?.rects?.[id], defaults[id]);
+      rects[id] = normalizeDashboardBoardRect(parsed?.rects?.[id], defaults[id]);
     }
     const order = Array.isArray(parsed?.order)
       ? parsed.order.filter((id) => widgetIds.includes(id)).concat(widgetIds.filter((id) => !parsed.order.includes(id)))
@@ -261,9 +261,9 @@ function sortDashboardBoardOrder(rects, widgetIds) {
 
 function dashboardBoardCellSize(board) {
   const styles = window.getComputedStyle(board);
-  const rowHeight = parseFloat(styles.getPropertyValue('--test-board-row-height')) || DASHBOARD_BOARD_ROW_HEIGHT;
-  const columnGap = parseFloat(styles.getPropertyValue('--test-board-gap')) || DASHBOARD_BOARD_GAP;
-  const rowGap = parseFloat(styles.getPropertyValue('--test-board-gap')) || DASHBOARD_BOARD_GAP;
+  const rowHeight = parseFloat(styles.getPropertyValue('--board-row-height')) || DASHBOARD_BOARD_ROW_HEIGHT;
+  const columnGap = parseFloat(styles.getPropertyValue('--board-gap')) || DASHBOARD_BOARD_GAP;
+  const rowGap = parseFloat(styles.getPropertyValue('--board-gap')) || DASHBOARD_BOARD_GAP;
   const width = board.getBoundingClientRect().width || 0;
   const colWidth = Math.max(1, (width - (columnGap * (DASHBOARD_BOARD_COLUMNS - 1))) / DASHBOARD_BOARD_COLUMNS);
   return { colWidth, rowHeight, columnGap, rowGap };
@@ -338,17 +338,17 @@ function packDashboardBoardRects(rects, order, activeId = null) {
 
 function renderDashboardBoardSlot(widgetId, widgetHtml, rect) {
   return `
-    <div class="dashboard-test-board__slot" data-board-widget-id="${widgetId}"
+    <div class="dashboard-board__slot" data-board-widget-id="${widgetId}"
          data-board-x="${rect.x}" data-board-y="${rect.y}" data-board-w="${rect.w}" data-board-h="${rect.h}">
       ${widgetHtml}
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--nw" data-action="test-resize" data-dir="nw"></div>
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--n" data-action="test-resize" data-dir="n"></div>
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--ne" data-action="test-resize" data-dir="ne"></div>
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--e" data-action="test-resize" data-dir="e"></div>
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--se" data-action="test-resize" data-dir="se"></div>
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--s" data-action="test-resize" data-dir="s"></div>
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--sw" data-action="test-resize" data-dir="sw"></div>
-      <div class="dashboard-test-board__resize-handle dashboard-test-board__resize-handle--w" data-action="test-resize" data-dir="w"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--nw" data-action="test-resize" data-dir="nw"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--n" data-action="test-resize" data-dir="n"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--ne" data-action="test-resize" data-dir="ne"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--e" data-action="test-resize" data-dir="e"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--se" data-action="test-resize" data-dir="se"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--s" data-action="test-resize" data-dir="s"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--sw" data-action="test-resize" data-dir="sw"></div>
+      <div class="dashboard-board__resize-handle dashboard-board__resize-handle--w" data-action="test-resize" data-dir="w"></div>
     </div>
   `;
 }
@@ -360,13 +360,13 @@ function isDashboardEditModeEnabled() {
 function setDashboardEditMode(container, enabled) {
   localStorage.setItem(dashboardStorageKey('planium-dashboard-edit-mode'), enabled ? 'true' : 'false');
   container.querySelector('.dashboard')?.classList.toggle('dashboard--edit-mode', enabled);
-  container.querySelector('#dashboard-test-board')?.classList.toggle('dashboard__test-board--edit-mode', enabled);
+  container.querySelector('#dashboard-board')?.classList.toggle('dashboard__board--edit-mode', enabled);
   const btn = container.querySelector('#fab-edit-mode');
   if (btn) {
     btn.classList.toggle('fab-settings--active', enabled);
     btn.setAttribute('aria-pressed', String(enabled));
   }
-  const testBoardBtn = container.querySelector('#dashboard-test-board-edit-toggle');
+  const testBoardBtn = container.querySelector('#dashboard-board-edit-toggle');
   if (testBoardBtn) {
     testBoardBtn.setAttribute('aria-pressed', String(enabled));
   }
@@ -1775,14 +1775,14 @@ function wireDashboardLayout(container, layoutState, data) {
 }
 
 function wireDashboardBoard(container, boardState, widgetIds) {
-  const board = container.querySelector('#dashboard-test-board');
+  const board = container.querySelector('#dashboard-board');
   if (!board) return;
 
   const desktopQuery = window.matchMedia('(min-width: 1024px)');
   const isEditMode = () => container.querySelector('.dashboard')?.classList.contains('dashboard--edit-mode');
   const canInteract = () => isEditMode() && desktopQuery.matches;
   const slotsById = new Map(
-    [...board.querySelectorAll('.dashboard-test-board__slot')].map((slot) => [slot.dataset.boardWidgetId, slot])
+    [...board.querySelectorAll('.dashboard-board__slot')].map((slot) => [slot.dataset.boardWidgetId, slot])
   );
 
   const applyRects = (rects) => {
@@ -1800,7 +1800,7 @@ function wireDashboardBoard(container, boardState, widgetIds) {
       maxBottom = Math.max(maxBottom, parseFloat(pixels.top) + parseFloat(pixels.height));
     }
     board.style.height = `${Math.max(maxBottom, 1)}px`;
-    board.classList.remove('dashboard__test-board--pending');
+    board.classList.remove('dashboard__board--pending');
   };
 
   const commitRects = (activeId = null) => {
@@ -1817,9 +1817,9 @@ function wireDashboardBoard(container, boardState, widgetIds) {
     const { id, rect } = interaction;
     boardState.rects[id] = normalizeDashboardTestBoardRect(rect, boardState.rects[id]);
     commitRects(id);
-    slotsById.get(id)?.classList.remove('dashboard-test-board__slot--dragging');
+    slotsById.get(id)?.classList.remove('dashboard-board__slot--dragging');
     interaction = null;
-    board.classList.remove('dashboard__test-board--dragging');
+    board.classList.remove('dashboard__board--dragging');
     window.removeEventListener('pointermove', onPointerMove);
     window.removeEventListener('pointerup', endInteraction);
     window.removeEventListener('pointercancel', endInteraction);
@@ -1854,7 +1854,7 @@ function wireDashboardBoard(container, boardState, widgetIds) {
     interaction.rect = next;
     const slot = slotsById.get(interaction.id);
     if (slot) {
-      slot.classList.add('dashboard-test-board__slot--dragging');
+      slot.classList.add('dashboard-board__slot--dragging');
       const pixels = dashboardBoardRectToPixels(next, interaction.metrics);
       slot.style.left = pixels.left;
       slot.style.top = pixels.top;
@@ -1865,7 +1865,7 @@ function wireDashboardBoard(container, boardState, widgetIds) {
 
   const beginInteraction = (event, type, dir = null) => {
     if (!canInteract()) return;
-    const slot = event.target.closest('.dashboard-test-board__slot');
+    const slot = event.target.closest('.dashboard-board__slot');
     if (!slot) return;
     const id = slot.dataset.boardWidgetId;
     const startRect = boardState.rects[id];
@@ -1881,8 +1881,8 @@ function wireDashboardBoard(container, boardState, widgetIds) {
       rect: { ...startRect },
       metrics: dashboardBoardCellSize(board),
     };
-    board.classList.add('dashboard__test-board--dragging');
-    slot.classList.add('dashboard-test-board__slot--dragging');
+    board.classList.add('dashboard__board--dragging');
+    slot.classList.add('dashboard-board__slot--dragging');
     try { event.target.setPointerCapture(event.pointerId); } catch {}
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', endInteraction, { once: true });
@@ -1900,7 +1900,7 @@ function wireDashboardBoard(container, boardState, widgetIds) {
 
     const moveHandle = event.target.closest('.widget__drag-handle');
     if (!moveHandle) return;
-    if (!moveHandle.closest('.dashboard-test-board__slot')) return;
+    if (!moveHandle.closest('.dashboard-board__slot')) return;
     event.preventDefault();
     beginInteraction(event, 'move');
   });
@@ -3310,16 +3310,15 @@ export async function render(container, { user }) {
     }),
   ]);
   const phonePrimaryOrder = [
+    'quote-widget',
     'tasks-widget',
     'shopping-widget',
     'events-widget',
     'quick-notes-widget',
   ];
-  const phoneTailOrder = ['quote-widget'];
   const phoneHeightEditorItems = [
     ...phonePrimaryOrder,
     ...visibleWebviewItems.map((item) => dashboardLayoutItemId('webview', item.id)),
-    ...phoneTailOrder,
   ]
     .map((id) => {
       const knownLabel = widgetLabels[id];
@@ -3355,11 +3354,11 @@ export async function render(container, { user }) {
     }).join('');
 
     container.innerHTML = `
-    <div class="dashboard dashboard--test-board${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}">
+    <div class="dashboard dashboard--board${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}">
       <h1 class="sr-only">${t('dashboard.title')}</h1>
       <div class="dashboard__grid">
         ${renderGreeting(user, stats, headlines, weather)}
-        <div class="dashboard__test-board dashboard__test-board--pending" id="dashboard-test-board">
+        <div class="dashboard__board dashboard__board--pending" id="dashboard-board">
           ${testBoardHtml}
         </div>
       </div>
@@ -3438,10 +3437,6 @@ export async function render(container, { user }) {
           .filter((id) => !hiddenWidgets.has(id) && dynamicWidgetHtmlById[id])
           .map((id) => dynamicWidgetHtmlById[id])
           .filter(Boolean),
-        ...phoneTailOrder
-          .filter((id) => !hiddenWidgets.has(id) && (widgetHtmlById[id] || dynamicWidgetHtmlById[id]))
-          .map((id) => widgetHtmlById[id] ?? dynamicWidgetHtmlById[id])
-          .filter(Boolean),
       ].join('')
     : layoutState.order
         .filter((id) => !hiddenWidgets.has(id))
@@ -3458,7 +3453,7 @@ export async function render(container, { user }) {
         .join('');
 
   container.innerHTML = `
-    <div class="dashboard${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}${!isPhoneLayout ? ' dashboard--test-board' : ''}">
+    <div class="dashboard${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}${!isPhoneLayout ? ' dashboard--board' : ''}">
       <h1 class="sr-only">${t('dashboard.title')}</h1>
       <div class="dashboard__grid">
         ${renderGreeting(user, stats, headlines, weather)}

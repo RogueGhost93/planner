@@ -1,161 +1,982 @@
 /**
- * Modul: Notizbuch / Notebook
- * Zweck: REST-API für hierarchische, tagbare Notizen pro Benutzer.
- *        Vollständiger CRUD mit Baum-Support, FTS-Suche, Tag-Verwaltung.
- * Abhängigkeiten: express, server/db.js, validate.js
+ * Module: Notebook
+ * Purpose: Hierarchical note tree with Markdown content and search.
  */
 
-import { createLogger } from '../logger.js';
 import express from 'express';
 import * as db from '../db.js';
-import { str, id, collectErrors, MAX_TITLE, MAX_TEXT } from '../middleware/validate.js';
+import { createLogger } from '../logger.js';
+import { str, id, color, collectErrors, MAX_TITLE, MAX_TEXT } from '../middleware/validate.js';
 
 const log = createLogger('Notebook');
 const router = express.Router();
+const NOTEBOOK_TEXT_MAX = Number.MAX_SAFE_INTEGER;
 
-// --------------------------------------------------------
-// Helpers
-// --------------------------------------------------------
+function dbConn() {
+  return db.get();
+}
 
-/** Owner check: returns note only if user created it. */
+function noteById(noteId, userId, { trashed = false } = {}) {
+  return dbConn().prepare(`
+    SELECT *
+    FROM notebook_notes
+    WHERE id = ? AND created_by = ? AND trashed_at IS ${trashed ? 'NOT NULL' : 'NULL'}
+  `).get(noteId, userId);
+}
+
 function ownedNote(noteId, userId) {
-  return db.get()
-    .prepare('SELECT * FROM notebook_notes WHERE id = ? AND created_by = ?')
-    .get(noteId, userId);
+  return noteById(noteId, userId);
 }
 
-/** Owner check: returns tag only if user owns it. */
-function ownedTag(tagId, userId) {
-  return db.get()
-    .prepare('SELECT * FROM notebook_tags WHERE id = ? AND user_id = ?')
-    .get(tagId, userId);
+function activeNoteById(noteId, userId) {
+  return dbConn().prepare(`
+    SELECT *
+    FROM notebook_notes
+    WHERE id = ? AND created_by = ? AND trashed_at IS NULL AND locked_at IS NULL
+  `).get(noteId, userId);
 }
 
-// --------------------------------------------------------
-// GET /api/v1/notebook
-// Full tree for user: all notes with tags, ordered by sort_order
-// --------------------------------------------------------
+function lockedNoteById(noteId, userId) {
+  return dbConn().prepare(`
+    SELECT *
+    FROM notebook_notes
+    WHERE id = ? AND created_by = ? AND trashed_at IS NULL AND locked_at IS NOT NULL
+  `).get(noteId, userId);
+}
+
+function normalizeSiblingOrder(parentId, userId, { locked = false } = {}) {
+  const conn = dbConn();
+  const rows = parentId == null
+    ? conn.prepare(`
+        SELECT id
+        FROM notebook_notes
+        WHERE created_by = ? AND parent_id IS NULL AND trashed_at IS NULL AND locked_at ${locked ? 'IS NOT NULL' : 'IS NULL'}
+        ORDER BY sort_order ASC, created_at ASC, id ASC
+      `).all(userId)
+    : conn.prepare(`
+        SELECT id
+        FROM notebook_notes
+        WHERE created_by = ? AND parent_id = ? AND trashed_at IS NULL AND locked_at ${locked ? 'IS NOT NULL' : 'IS NULL'}
+        ORDER BY sort_order ASC, created_at ASC, id ASC
+      `).all(userId, parentId);
+
+  const stmt = conn.prepare(`
+    UPDATE notebook_notes
+    SET sort_order = ?
+    WHERE id = ? AND created_by = ?
+  `);
+
+  rows.forEach((row, index) => stmt.run(index, row.id, userId));
+}
+
+function subtreeIds(noteId, userId) {
+  return dbConn().prepare(`
+    WITH RECURSIVE subtree(id) AS (
+      SELECT id
+      FROM notebook_notes
+      WHERE id = ? AND created_by = ?
+      UNION ALL
+      SELECT n.id
+      FROM notebook_notes n
+      JOIN subtree s ON n.parent_id = s.id
+      WHERE n.created_by = ?
+    )
+    SELECT id FROM subtree
+  `).all(noteId, userId, userId).map((row) => row.id);
+}
+
+function anyTrashedAncestor(noteId, userId) {
+  let current = dbConn().prepare(`
+    SELECT parent_id, trashed_at
+    FROM notebook_notes
+    WHERE id = ? AND created_by = ?
+  `).get(noteId, userId);
+
+  while (current?.parent_id != null) {
+    const parent = dbConn().prepare(`
+      SELECT parent_id, trashed_at
+      FROM notebook_notes
+      WHERE id = ? AND created_by = ?
+    `).get(current.parent_id, userId);
+    if (!parent) return false;
+    if (parent.trashed_at != null) return true;
+    current = parent;
+  }
+
+  return false;
+}
+
+function isDescendant(noteId, potentialParentId, userId) {
+  if (potentialParentId == null) return false;
+
+  const row = dbConn().prepare(`
+    WITH RECURSIVE descendants(id) AS (
+      SELECT id
+      FROM notebook_notes
+      WHERE parent_id = ? AND created_by = ?
+      UNION ALL
+      SELECT n.id
+      FROM notebook_notes n
+      JOIN descendants d ON n.parent_id = d.id
+      WHERE n.created_by = ?
+    )
+    SELECT 1 AS found
+    FROM descendants
+    WHERE id = ?
+    LIMIT 1
+  `).get(noteId, userId, userId, potentialParentId);
+
+  return Boolean(row);
+}
+
+function listNotes(userId) {
+  const rows = dbConn().prepare(`
+    SELECT
+      n.id,
+      n.title,
+      n.content,
+      n.parent_id,
+      n.sort_order,
+      n.created_by,
+      n.created_at,
+      n.updated_at,
+      n.trashed_at,
+      (
+        SELECT COUNT(*)
+        FROM notebook_notes c
+        WHERE c.parent_id = n.id AND c.created_by = ? AND c.trashed_at IS NULL AND c.locked_at IS NULL
+      ) AS child_count
+    FROM notebook_notes n
+    WHERE n.created_by = ? AND n.trashed_at IS NULL AND n.locked_at IS NULL
+    ORDER BY
+      CASE WHEN n.parent_id IS NULL THEN 0 ELSE 1 END,
+      n.parent_id,
+      n.sort_order ASC,
+      n.created_at ASC,
+      n.id ASC
+  `).all(userId, userId);
+  return attachLabelsToNotes(rows);
+}
+
+function listTrashedNotes(userId) {
+  const rows = dbConn().prepare(`
+    SELECT
+      n.id,
+      n.title,
+      n.content,
+      n.parent_id,
+      n.sort_order,
+      n.created_by,
+      n.created_at,
+      n.updated_at,
+      n.trashed_at,
+      n.locked_at,
+      (
+        SELECT COUNT(*)
+        FROM notebook_notes c
+        WHERE c.parent_id = n.id AND c.created_by = ? AND c.trashed_at IS NOT NULL
+      ) AS child_count
+    FROM notebook_notes n
+    WHERE n.created_by = ? AND n.trashed_at IS NOT NULL
+    ORDER BY
+      CASE WHEN n.parent_id IS NULL THEN 0 ELSE 1 END,
+      n.parent_id,
+      n.sort_order ASC,
+      n.created_at ASC,
+      n.id ASC
+  `).all(userId, userId);
+  return attachLabelsToNotes(rows);
+}
+
+function listLockedNotes(userId) {
+  const rows = dbConn().prepare(`
+    SELECT
+      n.id,
+      n.title,
+      n.content,
+      n.parent_id,
+      n.sort_order,
+      n.created_by,
+      n.created_at,
+      n.updated_at,
+      n.trashed_at,
+      n.locked_at,
+      (
+        SELECT COUNT(*)
+        FROM notebook_notes c
+        WHERE c.parent_id = n.id AND c.created_by = ? AND c.locked_at IS NOT NULL AND c.trashed_at IS NULL
+      ) AS child_count
+    FROM notebook_notes n
+    WHERE n.created_by = ? AND n.trashed_at IS NULL AND n.locked_at IS NOT NULL
+    ORDER BY
+      CASE WHEN n.parent_id IS NULL THEN 0 ELSE 1 END,
+      n.parent_id,
+      n.sort_order ASC,
+      n.created_at ASC,
+      n.id ASC
+  `).all(userId, userId);
+  return attachLabelsToNotes(rows);
+}
+
+function attachLabelsToNotes(notes) {
+  if (!Array.isArray(notes) || !notes.length) return notes;
+  const ids = notes.map((note) => Number(note.id)).filter(Number.isInteger);
+  if (!ids.length) return notes;
+
+  const placeholders = ids.map(() => '?').join(', ');
+  const rows = dbConn().prepare(`
+    SELECT
+      nt.note_id,
+      t.id,
+      t.name,
+      t.color
+    FROM notebook_note_tags nt
+    JOIN notebook_tags t ON t.id = nt.tag_id
+    WHERE nt.note_id IN (${placeholders})
+    ORDER BY nt.note_id ASC, t.name ASC
+  `).all(...ids);
+
+  const byNote = new Map();
+  for (const row of rows) {
+    if (!byNote.has(row.note_id)) byNote.set(row.note_id, []);
+    byNote.get(row.note_id).push({
+      id: row.id,
+      name: row.name,
+      color: row.color,
+    });
+  }
+
+  for (const note of notes) {
+    note.labels = byNote.get(note.id) || [];
+  }
+
+  return notes;
+}
+
+function loadNotebookLabels(userId) {
+  return dbConn().prepare(`
+    SELECT
+      t.id,
+      t.name,
+      t.color,
+      COALESCE(COUNT(DISTINCT nt.note_id), 0) AS note_count
+    FROM notebook_tags t
+    LEFT JOIN notebook_note_tags nt ON nt.tag_id = t.id
+    LEFT JOIN notebook_notes n ON n.id = nt.note_id AND n.created_by = t.user_id
+    WHERE t.user_id = ?
+    GROUP BY t.id
+    ORDER BY t.name ASC
+  `).all(userId);
+}
+
+function loadNotebookLabel(userId, labelId) {
+  return dbConn().prepare(`
+    SELECT
+      t.id,
+      t.name,
+      t.color,
+      COALESCE(COUNT(DISTINCT nt.note_id), 0) AS note_count
+    FROM notebook_tags t
+    LEFT JOIN notebook_note_tags nt ON nt.tag_id = t.id
+    LEFT JOIN notebook_notes n ON n.id = nt.note_id AND n.created_by = t.user_id
+    WHERE t.user_id = ? AND t.id = ?
+    GROUP BY t.id
+  `).get(userId, labelId);
+}
+
+function noteWithLabels(noteId, userId, { trashed = false } = {}) {
+  const note = noteById(noteId, userId, { trashed });
+  if (!note) return null;
+  return attachLabelsToNotes([note])[0] || note;
+}
+
+function validNotebookLabelIds(raw) {
+  if (raw === undefined || raw === null) return { value: [] };
+  if (!Array.isArray(raw)) {
+    return { error: 'label_ids must be an array.' };
+  }
+
+  const seen = new Set();
+  const value = [];
+  for (const entry of raw) {
+    const labelId = parseInt(entry, 10);
+    if (!labelId || seen.has(labelId)) continue;
+    seen.add(labelId);
+    value.push(labelId);
+  }
+  return { value };
+}
+
+function setNotebookLabels(noteId, userId, rawLabelIds) {
+  const parsed = validNotebookLabelIds(rawLabelIds);
+  if (parsed.error) return parsed;
+
+  const labelIds = parsed.value;
+  const note = activeNoteById(noteId, userId);
+  if (!note) {
+    return { error: 'Note not found.' };
+  }
+
+  const conn = dbConn();
+  const ownedLabels = labelIds.length
+    ? conn.prepare(`
+        SELECT id
+        FROM notebook_tags
+        WHERE user_id = ? AND id IN (${labelIds.map(() => '?').join(', ')})
+      `).all(userId, ...labelIds).map((row) => row.id)
+    : [];
+
+  if (ownedLabels.length !== labelIds.length) {
+    return { error: 'Label not found.' };
+  }
+
+  const tx = conn.transaction((ids) => {
+    conn.prepare('DELETE FROM notebook_note_tags WHERE note_id = ?').run(noteId);
+    if (!ids.length) return;
+    const insert = conn.prepare(`
+      INSERT INTO notebook_note_tags (note_id, tag_id)
+      VALUES (?, ?)
+    `);
+    for (const labelId of ids) {
+      insert.run(noteId, labelId);
+    }
+  });
+
+  tx(ownedLabels);
+  return { value: noteWithLabels(noteId, userId) };
+}
+
+function parseNullableParentId(value) {
+  if (value === undefined || value === null || value === '') {
+    return { value: null };
+  }
+  return id(value, 'parent_id');
+}
+
+function nowIso() {
+  return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+function normalizeImportedTimestamp(value, fallback = nowIso()) {
+  if (value === undefined || value === null || value === '') return fallback;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+  return date.toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+function sanitizeImportedNode(node, depth = 0) {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) {
+    return { error: 'Imported notes must be objects.' };
+  }
+
+  const titleCheck = str(node.title ?? 'Untitled', 'title', { max: MAX_TITLE });
+  if (titleCheck.error) return { error: titleCheck.error };
+
+  const contentCheck = str(node.content ?? '', 'content', { max: NOTEBOOK_TEXT_MAX, required: false });
+  if (contentCheck.error) return { error: contentCheck.error };
+
+  if (depth > 100) {
+    return { error: 'Imported notes are too deeply nested.' };
+  }
+
+  const children = node.children === undefined ? [] : node.children;
+  if (!Array.isArray(children)) {
+    return { error: 'Imported note children must be an array.' };
+  }
+
+  const sanitizedChildren = [];
+  for (const child of children) {
+    const sanitized = sanitizeImportedNode(child, depth + 1);
+    if (sanitized.error) return sanitized;
+    sanitizedChildren.push(sanitized.value);
+  }
+
+  return {
+    value: {
+      title: titleCheck.value,
+      content: contentCheck.value || '',
+      created_at: normalizeImportedTimestamp(node.created_at, nowIso()),
+      updated_at: normalizeImportedTimestamp(node.updated_at, normalizeImportedTimestamp(node.created_at, nowIso())),
+      children: sanitizedChildren,
+    },
+  };
+}
+
+function insertImportedTree(userId, nodes) {
+  const conn = dbConn();
+  const insertedIds = [];
+  const nextSortOrderByParent = new Map();
+
+  const getNextSortOrder = (parentId) => {
+    const key = parentId == null ? 'root' : `parent:${parentId}`;
+    if (!nextSortOrderByParent.has(key)) {
+      const row = parentId == null
+        ? conn.prepare(`
+            SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort_order
+            FROM notebook_notes
+            WHERE created_by = ? AND parent_id IS NULL
+          `).get(userId)
+        : conn.prepare(`
+            SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort_order
+            FROM notebook_notes
+            WHERE created_by = ? AND parent_id = ?
+          `).get(userId, parentId);
+      nextSortOrderByParent.set(key, row.next_sort_order);
+    }
+
+    const current = nextSortOrderByParent.get(key);
+    nextSortOrderByParent.set(key, current + 1);
+    return current;
+  };
+
+  const insertNode = (node, parentId) => {
+    const sortOrder = getNextSortOrder(parentId);
+    const createdAt = normalizeImportedTimestamp(node.created_at);
+    const updatedAt = normalizeImportedTimestamp(node.updated_at, createdAt);
+    const result = conn.prepare(`
+      INSERT INTO notebook_notes (
+        title,
+        content,
+        parent_id,
+        sort_order,
+        created_by,
+        created_at,
+        updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      node.title,
+      node.content || '',
+      parentId,
+      sortOrder,
+      userId,
+      createdAt,
+      updatedAt,
+    );
+
+    insertedIds.push(result.lastInsertRowid);
+    for (const child of node.children || []) {
+      insertNode(child, result.lastInsertRowid);
+    }
+  };
+
+  const tx = conn.transaction((rootNodes) => {
+    for (const node of rootNodes) {
+      insertNode(node, null);
+    }
+  });
+
+  tx(nodes);
+  return insertedIds;
+}
+
+function deleteAllNotes(userId) {
+  dbConn().prepare(`
+    DELETE FROM notebook_notes
+    WHERE created_by = ?
+  `).run(userId);
+}
+
+function deleteAllTrashedNotes(userId) {
+  dbConn().prepare(`
+    DELETE FROM notebook_notes
+    WHERE created_by = ? AND trashed_at IS NOT NULL
+  `).run(userId);
+}
+
+function trashSubtree(noteId, userId) {
+  const now = nowIso();
+  const ids = subtreeIds(noteId, userId);
+  if (!ids.length) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  dbConn().prepare(`
+    UPDATE notebook_notes
+    SET trashed_at = ?
+    WHERE created_by = ?
+      AND id IN (${placeholders})
+  `).run(now, userId, ...ids);
+}
+
+function lockSubtree(noteId, userId) {
+  const now = nowIso();
+  const ids = subtreeIds(noteId, userId);
+  if (!ids.length) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  dbConn().prepare(`
+    UPDATE notebook_notes
+    SET locked_at = ?
+    WHERE created_by = ?
+      AND trashed_at IS NULL
+      AND id IN (${placeholders})
+  `).run(now, userId, ...ids);
+}
+
+function unlockSubtree(noteId, userId) {
+  const ids = subtreeIds(noteId, userId);
+  if (!ids.length) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  dbConn().prepare(`
+    UPDATE notebook_notes
+    SET locked_at = NULL
+    WHERE created_by = ?
+      AND id IN (${placeholders})
+  `).run(userId, ...ids);
+}
+
+function restoreSubtreeAndAncestors(noteId, userId) {
+  const ids = subtreeIds(noteId, userId);
+  if (!ids.length) return;
+  const placeholders = ids.map(() => '?').join(', ');
+  dbConn().prepare(`
+    UPDATE notebook_notes
+    SET trashed_at = NULL
+    WHERE created_by = ?
+      AND id IN (${placeholders})
+  `).run(userId, ...ids);
+
+  let current = dbConn().prepare(`
+    SELECT parent_id
+    FROM notebook_notes
+    WHERE id = ? AND created_by = ?
+  `).get(noteId, userId);
+
+  while (current?.parent_id != null) {
+    dbConn().prepare(`
+      UPDATE notebook_notes
+      SET trashed_at = NULL
+      WHERE created_by = ? AND id = ?
+    `).run(userId, current.parent_id);
+    current = dbConn().prepare(`
+      SELECT parent_id
+      FROM notebook_notes
+      WHERE id = ? AND created_by = ?
+    `).get(current.parent_id, userId);
+  }
+}
+
 router.get('/', (req, res) => {
   try {
-    const uid = req.session.userId;
-    const notes = db.get().prepare(`
-      SELECT
-        n.id,
-        n.title,
-        n.content,
-        n.parent_id,
-        n.sort_order,
-        n.created_by,
-        n.created_at,
-        n.updated_at,
-        GROUP_CONCAT(t.id)   AS tag_ids,
-        GROUP_CONCAT(t.name) AS tag_names
-      FROM notebook_notes n
-      LEFT JOIN notebook_note_tags nt ON nt.note_id = n.id
-      LEFT JOIN notebook_tags t       ON t.id = nt.tag_id
-      WHERE n.created_by = ?
-      GROUP BY n.id
-      ORDER BY n.sort_order ASC, n.created_at ASC
-    `).all(uid);
-
-    const tree = buildTree(notes);
-    res.json({ data: tree });
+    const userId = req.session.userId;
+    res.json({ data: listNotes(userId) });
   } catch (err) {
     log.error('GET /', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
   }
 });
 
-/**
- * Client-side tree builder. Converts flat array to hierarchical structure.
- */
-function buildTree(notes, parentId = null) {
-  return notes
-    .filter(n => (n.parent_id ?? null) === parentId)
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map(n => ({
-      ...n,
-      tag_ids: n.tag_ids ? n.tag_ids.split(',').map(Number) : [],
-      tag_names: n.tag_names ? n.tag_names.split(',') : [],
-      children: buildTree(notes, n.id),
-    }));
-}
+router.get('/trash', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    res.json({ data: listTrashedNotes(userId) });
+  } catch (err) {
+    log.error('GET /trash', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
 
-// --------------------------------------------------------
-// POST /api/v1/notebook
-// Create note: body { title, content?, parent_id? }
-// --------------------------------------------------------
+router.get('/locked', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    res.json({ data: listLockedNotes(userId) });
+  } catch (err) {
+    log.error('GET /locked', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.get('/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    res.json({ data: loadNotebookLabels(userId) });
+  } catch (err) {
+    log.error('GET /labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.post('/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const vName = str(req.body.name, 'name', { max: 60 });
+    const vColor = color(req.body.color, 'color');
+    const errs = collectErrors([vName, vColor]);
+    if (errs.length) {
+      return res.status(400).json({ error: errs.join(' '), code: 400 });
+    }
+
+    try {
+      const result = dbConn().prepare(`
+        INSERT INTO notebook_tags (name, user_id, color)
+        VALUES (?, ?, ?)
+      `).run(vName.value, userId, vColor.value || '#6B7280');
+      res.status(201).json({ data: loadNotebookLabel(userId, result.lastInsertRowid) });
+    } catch (err) {
+      if (String(err?.message || '').includes('UNIQUE')) {
+        return res.status(409).json({ error: 'Label name already exists.', code: 409 });
+      }
+      throw err;
+    }
+  } catch (err) {
+    log.error('POST /labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.patch('/labels/:labelId', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const labelId = parseInt(req.params.labelId, 10);
+    if (!labelId) {
+      return res.status(400).json({ error: 'Invalid label ID.', code: 400 });
+    }
+
+    const label = dbConn().prepare(`
+      SELECT *
+      FROM notebook_tags
+      WHERE id = ? AND user_id = ?
+    `).get(labelId, userId);
+    if (!label) {
+      return res.status(404).json({ error: 'Label not found.', code: 404 });
+    }
+
+    const checks = [];
+    if (req.body.name !== undefined) checks.push(str(req.body.name, 'name', { max: 60 }));
+    if (req.body.color !== undefined) checks.push(color(req.body.color, 'color'));
+    const errs = collectErrors(checks);
+    if (errs.length) {
+      return res.status(400).json({ error: errs.join(' '), code: 400 });
+    }
+
+    const name = req.body.name !== undefined ? String(req.body.name).trim() : label.name;
+    const nextColor = req.body.color !== undefined ? req.body.color : label.color;
+
+    try {
+      dbConn().prepare(`
+        UPDATE notebook_tags
+        SET name = ?, color = ?
+        WHERE id = ? AND user_id = ?
+      `).run(name, nextColor || '#6B7280', labelId, userId);
+      res.json({ data: loadNotebookLabel(userId, labelId) });
+    } catch (err) {
+      if (String(err?.message || '').includes('UNIQUE')) {
+        return res.status(409).json({ error: 'Label name already exists.', code: 409 });
+      }
+      throw err;
+    }
+  } catch (err) {
+    log.error('PATCH /labels/:labelId', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.delete('/labels/:labelId', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const labelId = parseInt(req.params.labelId, 10);
+    if (!labelId) {
+      return res.status(400).json({ error: 'Invalid label ID.', code: 400 });
+    }
+
+    const result = dbConn().prepare(`
+      DELETE FROM notebook_tags
+      WHERE id = ? AND user_id = ?
+    `).run(labelId, userId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Label not found.', code: 404 });
+    }
+    res.status(204).end();
+  } catch (err) {
+    log.error('DELETE /labels/:labelId', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.get('/:id/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const note = noteById(noteId, userId);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found.', code: 404 });
+    }
+
+    res.json({ data: attachLabelsToNotes([note])[0]?.labels || [] });
+  } catch (err) {
+    log.error('GET /:id/labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.put('/:id/labels', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const result = setNotebookLabels(noteId, userId, req.body.label_ids);
+    if (result.error) {
+      const status = result.error === 'Note not found.' ? 404 : result.error === 'Label not found.' ? 404 : 400;
+      return res.status(status).json({ error: result.error, code: status });
+    }
+
+    res.json({ data: result.value });
+  } catch (err) {
+    log.error('PUT /:id/labels', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.get('/search', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const query = String(req.query.q ?? '').trim();
+    const trashedMode = String(req.query.trashed ?? '') === '1';
+    const lockedMode = String(req.query.locked ?? '') === '1';
+    const scope = String(req.query.scope ?? 'all');
+    if (!query) {
+      return res.json({ data: [] });
+    }
+
+    const escLike = (value) => value.replace(/[\\%_]/g, '\\$&');
+    const likePattern = `%${escLike(query)}%`;
+
+    const results = dbConn().prepare(`
+      SELECT
+        n.id,
+        n.title,
+        n.content,
+        n.parent_id,
+        n.sort_order,
+        n.updated_at,
+        n.trashed_at,
+        n.locked_at,
+        CASE
+          WHEN lower(n.content) LIKE lower(?) ESCAPE '\\' THEN
+            substr(
+              n.content,
+              CASE
+                WHEN instr(lower(n.content), lower(?)) > 40
+                  THEN instr(lower(n.content), lower(?)) - 40
+                ELSE 1
+              END,
+              140
+            )
+          WHEN lower(n.title) LIKE lower(?) ESCAPE '\\' THEN
+            n.content
+          ELSE NULL
+        END AS excerpt,
+      CASE
+          WHEN lower(n.title) LIKE lower(?) ESCAPE '\\' THEN 0
+          WHEN lower(n.content) LIKE lower(?) ESCAPE '\\' THEN 1
+          WHEN EXISTS (
+            SELECT 1
+            FROM notebook_note_tags nt
+            JOIN notebook_tags t ON t.id = nt.tag_id
+            WHERE nt.note_id = n.id
+              AND t.user_id = n.created_by
+              AND lower(t.name) LIKE lower(?) ESCAPE '\\'
+          ) THEN 2
+          ELSE 2
+        END AS relevance
+      FROM notebook_notes n
+      WHERE n.created_by = ?
+        AND ${
+          scope === 'all'
+            ? 'n.trashed_at IS NULL AND n.locked_at IS NULL'
+            : trashedMode
+              ? 'n.trashed_at IS NOT NULL'
+              : 'n.trashed_at IS NULL AND n.locked_at IS NULL'
+        }
+        AND (
+          lower(n.title) LIKE lower(?) ESCAPE '\\'
+          OR lower(n.content) LIKE lower(?) ESCAPE '\\'
+          OR EXISTS (
+            SELECT 1
+            FROM notebook_note_tags nt
+            JOIN notebook_tags t ON t.id = nt.tag_id
+            WHERE nt.note_id = n.id
+              AND t.user_id = n.created_by
+              AND lower(t.name) LIKE lower(?) ESCAPE '\\'
+          )
+        )
+      ORDER BY relevance ASC, n.updated_at DESC
+      LIMIT 50
+    `).all(
+      likePattern,
+      query,
+      query,
+      likePattern,
+      likePattern,
+      likePattern,
+      likePattern,
+      userId,
+      likePattern,
+      likePattern,
+      likePattern,
+    );
+
+    res.json({ data: attachLabelsToNotes(results) });
+  } catch (err) {
+    log.error('GET /search', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.post('/import', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const roots = Array.isArray(req.body?.notes) ? req.body.notes : [];
+    if (!roots.length) {
+      return res.status(400).json({ error: 'No notes were provided for import.', code: 400 });
+    }
+
+    const sanitizedRoots = [];
+    for (const root of roots) {
+      const sanitized = sanitizeImportedNode(root);
+      if (sanitized.error) {
+        return res.status(400).json({ error: sanitized.error, code: 400 });
+      }
+      sanitizedRoots.push(sanitized.value);
+    }
+
+    const insertedIds = insertImportedTree(userId, sanitizedRoots);
+    res.status(201).json({
+      data: {
+        imported: insertedIds.length,
+        root_ids: insertedIds,
+      },
+    });
+  } catch (err) {
+    log.error('POST /import', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.delete('/clear', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    deleteAllNotes(userId);
+    res.status(204).end();
+  } catch (err) {
+    log.error('DELETE /clear', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.delete('/trash/clear', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    deleteAllTrashedNotes(userId);
+    res.status(204).end();
+  } catch (err) {
+    log.error('DELETE /trash/clear', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.get('/:id', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const note = noteById(noteId, userId);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found.', code: 404 });
+    }
+
+    const children = dbConn().prepare(`
+      SELECT id
+      FROM notebook_notes
+      WHERE created_by = ? AND parent_id = ? AND trashed_at IS NULL
+      ORDER BY sort_order ASC, created_at ASC, id ASC
+    `).all(userId, noteId);
+
+    res.json({
+      data: {
+        ...attachLabelsToNotes([note])[0],
+        child_count: children.length,
+      },
+    });
+  } catch (err) {
+    log.error('GET /:id', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
 router.post('/', (req, res) => {
   try {
-    const vTitle = str(req.body.title, 'title', { max: MAX_TITLE });
-    const vContent = str(req.body.content, 'content', { max: MAX_TEXT, required: false });
-    const vParent = req.body.parent_id ? id(req.body.parent_id, 'parent_id') : { value: null };
+    const userId = req.session.userId;
+    const vTitle = req.body.title === undefined
+      ? { value: 'Untitled' }
+      : str(req.body.title, 'title', { max: MAX_TITLE });
+    const vContent = req.body.content === undefined
+      ? { value: '' }
+      : str(req.body.content, 'content', { max: NOTEBOOK_TEXT_MAX, required: false });
+    const vParent = parseNullableParentId(req.body.parent_id);
     const errs = collectErrors([vTitle, vContent, vParent]);
+    const isLocked = Boolean(req.body.locked);
 
     if (errs.length) {
       return res.status(400).json({ error: errs.join(' '), code: 400 });
     }
 
-    const uid = req.session.userId;
-    const title = vTitle.value;
-    const content = vContent.value || '';
     const parentId = vParent.value;
-
-    // If parent_id is set, verify it exists and belongs to user
-    if (parentId) {
-      const parent = ownedNote(parentId, uid);
-      if (!parent) {
-        return res.status(404).json({ error: 'Parent note not found.', code: 404 });
-      }
+    if (parentId != null && !activeNoteById(parentId, userId)) {
+      return res.status(404).json({ error: 'Parent note not found.', code: 404 });
     }
 
-    // Get max sort_order for siblings
-    const sibling = db.get().prepare(`
-      SELECT MAX(sort_order) as max_order
-      FROM notebook_notes
-      WHERE created_by = ? AND (parent_id IS NULL OR parent_id = ?)
-    `).get(uid, parentId);
-    const sortOrder = (sibling.max_order ?? -1) + 1;
+    const nextSortOrder = parentId == null
+      ? dbConn().prepare(`
+          SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort_order
+          FROM notebook_notes
+          WHERE created_by = ? AND parent_id IS NULL AND trashed_at IS NULL AND locked_at IS NULL
+        `).get(userId).next_sort_order
+      : dbConn().prepare(`
+          SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_sort_order
+          FROM notebook_notes
+          WHERE created_by = ? AND parent_id = ? AND trashed_at IS NULL AND locked_at IS NULL
+        `).get(userId, parentId).next_sort_order;
 
-    const result = db.get().prepare(`
-      INSERT INTO notebook_notes (title, content, parent_id, sort_order, created_by)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(title, content, parentId, sortOrder, uid);
+    const result = dbConn().prepare(`
+      INSERT INTO notebook_notes (title, content, parent_id, sort_order, created_by, locked_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(vTitle.value, vContent.value || '', parentId, nextSortOrder, userId, isLocked ? nowIso() : null);
 
-    const note = ownedNote(result.lastInsertRowid, uid);
-    res.status(201).json({
-      data: {
-        ...note,
-        tag_ids: [],
-        tag_names: [],
-        children: [],
-      },
-    });
+    normalizeSiblingOrder(parentId, userId);
+
+    const note = noteWithLabels(result.lastInsertRowid, userId);
+    res.status(201).json({ data: note });
   } catch (err) {
     log.error('POST /', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
   }
 });
 
-// --------------------------------------------------------
-// PUT /api/v1/notebook/:id
-// Update note: body { title?, content?, parent_id?, sort_order?, tag_ids? }
-// --------------------------------------------------------
 router.put('/:id', (req, res) => {
   try {
-    const uid = req.session.userId;
+    const userId = req.session.userId;
     const noteId = parseInt(req.params.id, 10);
-
     if (!noteId) {
       return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
     }
 
-    const note = ownedNote(noteId, uid);
+    const note = noteById(noteId, userId);
     if (!note) {
       return res.status(404).json({ error: 'Note not found.', code: 404 });
     }
+    if (note.trashed_at != null) {
+      return res.status(409).json({ error: 'Trashed notes cannot be edited.', code: 409 });
+    }
 
-    // Validate inputs
     const updates = {};
     const errs = [];
 
@@ -166,30 +987,33 @@ router.put('/:id', (req, res) => {
     }
 
     if (req.body.content !== undefined) {
-      const v = str(req.body.content, 'content', { max: MAX_TEXT, required: false });
+      const v = str(req.body.content, 'content', { max: NOTEBOOK_TEXT_MAX, required: false });
       if (v.error) errs.push(v.error);
       else updates.content = v.value || '';
     }
 
+    let nextParentId = note.parent_id;
     if (req.body.parent_id !== undefined) {
-      if (req.body.parent_id === null) {
-        updates.parent_id = null;
+      const v = parseNullableParentId(req.body.parent_id);
+      if (v.error) {
+        errs.push(v.error);
       } else {
-        const v = id(req.body.parent_id, 'parent_id');
-        if (v.error) {
-          errs.push(v.error);
-        } else {
-          // Prevent moving note to itself or its children (cycle check)
-          if (v.value === noteId) {
-            errs.push('Cannot move note to itself.');
+        nextParentId = v.value;
+        if (nextParentId === noteId) {
+          errs.push('Cannot move note to itself.');
+        } else if (nextParentId != null) {
+          const parent = note.locked_at != null
+            ? lockedNoteById(nextParentId, userId)
+            : activeNoteById(nextParentId, userId);
+          if (!parent) {
+            errs.push('Parent note not found.');
+          } else if (isDescendant(noteId, nextParentId, userId)) {
+            errs.push('Cannot move note into one of its descendants.');
           } else {
-            const newParent = ownedNote(v.value, uid);
-            if (!newParent) {
-              errs.push('Parent note not found.');
-            } else {
-              updates.parent_id = v.value;
-            }
+            updates.parent_id = nextParentId;
           }
+        } else {
+          updates.parent_id = null;
         }
       }
     }
@@ -204,95 +1028,52 @@ router.put('/:id', (req, res) => {
       return res.status(400).json({ error: errs.join(' '), code: 400 });
     }
 
-    // Apply updates
-    if (Object.keys(updates).length) {
-      updates.updated_at = new Date().toISOString();
-      const fields = Object.keys(updates);
-      const placeholders = fields.map(f => `${f} = ?`).join(', ');
-      const values = fields.map(f => updates[f]);
-      values.push(noteId, uid);
+    const oldParentId = note.parent_id;
 
-      db.get().prepare(`
+    if (Object.keys(updates).length) {
+      const fields = Object.keys(updates);
+      const values = fields.map((key) => updates[key]);
+      values.push(noteId, userId);
+
+      dbConn().prepare(`
         UPDATE notebook_notes
-        SET ${placeholders}
+        SET ${fields.map((key) => `${key} = ?`).join(', ')}
         WHERE id = ? AND created_by = ?
       `).run(...values);
+
+      const parentsToNormalize = new Set([oldParentId, nextParentId]);
+      parentsToNormalize.forEach((parentId) => normalizeSiblingOrder(parentId, userId, { locked: note.locked_at != null }));
     }
 
-    // Handle tag_ids if provided
-    if (req.body.tag_ids !== undefined) {
-      const tagIds = Array.isArray(req.body.tag_ids) ? req.body.tag_ids : [];
-
-      // Verify all tag_ids belong to user
-      if (tagIds.length) {
-        const placeholders = tagIds.map(() => '?').join(',');
-        const ownedCount = db.get().prepare(
-          `SELECT COUNT(*) as cnt FROM notebook_tags WHERE user_id = ? AND id IN (${placeholders})`
-        ).get(uid, ...tagIds).cnt;
-        if (ownedCount !== tagIds.length) {
-          return res.status(403).json({ error: 'Not authorized to use these tags.', code: 403 });
-        }
-      }
-
-      // Clear old tags and insert new ones
-      db.get().prepare('DELETE FROM notebook_note_tags WHERE note_id = ?').run(noteId);
-      if (tagIds.length) {
-        const stmt = db.get().prepare(
-          'INSERT INTO notebook_note_tags (note_id, tag_id) VALUES (?, ?)'
-        );
-        for (const tagId of tagIds) {
-          stmt.run(noteId, tagId);
-        }
-      }
-    }
-
-    // Fetch updated note with tags
-    const updated = db.get().prepare(`
-      SELECT
-        n.*,
-        GROUP_CONCAT(t.id)   AS tag_ids,
-        GROUP_CONCAT(t.name) AS tag_names
-      FROM notebook_notes n
-      LEFT JOIN notebook_note_tags nt ON nt.note_id = n.id
-      LEFT JOIN notebook_tags t       ON t.id = nt.tag_id
-      WHERE n.id = ? AND n.created_by = ?
-      GROUP BY n.id
-    `).get(noteId, uid);
-
-    res.json({
-      data: {
-        ...updated,
-        tag_ids: updated.tag_ids ? updated.tag_ids.split(',').map(Number) : [],
-        tag_names: updated.tag_names ? updated.tag_names.split(',') : [],
-      },
-    });
+    const updated = noteWithLabels(noteId, userId);
+    res.json({ data: updated });
   } catch (err) {
     log.error('PUT /:id', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
   }
 });
 
-// --------------------------------------------------------
-// DELETE /api/v1/notebook/:id
-// Delete note (CASCADE handles children)
-// --------------------------------------------------------
 router.delete('/:id', (req, res) => {
   try {
-    const uid = req.session.userId;
+    const userId = req.session.userId;
     const noteId = parseInt(req.params.id, 10);
-
     if (!noteId) {
       return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
     }
 
-    const note = ownedNote(noteId, uid);
+    const note = dbConn().prepare(`
+      SELECT *
+      FROM notebook_notes
+      WHERE id = ? AND created_by = ?
+    `).get(noteId, userId);
     if (!note) {
       return res.status(404).json({ error: 'Note not found.', code: 404 });
     }
 
-    db.get().prepare('DELETE FROM notebook_notes WHERE id = ? AND created_by = ?')
-      .run(noteId, uid);
-
+    dbConn().prepare(`
+      DELETE FROM notebook_notes
+      WHERE id = ? AND created_by = ?
+    `).run(noteId, userId);
     res.status(204).end();
   } catch (err) {
     log.error('DELETE /:id', err);
@@ -300,124 +1081,92 @@ router.delete('/:id', (req, res) => {
   }
 });
 
-// --------------------------------------------------------
-// GET /api/v1/notebook/search
-// Query: ?q=<search term>
-// Returns matching notes with FTS snippet
-// --------------------------------------------------------
-router.get('/search', (req, res) => {
+router.post('/:id/trash', (req, res) => {
   try {
-    const uid = req.session.userId;
-    const query = (req.query.q ?? '').trim();
-
-    if (!query) {
-      return res.json({ data: [] });
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
     }
 
-    // FTS5 search with snippet
-    const results = db.get().prepare(`
-      SELECT
-        n.id,
-        n.title,
-        n.parent_id,
-        snippet(notebook_notes_fts, 1, '<mark>', '</mark>', '…', 20) AS excerpt,
-        rank
-      FROM notebook_notes_fts
-      JOIN notebook_notes n ON n.id = notebook_notes_fts.rowid
-      WHERE notebook_notes_fts MATCH ? AND n.created_by = ?
-      ORDER BY rank ASC
-      LIMIT 50
-    `).all(query, uid);
-
-    res.json({ data: results });
-  } catch (err) {
-    log.error('GET /search', err);
-    res.status(500).json({ error: 'Server error.', code: 500 });
-  }
-});
-
-// --------------------------------------------------------
-// GET /api/v1/notebook/tags
-// List all tags for the current user
-// --------------------------------------------------------
-router.get('/tags', (req, res) => {
-  try {
-    const uid = req.session.userId;
-    const tags = db.get().prepare(`
-      SELECT id, name, user_id
-      FROM notebook_tags
-      WHERE user_id = ?
-      ORDER BY name ASC
-    `).all(uid);
-
-    res.json({ data: tags });
-  } catch (err) {
-    log.error('GET /tags', err);
-    res.status(500).json({ error: 'Server error.', code: 500 });
-  }
-});
-
-// --------------------------------------------------------
-// POST /api/v1/notebook/tags
-// Create tag: body { name }
-// --------------------------------------------------------
-router.post('/tags', (req, res) => {
-  try {
-    const uid = req.session.userId;
-    const vName = str(req.body.name, 'name', { max: 50 });
-    if (vName.error) {
-      return res.status(400).json({ error: vName.error, code: 400 });
+    const note = noteById(noteId, userId);
+    if (!note) {
+      return res.status(404).json({ error: 'Note not found.', code: 404 });
     }
 
-    const name = vName.value;
-
-    // Check for duplicate
-    const existing = db.get().prepare(
-      'SELECT id FROM notebook_tags WHERE user_id = ? AND name = ?'
-    ).get(uid, name);
-    if (existing) {
-      return res.status(409).json({ error: 'Tag already exists.', code: 409 });
-    }
-
-    const result = db.get().prepare(
-      'INSERT INTO notebook_tags (name, user_id) VALUES (?, ?)'
-    ).run(name, uid);
-
-    const tag = db.get().prepare(
-      'SELECT id, name, user_id FROM notebook_tags WHERE id = ?'
-    ).get(result.lastInsertRowid);
-
-    res.status(201).json({ data: tag });
-  } catch (err) {
-    log.error('POST /tags', err);
-    res.status(500).json({ error: 'Server error.', code: 500 });
-  }
-});
-
-// --------------------------------------------------------
-// DELETE /api/v1/notebook/tags/:id
-// Delete tag (removes from all notes)
-// --------------------------------------------------------
-router.delete('/tags/:id', (req, res) => {
-  try {
-    const uid = req.session.userId;
-    const tagId = parseInt(req.params.id, 10);
-
-    if (!tagId) {
-      return res.status(400).json({ error: 'Invalid tag ID.', code: 400 });
-    }
-
-    const tag = ownedTag(tagId, uid);
-    if (!tag) {
-      return res.status(404).json({ error: 'Tag not found.', code: 404 });
-    }
-
-    db.get().prepare('DELETE FROM notebook_tags WHERE id = ? AND user_id = ?')
-      .run(tagId, uid);
-
+    trashSubtree(noteId, userId);
+    normalizeSiblingOrder(note.parent_id, userId);
     res.status(204).end();
   } catch (err) {
-    log.error('DELETE /tags/:id', err);
+    log.error('POST /:id/trash', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.post('/:id/lock', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const note = noteById(noteId, userId);
+    if (!note || note.trashed_at != null) {
+      return res.status(404).json({ error: 'Note not found.', code: 404 });
+    }
+
+    lockSubtree(noteId, userId);
+    normalizeSiblingOrder(note.parent_id, userId);
+    normalizeSiblingOrder(note.parent_id, userId, { locked: true });
+    res.status(204).end();
+  } catch (err) {
+    log.error('POST /:id/lock', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.post('/:id/unlock', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const note = lockedNoteById(noteId, userId);
+    if (!note) {
+      return res.status(404).json({ error: 'Locked note not found.', code: 404 });
+    }
+
+    unlockSubtree(noteId, userId);
+    normalizeSiblingOrder(note.parent_id, userId);
+    normalizeSiblingOrder(note.parent_id, userId, { locked: true });
+    res.status(204).end();
+  } catch (err) {
+    log.error('POST /:id/unlock', err);
+    res.status(500).json({ error: 'Server error.', code: 500 });
+  }
+});
+
+router.post('/:id/restore', (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const noteId = parseInt(req.params.id, 10);
+    if (!noteId) {
+      return res.status(400).json({ error: 'Invalid note ID.', code: 400 });
+    }
+
+    const note = noteById(noteId, userId, { trashed: true });
+    if (!note) {
+      return res.status(404).json({ error: 'Trashed note not found.', code: 404 });
+    }
+
+    restoreSubtreeAndAncestors(noteId, userId);
+    normalizeSiblingOrder(note.parent_id, userId);
+    res.status(204).end();
+  } catch (err) {
+    log.error('POST /:id/restore', err);
     res.status(500).json({ error: 'Server error.', code: 500 });
   }
 });

@@ -24,11 +24,11 @@ function dashboardBoardTemplateStorageKey() {
 }
 
 function dashboardLegacyBoardTemplateStorageKey() {
-  return 'planium-dashboard-test-template-v4';
+  return 'planium-dashboard-board-template-legacy-v1';
 }
 
 function dashboardLegacyBoardStateStorageKey() {
-  return 'planium-dashboard-test-board-v2';
+  return 'planium-dashboard-board-state-legacy-v1';
 }
 
 function widgetPickerRows(layout, widgets) {

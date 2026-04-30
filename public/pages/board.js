@@ -1,7 +1,6 @@
 /**
- * Modul: Pinnwand / Notizen (Notes)
- * Zweck: Masonry-Grid mit farbigen Sticky Notes, Pin-Toggle, CRUD
- * Abhängigkeiten: /api.js, /router.js (window.planium)
+ * Module: Board
+ * Purpose: Masonry grid with colored sticky notes, pin toggle, CRUD.
  */
 
 import { api } from '/api.js';
@@ -50,20 +49,20 @@ export async function render(container, { user }) {
   container.innerHTML = `
     <div class="notes-page">
       <div class="notes-toolbar">
-        <h1 class="notes-toolbar__title">${t('notes.title')}</h1>
+        <h1 class="notes-toolbar__title">${t('board.title')}</h1>
         <div class="notes-toolbar__search">
           <i data-lucide="search" class="notes-toolbar__search-icon" aria-hidden="true"></i>
           <input type="search" id="notes-search" class="notes-toolbar__search-input"
-                 placeholder="${t('notes.searchPlaceholder')}" autocomplete="off"
+                 placeholder="${t('board.searchPlaceholder')}" autocomplete="off"
                  value="${esc(state.filterQuery)}">
         </div>
         <button class="btn btn--primary" id="notes-add-btn">
           <i data-lucide="plus" style="width:16px;height:16px;margin-right:4px;" aria-hidden="true"></i>
-          ${t('notes.addNoteLabel')}
+          ${t('board.addNoteLabel')}
         </button>
       </div>
       <div id="notes-grid" class="notes-grid"></div>
-      <button class="page-fab" id="fab-new-note" aria-label="${t('notes.addNoteLabel')}">
+      <button class="page-fab" id="fab-new-note" aria-label="${t('board.addNoteLabel')}">
         <i data-lucide="plus" aria-hidden="true"></i>
       </button>
     </div>
@@ -72,12 +71,12 @@ export async function render(container, { user }) {
   if (window.lucide) lucide.createIcons();
 
   try {
-    const res  = await api.get('/notes');
+    const res  = await api.get('/board');
     state.notes = res.data;
   } catch (err) {
     console.error('[Notes] Laden fehlgeschlagen:', err);
     state.notes = [];
-    window.planium?.showToast(t('notes.loadError'), 'danger');
+    window.planium?.showToast(t('board.loadError'), 'danger');
   }
 
   const grid = container.querySelector('#notes-grid');
@@ -141,8 +140,8 @@ function renderGrid() {
           <line x1="16" y1="17" x2="8" y2="17"/>
           <polyline points="10 9 9 9 8 9"/>
         </svg>
-        <div class="empty-state__title">${isFiltered ? t('notes.noResultsTitle') : t('notes.emptyTitle')}</div>
-        <div class="empty-state__description">${isFiltered ? t('notes.noResultsDescription', { query: state.filterQuery }) : t('notes.emptyDescription')}</div>
+        <div class="empty-state__title">${isFiltered ? t('board.noResultsTitle') : t('board.emptyTitle')}</div>
+        <div class="empty-state__description">${isFiltered ? t('board.noResultsDescription', { query: state.filterQuery }) : t('board.emptyDescription')}</div>
       </div>
     `;
     if (window.lucide) lucide.createIcons();
@@ -166,7 +165,7 @@ function renderNoteCard(note) {
          data-id="${note.id}"
          style="background-color:${esc(note.color)};color:${textColor};">
       <button class="note-card__pin" data-action="pin" data-id="${note.id}"
-              aria-label="${note.pinned ? t('notes.unpinAction') : t('notes.pinAction')}">
+        aria-label="${note.pinned ? t('board.unpinAction') : t('board.pinAction')}">
         <i data-lucide="${note.pinned ? 'pin-off' : 'pin'}" style="width:12px;height:12px;" aria-hidden="true"></i>
       </button>
       ${!note.shared ? `<span class="note-card__private" title="Private — only you can see this">
@@ -180,7 +179,7 @@ function renderNoteCard(note) {
                 style="background-color:${esc(note.creator_color || '#8E8E93')}">${initials}</span>
           <span>${esc(note.creator_name || '')}</span>
         </div>
-        <button class="note-card__delete" data-action="delete" data-id="${note.id}" aria-label="${t('notes.deleteLabel')}">
+        <button class="note-card__delete" data-action="delete" data-id="${note.id}" aria-label="${t('board.deleteLabel')}">
           <i data-lucide="trash-2" style="width:12px;height:12px;" aria-hidden="true"></i>
         </button>
       </div>
@@ -363,58 +362,58 @@ export function openNoteModal({ mode, note = null, onSaved = null } = {}) {
 
   const content = `
     <div class="form-group">
-      <label class="form-label" for="note-title">${t('notes.titleLabel')}</label>
+      <label class="form-label" for="note-title">${t('board.titleLabel')}</label>
       <input type="text" class="form-input" id="note-title"
-             placeholder="${t('notes.titlePlaceholder')}" value="${esc(isEdit && note.title ? note.title : '')}">
+             placeholder="${t('board.titlePlaceholder')}" value="${esc(isEdit && note.title ? note.title : '')}">
     </div>
     <div class="form-group">
-      <label class="form-label" for="note-content">${t('notes.contentLabel')} <span style="font-weight:400;color:var(--text-tertiary);font-size:.85em;">${t('notes.contentMarkdownHint')}</span></label>
+      <label class="form-label" for="note-content">${t('board.contentLabel')} <span style="font-weight:400;color:var(--text-tertiary);font-size:.85em;">${t('board.contentMarkdownHint')}</span></label>
       <div class="note-format-toolbar">
-        <button type="button" class="note-format-btn" data-format="bold" title="${t('notes.formatBold')}">
+        <button type="button" class="note-format-btn" data-format="bold" title="${t('board.formatBold')}">
           <i data-lucide="bold" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="italic" title="${t('notes.formatItalic')}">
+        <button type="button" class="note-format-btn" data-format="italic" title="${t('board.formatItalic')}">
           <i data-lucide="italic" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="underline" title="${t('notes.formatUnderline')}">
+        <button type="button" class="note-format-btn" data-format="underline" title="${t('board.formatUnderline')}">
           <i data-lucide="underline" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="strikethrough" title="${t('notes.formatStrikethrough')}">
+        <button type="button" class="note-format-btn" data-format="strikethrough" title="${t('board.formatStrikethrough')}">
           <i data-lucide="strikethrough" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
         <span class="note-format-btn--sep"></span>
-        <button type="button" class="note-format-btn" data-format="heading" title="${t('notes.formatHeading')}">
+        <button type="button" class="note-format-btn" data-format="heading" title="${t('board.formatHeading')}">
           <i data-lucide="heading" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="list" title="${t('notes.formatList')}">
+        <button type="button" class="note-format-btn" data-format="list" title="${t('board.formatList')}">
           <i data-lucide="list" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="ordered-list" title="${t('notes.formatOrderedList')}">
+        <button type="button" class="note-format-btn" data-format="ordered-list" title="${t('board.formatOrderedList')}">
           <i data-lucide="list-ordered" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="checklist" title="${t('notes.formatChecklist')}">
+        <button type="button" class="note-format-btn" data-format="checklist" title="${t('board.formatChecklist')}">
           <i data-lucide="list-checks" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
         <span class="note-format-btn--sep"></span>
-        <button type="button" class="note-format-btn" data-format="link" title="${t('notes.formatLink')}">
+        <button type="button" class="note-format-btn" data-format="link" title="${t('board.formatLink')}">
           <i data-lucide="link" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="code" title="${t('notes.formatCode')}">
+        <button type="button" class="note-format-btn" data-format="code" title="${t('board.formatCode')}">
           <i data-lucide="code" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="quote" title="${t('notes.formatQuote')}">
+        <button type="button" class="note-format-btn" data-format="quote" title="${t('board.formatQuote')}">
           <i data-lucide="quote" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
-        <button type="button" class="note-format-btn" data-format="divider" title="${t('notes.formatDivider')}">
+        <button type="button" class="note-format-btn" data-format="divider" title="${t('board.formatDivider')}">
           <i data-lucide="minus" style="width:14px;height:14px;" aria-hidden="true"></i>
         </button>
       </div>
       <textarea class="form-input" id="note-content" rows="6"
-                placeholder="${t('notes.contentPlaceholder')}"
+                placeholder="${t('board.contentPlaceholder')}"
                 style="resize:vertical;">${esc(isEdit ? note.content : '')}</textarea>
     </div>
     <div class="form-group">
-      <label class="form-label">${t('notes.colorLabel')}</label>
+      <label class="form-label">${t('board.colorLabel')}</label>
       <div class="note-color-picker">
         ${NOTE_COLORS.map((c) => `
           <div class="note-color-swatch ${c === selColor ? 'note-color-swatch--active' : ''}"
@@ -428,14 +427,14 @@ export function openNoteModal({ mode, note = null, onSaved = null } = {}) {
       <label class="toggle">
         <input type="checkbox" id="note-pinned" ${isEdit && note.pinned ? 'checked' : ''}>
         <span class="toggle__track"></span>
-        <span>${t('notes.pinnedLabel')}</span>
+        <span>${t('board.pinnedLabel')}</span>
       </label>
     </div>
     <div class="form-group">
       <label class="toggle">
         <input type="checkbox" id="note-shared" ${!isEdit || note.shared !== 0 ? 'checked' : ''}>
         <span class="toggle__track"></span>
-        <span>${t('notes.sharedLabel')}</span>
+        <span>${t('board.sharedLabel')}</span>
       </label>
     </div>
 
@@ -445,7 +444,7 @@ export function openNoteModal({ mode, note = null, onSaved = null } = {}) {
     </div>`;
 
   openSharedModal({
-    title: isEdit ? t('notes.editNote') : t('notes.newNote'),
+    title: isEdit ? t('board.editNote') : t('board.newNote'),
     content,
     size: 'md',
     onSave(panel) {
@@ -523,11 +522,11 @@ export function openNoteModal({ mode, note = null, onSaved = null } = {}) {
         try {
           let savedNote = null;
           if (mode === 'create') {
-            const res = await api.post('/notes', { title, content: cnt, color, pinned, shared });
+            const res = await api.post('/board', { title, content: cnt, color, pinned, shared });
             state.notes.unshift(res.data);
             savedNote = res.data;
           } else {
-            const res = await api.put(`/notes/${note.id}`, { title, content: cnt, color, pinned, shared });
+            const res = await api.put(`/board/${note.id}`, { title, content: cnt, color, pinned, shared });
             const idx = state.notes.findIndex((n) => n.id === note.id);
             if (idx !== -1) state.notes[idx] = res.data;
             state.notes.sort((a, b) => b.pinned - a.pinned);
@@ -542,7 +541,7 @@ export function openNoteModal({ mode, note = null, onSaved = null } = {}) {
               console.error('[Notes] onSaved callback failed:', callbackErr);
             }
           }
-          window.planium?.showToast(mode === 'create' ? t('notes.createdToast') : t('notes.savedToast'), 'success');
+          window.planium?.showToast(mode === 'create' ? t('board.createdToast') : t('board.savedToast'), 'success');
         } catch (err) {
           window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
           btnError(saveBtn);
@@ -560,7 +559,7 @@ export function openNoteModal({ mode, note = null, onSaved = null } = {}) {
 
 async function togglePin(id) {
   try {
-    const res  = await api.patch(`/notes/${id}/pin`, {});
+    const res  = await api.patch(`/board/${id}/pin`, {});
     const note = state.notes.find((n) => n.id === id);
     if (note) note.pinned = res.data.pinned;
     state.notes.sort((a, b) => b.pinned - a.pinned);
@@ -571,13 +570,13 @@ async function togglePin(id) {
 }
 
 async function deleteNote(id) {
-  if (!await showConfirm(t('notes.deleteConfirm'), { danger: true })) return;
+  if (!await showConfirm(t('board.deleteConfirm'), { danger: true })) return;
   try {
-    await api.delete(`/notes/${id}`);
+    await api.delete(`/board/${id}`);
     state.notes = state.notes.filter((n) => n.id !== id);
     renderGrid();
     vibrate([30, 50, 30]);
-    window.planium?.showToast(t('notes.deletedToast'), 'success');
+    window.planium?.showToast(t('board.deletedToast'), 'success');
   } catch (err) {
     window.planium?.showToast(err.data?.error ?? t('common.unknownError'), 'error');
   }

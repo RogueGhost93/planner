@@ -1633,3 +1633,20 @@
   --color-btn-primary: var(--color-accent);
   --color-btn-primary-hover: var(--color-accent-hover);
 }
+
+/* ================================================================
+ * GLOBAL PRIORITY PALETTE
+ * Priority colors stay semantic and do not inherit the active theme/accent.
+ * ================================================================ */
+:root[data-theme],
+:root[data-accent] {
+  --color-priority-low:    #8E8D89;
+  --color-priority-medium: #B45309;
+  --color-priority-high:   #D4511E;
+  --color-priority-urgent: #DC2626;
+
+  --color-priority-low-bg:    rgba(142, 141, 137, 0.12);
+  --color-priority-medium-bg: rgba(180, 83, 9, 0.12);
+  --color-priority-high-bg:   rgba(212, 81, 30, 0.12);
+  --color-priority-urgent-bg: rgba(220, 38, 38, 0.12);
+}

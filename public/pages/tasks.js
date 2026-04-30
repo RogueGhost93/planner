@@ -3084,9 +3084,15 @@ export function openItemEditDialog({
     `<option value="${u.id}" ${item.assigned_to === u.id ? 'selected' : ''}>${esc(u.display_name)}</option>`
   ).join('');
   const selectedLabelNames = new Set((item.labels || []).map((label) => normalizeSearch(label.name)));
-  const listOptions = availableTaskLists.map((l) =>
-    `<option value="${l.id}" ${l.id === targetListId ? 'selected' : ''}>${esc(l.name)}</option>`
-  ).join('');
+  const currentListName = () => getList()?.name || 'Select list';
+  const listOptions = availableTaskLists.map((l) => `
+    <button type="button"
+            class="task-list-picker__option ${l.id === targetListId ? 'task-list-picker__option--active' : ''}"
+            data-action="pick-list"
+            data-list-id="${l.id}">
+      ${esc(l.name)}
+    </button>
+  `).join('');
 
   openSharedModal({
     title: t('tasks.editPersonalItemTitle'),
@@ -3100,10 +3106,17 @@ export function openItemEditDialog({
       <form id="personal-item-form" novalidate autocomplete="off">
         ${showListPicker ? `
         <div class="form-group">
-          <label class="label" for="pi-list">${t('tasks.listLabel') === 'tasks.listLabel' ? 'List' : t('tasks.listLabel')}</label>
-          <select class="input" id="pi-list" name="list_id" style="min-height:44px">
-            ${listOptions}
-          </select>
+          <label class="label">${t('tasks.listLabel') === 'tasks.listLabel' ? 'List' : t('tasks.listLabel')}</label>
+          <button type="button" class="input" id="pi-list-toggle"
+                  aria-haspopup="listbox" aria-expanded="false"
+                  style="min-height:44px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);text-align:left">
+            <span id="pi-list-selected" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentListName())}</span>
+            <i data-lucide="chevron-down" aria-hidden="true" style="width:16px;height:16px;flex:0 0 auto"></i>
+          </button>
+          <div id="pi-list-options" hidden
+               style="margin-top:var(--space-2);display:grid;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);max-height:240px;overflow:auto">
+            ${listOptions || `<div class="task-label-picker__empty">${t('tasks.labelsNone')}</div>`}
+          </div>
         </div>` : ''}
 
         <div class="form-group">
@@ -3188,7 +3201,9 @@ export function openItemEditDialog({
       bindRRuleEvents(document, 'pi');
 
       const labelPicker = panel.querySelector('#pi-label-picker');
-      const listSelect = panel.querySelector('#pi-list');
+      const listToggle = panel.querySelector('#pi-list-toggle');
+      const listOptionsPanel = panel.querySelector('#pi-list-options');
+      const listSelected = panel.querySelector('#pi-list-selected');
       const assignedGroup = panel.querySelector('#pi-assigned-group');
       const selectedLabelNames = new Set((item.labels || []).map((label) => normalizeSearch(label.name)));
 
@@ -3223,17 +3238,29 @@ export function openItemEditDialog({
         renderPicker(res.data ?? []);
       };
 
-      const updateListDependentUi = () => {
-        if (assignedGroup) {
-          assignedGroup.style.display = isShared() ? '' : 'none';
+      const syncListUi = () => {
+        if (listSelected) {
+          listSelected.textContent = getList()?.name || 'Select list';
+        }
+        if (listToggle) {
+          listToggle.setAttribute('aria-expanded', listOptionsPanel && !listOptionsPanel.hidden ? 'true' : 'false');
+        }
+        if (listOptionsPanel) {
+          listOptionsPanel.querySelectorAll('[data-action="pick-list"]').forEach((btn) => {
+            const active = Number(btn.dataset.listId) === targetListId;
+            btn.classList.toggle('task-list-picker__option--active', active);
+          });
         }
       };
 
-      listSelect?.addEventListener('change', async () => {
-        const nextListId = Number(listSelect.value);
-        if (!Number.isFinite(nextListId)) return;
+      const applySelectedList = async (nextListId) => {
+        if (!Number.isFinite(nextListId) || nextListId === targetListId) return;
         targetListId = nextListId;
+        syncListUi();
         updateListDependentUi();
+        if (labelPicker) {
+          labelPicker.innerHTML = `<div class="task-label-picker__loading">${t('tasks.labelsLoading') ?? 'Loading labels...'}</div>`;
+        }
         try {
           const res = await api.get(`/personal-lists/${targetListId}/labels`);
           renderPicker(res.data ?? []);
@@ -3241,7 +3268,31 @@ export function openItemEditDialog({
           if (!labelPicker) return;
           labelPicker.innerHTML = `<div class="task-label-picker__empty">${esc(err.message)}</div>`;
         }
+      };
+
+      const updateListDependentUi = () => {
+        if (assignedGroup) {
+          assignedGroup.style.display = isShared() ? '' : 'none';
+        }
+      };
+
+      listToggle?.addEventListener('click', () => {
+        if (!listOptionsPanel) return;
+        const nextHidden = !listOptionsPanel.hidden;
+        listOptionsPanel.hidden = nextHidden;
+        listToggle.setAttribute('aria-expanded', String(!nextHidden));
       });
+
+      listOptionsPanel?.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action="pick-list"]');
+        if (!btn) return;
+        const nextListId = Number(btn.dataset.listId);
+        listOptionsPanel.hidden = true;
+        listToggle?.setAttribute('aria-expanded', 'false');
+        applySelectedList(nextListId);
+      });
+
+      syncListUi();
 
       const dueInput = panel.querySelector('#pi-due');
       const dueClear = panel.querySelector('#pi-due-clear');

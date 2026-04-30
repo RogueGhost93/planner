@@ -302,6 +302,10 @@
 }
 .app-content::-webkit-scrollbar { display: none; }
 
+body.phone-nav-menu-mode .app-content {
+  padding-bottom: var(--safe-area-inset-bottom);
+}
+
 /* Sidebar auf Mobile verstecken */
 .nav-sidebar {
   display: none;
@@ -329,24 +333,33 @@
 }
 
 .nav-bottom--menu {
-  padding: var(--space-2) var(--space-4) calc(var(--space-2) + var(--safe-area-inset-bottom));
+  padding: 0 var(--space-4) calc(var(--space-2) + var(--safe-area-inset-bottom));
+  background: transparent;
+  border-top-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  pointer-events: none;
 }
 
 .nav-bottom__menu-trigger {
   width: 100%;
-  max-width: 360px;
-  min-height: var(--nav-height-mobile);
+  max-width: 420px;
+  min-height: 52px;
   margin: 0 auto;
   padding: 0 var(--space-4);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border-subtle);
-  background: var(--color-surface);
+  background: color-mix(in srgb, var(--color-surface) 72%, transparent);
   color: var(--color-text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
+  pointer-events: auto;
+  touch-action: pan-y;
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
 }
 
 .nav-bottom__menu-trigger:active {
