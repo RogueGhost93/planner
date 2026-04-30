@@ -695,10 +695,10 @@ function widgetDragHandle(widgetId) {
   `;
 }
 
-function widgetHeader(icon, title, count, linkHref, linkLabel, addRoute, addFlag, { widgetId = null, span = '1', height = 'normal' } = {}) {
+function widgetHeader(icon, title, count, linkHref, linkLabel, addRoute, createAction, { widgetId = null, span = '1', height = 'normal' } = {}) {
   linkLabel = linkHref ? (linkLabel ?? t('dashboard.allLink')) : null;
-  const addBtn = addRoute
-    ? `<button class="widget__add-btn" type="button" data-route="${addRoute}"${addFlag ? ` data-create-flag="${addFlag}"` : ''}
+  const addBtn = createAction
+    ? `<button class="widget__add-btn" type="button" data-route="${addRoute}" data-create-action="${createAction}"
                aria-label="${t('common.add')}">
          <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
        </button>`
@@ -934,7 +934,7 @@ function syncPhoneWidgetScrollability(container) {
   const bodies = container.querySelectorAll('.widget__body');
 
   bodies.forEach((body) => {
-    const scrollable = body.scrollHeight > body.clientHeight + 2;
+    const scrollable = body.scrollHeight > body.clientHeight - 6;
     body.classList.toggle('widget__body--scrollable', scrollable);
   });
 }
@@ -1181,8 +1181,6 @@ function updateBoardNotesSection(container, notes) {
   existing.outerHTML = html;
 }
 
-const SHOPPING_COLLAPSE_AT = 6;
-
 let _widgetActiveHeadId = null;
 
 function renderShoppingWidget(heads, sublists, allItems, span = '2', height = 'normal') {
@@ -1224,8 +1222,6 @@ function renderShoppingWidget(heads, sublists, allItems, span = '2', height = 'n
 
   const renderSub = (sub) => {
     const subItems = items.filter((i) => i.list_id === sub.id);
-    const visible  = subItems.slice(0, SHOPPING_COLLAPSE_AT);
-    const hidden   = subItems.slice(SHOPPING_COLLAPSE_AT);
 
     const renderItem = (i) => `
       <div class="shopping-widget__item" data-item-id="${i.id}" data-list-id="${sub.id}">
@@ -1249,14 +1245,7 @@ function renderShoppingWidget(heads, sublists, allItems, span = '2', height = 'n
           ${deleteBtnHtml('delete-shopping-sublist', `data-id="${sub.id}" data-name="${esc(sub.name)}"`, t('common.delete'))}
         </div>
         <div class="shopping-widget__items">
-          ${visible.map(renderItem).join('')}
-          ${hidden.length ? `
-            <div class="shopping-widget__overflow" hidden data-overflow="${sub.id}">
-              ${hidden.map(renderItem).join('')}
-            </div>
-            <button class="shopping-widget__more" data-action="show-more" data-list-id="${sub.id}">
-              +${hidden.length} more
-            </button>` : ''}
+          ${subItems.map(renderItem).join('')}
         </div>
       </div>`;
   };
@@ -1599,6 +1588,14 @@ function wireDashboardLayout(container, layoutState, data) {
     masonryRaf = window.requestAnimationFrame(syncWidgetMasonry);
   };
 
+  let settleMasonryRaf = 0;
+  const scheduleSettledWidgetMasonry = () => {
+    window.cancelAnimationFrame(settleMasonryRaf);
+    settleMasonryRaf = window.requestAnimationFrame(() => {
+      settleMasonryRaf = window.requestAnimationFrame(scheduleWidgetMasonry);
+    });
+  };
+
   const applyOrder = (order) => {
     const nodeById = new Map(widgetNodes().map((el) => [el.dataset.widgetId, el]));
     for (const id of order) {
@@ -1772,6 +1769,14 @@ function wireDashboardLayout(container, layoutState, data) {
 
   window.addEventListener('resize', scheduleWidgetMasonry, { signal: _fabController.signal });
   scheduleWidgetMasonry();
+  scheduleSettledWidgetMasonry();
+  if (document.fonts?.ready) {
+    document.fonts.ready.then(() => {
+      if (!container.isConnected) return;
+      scheduleSettledWidgetMasonry();
+    }).catch(() => {});
+  }
+  window.addEventListener('load', scheduleSettledWidgetMasonry, { signal: _fabController.signal });
 }
 
 function wireDashboardBoard(container, boardState, widgetIds) {
@@ -2441,6 +2446,37 @@ async function openDashboardShoppingItemDialog({ onSaved } = {}) {
   });
 }
 
+function openDashboardWidgetAddAction(container, action, fallbackRoute = null) {
+  switch (action) {
+    case 'tasks-create-new':
+      if (!Array.isArray(currentDashboardData?.personalLists) || !currentDashboardData.personalLists.length) {
+        window.planium?.showToast(t('tasks.noLists') ?? 'No lists available', 'danger');
+        return true;
+      }
+      openDashboardTaskDialog(container, currentDashboardData.personalLists, () => {
+        window.planium?.navigate('/tasks');
+      });
+      return true;
+    case 'calendar-create-new':
+      void openDashboardEventDialog({
+        onSaved: () => window.planium?.navigate('/calendar'),
+      });
+      return true;
+    case 'lists-create-new':
+    case 'lists-add-item':
+      void openDashboardShoppingItemDialog({
+        onSaved: () => window.planium?.navigate('/lists'),
+      });
+      return true;
+    default:
+      if (fallbackRoute) {
+        window.planium?.navigate(fallbackRoute);
+        return true;
+      }
+      return false;
+  }
+}
+
 const FAB_ACTIONS = (user) => [
   { action: 'create-task', label: t('dashboard.fabTask'), icon: 'check-square'   },
   { action: 'create-calendar', label: t('dashboard.fabCalendar'), icon: 'calendar-plus'  },
@@ -2602,16 +2638,20 @@ function initFab(container, signal, user, onNoteSaved = null, onTaskSaved = null
 // --------------------------------------------------------
 
 function wireLinks(container) {
+  container.querySelectorAll('[data-create-action]').forEach((el) => {
+    const go = () => {
+      if (!openDashboardWidgetAddAction(container, el.dataset.createAction, el.dataset.route)) return;
+    };
+    el.addEventListener('click', (e) => { e.stopPropagation(); go(); });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+
   container.querySelectorAll('[data-route]').forEach((el) => {
     if (el.id === 'fab-main' || el.closest('#fab-actions')) return;
-    if (el.classList.contains('widget__add-btn') && el.closest('#tasks-widget')) return;
+    if (el.classList.contains('widget__add-btn') && el.dataset.createAction) return;
     const go = () => {
-      // Widget + button → set create flag then navigate
-      if (el.dataset.createFlag) {
-        localStorage.setItem(el.dataset.createFlag, '1');
-        window.planium.navigate(el.dataset.route);
-        return;
-      }
       // Tasks "All" link → open kanban view
       if (el.dataset.route === '/tasks' && el.classList.contains('widget__link')) {
         localStorage.setItem('tasks-view', 'kanban');
@@ -2926,38 +2966,6 @@ function wireTasksWidget(container, dashData, refreshWidget) {
   const widgetEl = container.querySelector('#tasks-widget');
   const bodyEl = container.querySelector('#tasks-widget-body');
   if (bodyEl) wireTasksWidgetBody(bodyEl, dashData, refreshWidget);
-
-  // Plus button: open full create dialog for the currently selected personal list
-  const addBtn = widgetEl?.querySelector('.widget__add-btn');
-  if (addBtn) {
-    let lastTouchAt = 0;
-    const openAddDialog = (e) => {
-      e.stopPropagation();
-      const listId = Number(widgetEl.dataset.activeTab);
-      if (!listId) return;
-      openItemEditDialog({
-        item: { id: null, title: '', priority: 'none', due_date: null, due_time: null,
-                alarm_at: null, description: null, recurrence_rule: null },
-        container,
-        listId,
-        onSaved: (saved) => {
-          dashData.personalItems = [...(dashData.personalItems ?? []), saved];
-          refreshWidget();
-        },
-      });
-    };
-
-    addBtn.addEventListener('touchend', (e) => {
-      lastTouchAt = Date.now();
-      e.preventDefault();
-      openAddDialog(e);
-    }, { passive: false });
-
-    addBtn.addEventListener('click', (e) => {
-      if (Date.now() - lastTouchAt < 400) return;
-      openAddDialog(e);
-    });
-  }
 
   const tabsEl = container.querySelector('#tasks-widget-tabs');
   const leftArrow  = container.querySelector('[data-action="tasks-tabs-scroll"][data-dir="-1"]');
