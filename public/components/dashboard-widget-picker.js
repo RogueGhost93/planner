@@ -1,7 +1,7 @@
 import { api } from '/api.js';
 import { t } from '/i18n.js';
 import { esc } from '/utils/html.js';
-import { openModal, closeModal } from '/components/modal.js';
+import { openModal, closeModal, showConfirm } from '/components/modal.js';
 import {
   DASHBOARD_WIDGETS,
   defaultDashboardLayout,
@@ -12,9 +12,23 @@ import {
 import { loadWebviewConfig, webviewItemLabel } from '/components/webview-manager.js';
 
 function dashboardLayoutApiPath() {
-  return window.location.pathname === '/dashboard-test'
-    ? '/dashboard-test/layout'
-    : '/dashboard/layout';
+  return '/dashboard/layout';
+}
+
+function dashboardBoardStateStorageKey() {
+  return 'planium-dashboard-board-state-v1';
+}
+
+function dashboardBoardTemplateStorageKey() {
+  return 'planium-dashboard-board-template-v1';
+}
+
+function dashboardLegacyBoardTemplateStorageKey() {
+  return 'planium-dashboard-test-template-v4';
+}
+
+function dashboardLegacyBoardStateStorageKey() {
+  return 'planium-dashboard-test-board-v2';
 }
 
 function widgetPickerRows(layout, widgets) {
@@ -82,6 +96,7 @@ export async function openDashboardWidgetPicker({ onSaved } = {}) {
         </div>
         <p class="dashboard-widget-picker__status" hidden></p>
         <div class="dashboard-widget-picker__footer">
+          <button class="btn btn--secondary" type="button" data-dashboard-widget-picker-reset>${t('common.reset') ?? 'Reset'}</button>
           <button class="btn btn--secondary" type="button" data-dashboard-widget-picker-cancel>Cancel</button>
           <button class="btn btn--primary" type="submit">Save</button>
         </div>
@@ -90,9 +105,32 @@ export async function openDashboardWidgetPicker({ onSaved } = {}) {
     onSave(panel) {
       const form = panel.querySelector('[data-dashboard-widget-picker]');
       const cancelBtn = panel.querySelector('[data-dashboard-widget-picker-cancel]');
+      const resetBtn = panel.querySelector('[data-dashboard-widget-picker-reset]');
       const status = form.querySelector('.dashboard-widget-picker__status');
 
       cancelBtn?.addEventListener('click', closeModal);
+      resetBtn?.addEventListener('click', async () => {
+        const ok = await showConfirm('Reset dashboard widgets to the default layout?', { danger: false });
+        if (!ok) return;
+        try {
+          const defaults = defaultDashboardLayout();
+          saveDashboardWidgetHiddenIds(defaults.hidden);
+          await api.put(dashboardLayoutApiPath(), { layout: defaults });
+          localStorage.removeItem(dashboardLegacyBoardStateStorageKey());
+          localStorage.removeItem(dashboardBoardStateStorageKey());
+          localStorage.removeItem(dashboardBoardTemplateStorageKey());
+          localStorage.removeItem(dashboardLegacyBoardTemplateStorageKey());
+          closeModal();
+          if (typeof onSaved === 'function') {
+            onSaved(defaults);
+          } else {
+            window.location.reload();
+          }
+        } catch (error) {
+          status.hidden = false;
+          status.textContent = error?.message || 'Could not reset widget layout.';
+        }
+      });
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();

@@ -10,7 +10,6 @@ import { esc } from '/utils/html.js';
 import { initNotifications, stopNotifications } from '/components/task-notifications.js';
 import { openModal, closeModal } from '/components/modal.js';
 import { init as initPTR } from '/utils/pullToRefresh.js';
-import { isDevToolsEnabled } from '/lib/dev-tools.js';
 
 // --------------------------------------------------------
 // Route definitions
@@ -19,7 +18,6 @@ import { isDevToolsEnabled } from '/lib/dev-tools.js';
 const ROUTES = [
   { path: '/setup',    page: '/pages/setup.js',    requiresAuth: false, module: null        },
   { path: '/login',    page: '/pages/login.js',    requiresAuth: false, module: null        },
-  { path: '/dashboard-test', page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
   { path: '/',         page: '/pages/dashboard.js', requiresAuth: true, module: 'dashboard' },
   { path: '/tasks',    page: '/pages/tasks.js',     requiresAuth: true, module: 'tasks'     },
   { path: '/lists',    page: '/pages/lists.js',     requiresAuth: true, module: 'lists'     },
@@ -88,7 +86,6 @@ const ALL_ACCENTS = [
 
 const NAV_ITEM_DEFS = [
   { path: '/',         labelKey: 'nav.dashboard', icon: 'layout-dashboard' },
-  { path: '/dashboard-test', label: 'Dashboard Test', icon: 'flask-conical' },
   { path: '/tasks',    labelKey: 'nav.tasks',     icon: 'check-square'     },
   { path: '/lists',    labelKey: 'nav.lists',     icon: 'list-checks'      },
   { path: '/notes',    labelKey: 'nav.notes',     icon: 'sticky-note'      },
@@ -329,7 +326,7 @@ let isNavigating = false;
 // Router
 // --------------------------------------------------------
 
-const ROUTE_ORDER = ['/', '/dashboard-test', '/tasks', '/lists', '/notes', '/notebook', '/calendar', '/news',
+const ROUTE_ORDER = ['/', '/tasks', '/lists', '/notes', '/notebook', '/calendar', '/news',
                      '/web', '/meals', '/contacts', '/settings'];
 
 function getDirection(fromPath, toPath) {
@@ -358,10 +355,6 @@ async function navigate(path, userOrPushState = true, pushState = true) {
       initNotifications(currentUser);
     } else {
       pushState = userOrPushState;
-    }
-
-    if (path === '/dashboard-test' && !isDevToolsEnabled()) {
-      path = '/';
     }
 
     // Remember old path before currentPath is updated - for direction calculation
@@ -534,15 +527,88 @@ function renderAppShell(container) {
  * Initialises swipe gestures and dot indicator for the mobile bottom navigation.
  */
 function initBottomNavSwipe(container) {
-  const scroll = container.querySelector('.nav-bottom__scroll');
-  const dots   = container.querySelectorAll('.nav-bottom__dot');
-  if (!scroll || !dots.length) return;
+  const nav = container.querySelector('.nav-bottom');
+  if (!nav) return;
 
-  // Scroll event: update dot indicator
-  scroll.addEventListener('scroll', () => {
-    const page = Math.round(scroll.scrollLeft / scroll.offsetWidth);
-    dots.forEach((d, i) => d.classList.toggle('nav-bottom__dot--active', i === page));
+  const scroll = nav.querySelector('.nav-bottom__scroll');
+  const dots   = nav.querySelectorAll('.nav-bottom__dot');
+  if (scroll && dots.length) {
+    // Scroll event: update dot indicator
+    scroll.addEventListener('scroll', () => {
+      const page = Math.round(scroll.scrollLeft / scroll.offsetWidth);
+      dots.forEach((d, i) => d.classList.toggle('nav-bottom__dot--active', i === page));
+    }, { passive: true });
+  }
+
+  if (!nav.classList.contains('nav-bottom--menu')) return;
+
+  const SWIPE_THRESHOLD = 50;
+  const LOCK_DELTA = 10;
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+  let locked = null;
+
+  const suppressNextClick = (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  };
+
+  const navigateFromSwipe = (dx) => {
+    if (Math.abs(dx) < SWIPE_THRESHOLD) return false;
+    const currentIdx = ROUTE_ORDER.indexOf(currentPath ?? '');
+    if (currentIdx === -1) return false;
+
+    const nextIdx = dx < 0
+      ? Math.min(ROUTE_ORDER.length - 1, currentIdx + 1)
+      : Math.max(0, currentIdx - 1);
+    if (nextIdx === currentIdx) return false;
+
+    nav.addEventListener('click', suppressNextClick, { once: true, capture: true });
+    navigate(ROUTE_ORDER[nextIdx]);
+    return true;
+  };
+
+  nav.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) {
+      tracking = false;
+      return;
+    }
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+    locked = null;
   }, { passive: true });
+
+  nav.addEventListener('touchmove', (e) => {
+    if (!tracking) return;
+
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+
+    if (locked === null) {
+      if (Math.abs(dx) > LOCK_DELTA && Math.abs(dx) > Math.abs(dy)) locked = 'h';
+      else if (Math.abs(dy) > LOCK_DELTA) locked = 'v';
+    }
+
+    if (locked === 'h') {
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  nav.addEventListener('touchend', (e) => {
+    if (!tracking) return;
+    tracking = false;
+    if (locked !== 'h') return;
+
+    const dx = (e.changedTouches[0]?.clientX ?? startX) - startX;
+    navigateFromSwipe(dx);
+  });
+
+  nav.addEventListener('touchcancel', () => {
+    tracking = false;
+    locked = null;
+  });
 }
 
 /**
@@ -773,7 +839,7 @@ function navItems() {
   return currentNavOrder.map((path) => byPath.get(path)).filter(Boolean).map((item) => ({
     ...item,
     label: item.label ?? t(item.labelKey),
-  })).filter((item) => item.path !== '/dashboard-test' || isDevToolsEnabled());
+  }));
 }
 
 function navItemHtml({ path, label, icon }, hidden = false) {
@@ -829,10 +895,7 @@ function renderBottomNavHtml() {
       <nav class="nav-bottom nav-bottom--menu" aria-label="${t('nav.navigation')}">
         <button class="nav-bottom__menu-trigger" id="phone-nav-menu-trigger" type="button" aria-label="${t('nav.navigation')}" aria-haspopup="dialog">
           <i data-lucide="menu" class="nav-bottom__menu-icon" aria-hidden="true"></i>
-          <span class="nav-bottom__menu-text">
-            <span class="nav-bottom__menu-label">${t('nav.menu')}</span>
-            <span class="nav-bottom__menu-current">${esc(getNavItemLabel(currentPath ?? '/'))}</span>
-          </span>
+          <span class="nav-bottom__menu-current">${esc(getNavItemLabel(currentPath ?? '/'))}</span>
         </button>
       </nav>
     `;

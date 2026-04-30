@@ -25,6 +25,7 @@ let state = {
   selectedNames: new Set(),
 };
 let _container = null;
+const FILEBOX_SCOPE_HANDOFF_KEY = 'planium-filebox-scope';
 
 // --------------------------------------------------------
 // Utilities
@@ -528,6 +529,14 @@ function switchScope(scope) {
 
 export async function render(container, _context) {
   _container = container;
+
+  try {
+    const pendingScope = window.sessionStorage?.getItem(FILEBOX_SCOPE_HANDOFF_KEY);
+    if (pendingScope === 'global' || pendingScope === 'private') {
+      state.scope = pendingScope;
+    }
+    window.sessionStorage?.removeItem(FILEBOX_SCOPE_HANDOFF_KEY);
+  } catch (_) {}
 
   // Web Share Target landing — toast for files shared from another app.
   const params = new URLSearchParams(window.location.search);

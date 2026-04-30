@@ -38,6 +38,8 @@ const PERSONAL_STATUSES = () => [
 
 const PRIORITY_LABELS = () => Object.fromEntries(PRIORITIES().map((p) => [p.value, p.label]));
 const STATUS_LABELS   = () => Object.fromEntries(TASK_STATUSES().map((s) => [s.value, s.label]));
+const LAST_USED_TASK_LIST_KEY = 'planium-last-used-task-list-id';
+const PERSONAL_TRASH_EXPANDED_KEY = 'planium-personal-trash-expanded';
 
 // --------------------------------------------------------
 // Hilfsfunktionen
@@ -49,6 +51,57 @@ function initials(name = '') {
 
 function normalizeSearch(value = '') {
   return value == null ? '' : String(value).trim().toLowerCase();
+}
+
+function readStoredTaskListId() {
+  try {
+    const raw = localStorage.getItem(LAST_USED_TASK_LIST_KEY);
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isPersonalTrashExpanded() {
+  try {
+    return localStorage.getItem(PERSONAL_TRASH_EXPANDED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setPersonalTrashExpanded(expanded) {
+  try {
+    localStorage.setItem(PERSONAL_TRASH_EXPANDED_KEY, expanded ? '1' : '0');
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+export function rememberTaskListId(listId) {
+  const parsed = Number(listId);
+  if (!Number.isFinite(parsed)) return;
+  try {
+    localStorage.setItem(LAST_USED_TASK_LIST_KEY, String(parsed));
+  } catch {
+    // Ignore storage failures; quick share should still work.
+  }
+}
+
+export function getPreferredTaskListId(taskLists = state.taskLists ?? []) {
+  const availableLists = Array.isArray(taskLists) ? taskLists : [];
+  const storedId = readStoredTaskListId();
+  if (storedId && availableLists.some((list) => list.id === storedId)) {
+    return storedId;
+  }
+
+  const activeTabId = Number(state.activeTab);
+  if (Number.isFinite(activeTabId) && availableLists.some((list) => list.id === activeTabId)) {
+    return activeTabId;
+  }
+
+  return availableLists[0]?.id ?? null;
 }
 
 function selectionIsInsideElement(element) {
@@ -592,6 +645,7 @@ let state = {
   activeTab:        'household',
   personalItems:    [],
   personalTrashItems: [],
+  personalTrashExpanded: isPersonalTrashExpanded(),
   personalViewMode:    localStorage.getItem('personal-view') || 'list',
   personalFilters:     { status: '', priority: '', assigned_to: '' },
   personalSearch:      '',
@@ -1694,6 +1748,36 @@ function renderPersonalItemRow(item, opts = {}) {
     </div>`;
 }
 
+function renderPersonalTrashSection(trash, { kanban = false } = {}) {
+  if (!trash.length) {
+    return '';
+  }
+
+  const expanded = state.personalTrashExpanded;
+  const bodyId = kanban ? 'personal-trash-kanban' : 'personal-trash-list';
+
+  return `
+    <div class="task-group task-group--trash ${expanded ? 'task-group--expanded' : 'task-group--collapsed'}">
+      <div class="task-group__divider task-group__divider--trash">
+        <button class="task-group__toggle" type="button"
+                data-action="toggle-trash-section"
+                aria-expanded="${expanded}"
+                aria-controls="${bodyId}">
+          <i data-lucide="chevron-right" class="task-group__toggle-icon" aria-hidden="true"></i>
+          <span>${t('tasks.trashSection')} (${trash.length})</span>
+        </button>
+        <button class="btn btn--ghost personal-list__clear-btn" data-action="clear-trash-items">
+          <i data-lucide="trash-2" style="width:14px;height:14px" aria-hidden="true"></i>
+          ${t('tasks.clearTrash')}
+        </button>
+      </div>
+      <div class="task-group__body" id="${bodyId}" ${expanded ? '' : 'hidden'}>
+        ${expanded ? trash.map((item, idx) => renderPersonalItemRow(item, { isFirst: idx === 0 })).join('') : ''}
+      </div>
+    </div>
+  `;
+}
+
 function renderPersonalItems() {
   const filtered = getFilteredPersonalItems();
 
@@ -1747,17 +1831,7 @@ function renderPersonalItems() {
     firstGroupRendered = true;
   }
   if (trash.length) {
-    html += `
-      <div class="task-group task-group--trash">
-        <div class="task-group__divider">
-          <span>${t('tasks.trashSection')} (${trash.length})</span>
-          <button class="btn btn--ghost personal-list__clear-btn" data-action="clear-trash-items">
-            <i data-lucide="trash-2" style="width:14px;height:14px" aria-hidden="true"></i>
-            ${t('tasks.clearTrash')}
-          </button>
-        </div>
-        ${trash.map((item, idx) => renderPersonalItemRow(item, { isFirst: !firstGroupRendered && idx === 0 })).join('')}
-      </div>`;
+    html += renderPersonalTrashSection(trash, { kanban: false });
   }
   return html || `<div class="personal-list__empty">${t('tasks.personalListEmpty')}</div>`;
 }
@@ -1933,17 +2007,7 @@ function renderPersonalKanban(container) {
     </div>`;
 
   if (trash.length) {
-    wrap.insertAdjacentHTML('beforeend', `
-      <div class="task-group task-group--trash">
-        <div class="task-group__divider">
-          <span>${t('tasks.trashSection')} (${trash.length})</span>
-          <button class="btn btn--ghost personal-list__clear-btn" data-action="clear-trash-items">
-            <i data-lucide="trash-2" style="width:14px;height:14px" aria-hidden="true"></i>
-            ${t('tasks.clearTrash')}
-          </button>
-        </div>
-        ${trash.map((item) => renderPersonalItemRow(item)).join('')}
-      </div>`);
+    wrap.insertAdjacentHTML('beforeend', renderPersonalTrashSection(trash, { kanban: true }));
   }
 
   if (window.lucide) window.lucide.createIcons();
@@ -2426,6 +2490,28 @@ function wirePersonalView(container) {
       }
       return;
     }
+    if (action === 'toggle-trash-section') {
+      state.personalTrashExpanded = !state.personalTrashExpanded;
+      setPersonalTrashExpanded(state.personalTrashExpanded);
+      refreshPersonalItems(container);
+      return;
+    }
+    if (action === 'clear-trash-items') {
+      const trashCount = state.personalTrashItems.length;
+      if (!trashCount) return;
+      if (!await showConfirm(t('tasks.clearTrashConfirm', { count: trashCount }), { danger: true })) return;
+      try {
+        await api.post(`/personal-lists/${state.activeTab}/clear-trash`);
+        await loadPersonalItems(state.activeTab);
+        await loadPersonalLists();
+        refreshPersonalItems(container);
+        renderTaskTabsBar(container);
+        window.planium.showToast(t('tasks.clearTrashDone', { count: trashCount }), 'default');
+      } catch (err) {
+        window.planium.showToast(err.message, 'danger');
+      }
+      return;
+    }
 
     // Item-level actions — find item ID from closest [data-item-id] container
     const row = target.closest('[data-item-id]');
@@ -2497,39 +2583,6 @@ function wirePersonalView(container) {
         refreshPersonalItems(container);
         renderTaskTabsBar(container);
         window.planium.showToast(t('tasks.restoreFromTrashToast'), 'default');
-      } catch (err) {
-        window.planium.showToast(err.message, 'danger');
-      }
-      return;
-    }
-    if (action === 'clear-done-items') {
-      const doneItems = state.personalItems.filter((i) => getPersonalItemStatus(i) === 'done');
-      if (!doneItems.length) return;
-      const count = doneItems.length;
-      if (!await showConfirm(t('tasks.personalListClearDoneConfirm'), { danger: true })) return;
-      try {
-        await api.post(`/personal-lists/${state.activeTab}/clear-done`);
-        await loadPersonalItems(state.activeTab);
-        await loadPersonalLists();
-        refreshPersonalItems(container);
-        renderTaskTabsBar(container);
-        window.planium.showToast(t('tasks.movedToTrashToast', { count }), 'default');
-      } catch (err) {
-        window.planium.showToast(err.message, 'danger');
-      }
-      return;
-    }
-    if (action === 'clear-trash-items') {
-      const trashCount = state.personalTrashItems.length;
-      if (!trashCount) return;
-      if (!await showConfirm(t('tasks.clearTrashConfirm', { count: trashCount }), { danger: true })) return;
-      try {
-        await api.post(`/personal-lists/${state.activeTab}/clear-trash`);
-        await loadPersonalItems(state.activeTab);
-        await loadPersonalLists();
-        refreshPersonalItems(container);
-        renderTaskTabsBar(container);
-        window.planium.showToast(t('tasks.clearTrashDone', { count: trashCount }), 'default');
       } catch (err) {
         window.planium.showToast(err.message, 'danger');
       }
@@ -3003,10 +3056,20 @@ function openLabelManager({ container } = {}) {
 // Edit Personal Item Dialog (title + optional priority + due date)
 // --------------------------------------------------------
 
-export function openItemEditDialog({ item, container, listId = null, showListPicker = false, onSaved = null, onDeleted = null, onClose = null }) {
-  const initialListId = listId ?? (showListPicker ? state.taskLists[0]?.id ?? null : state.activeTab ?? state.taskLists[0]?.id ?? null);
+export function openItemEditDialog({
+  item,
+  container,
+  listId = null,
+  taskLists = null,
+  showListPicker = false,
+  onSaved = null,
+  onDeleted = null,
+  onClose = null,
+}) {
+  const availableTaskLists = Array.isArray(taskLists) && taskLists.length ? taskLists : state.taskLists;
+  const initialListId = listId ?? getPreferredTaskListId(availableTaskLists);
   let targetListId = initialListId;
-  const getList = () => state.taskLists.find((l) => l.id === targetListId);
+  const getList = () => availableTaskLists.find((l) => l.id === targetListId);
   const isShared = () => {
     const list = getList();
     return !!(list && (!list.is_owner || (list.shared_user_ids?.length > 0)));
@@ -3021,7 +3084,7 @@ export function openItemEditDialog({ item, container, listId = null, showListPic
     `<option value="${u.id}" ${item.assigned_to === u.id ? 'selected' : ''}>${esc(u.display_name)}</option>`
   ).join('');
   const selectedLabelNames = new Set((item.labels || []).map((label) => normalizeSearch(label.name)));
-  const listOptions = state.taskLists.map((l) =>
+  const listOptions = availableTaskLists.map((l) =>
     `<option value="${l.id}" ${l.id === targetListId ? 'selected' : ''}>${esc(l.name)}</option>`
   ).join('');
 
@@ -3265,6 +3328,7 @@ export function openItemEditDialog({ item, container, listId = null, showListPic
               state.personalItems.push(res.data);
             }
           }
+          rememberTaskListId(targetListId);
           if (onSaved) onSaved(res.data);
           else refreshPersonalItems(container);
           completed = true;

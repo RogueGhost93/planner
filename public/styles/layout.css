@@ -359,21 +359,6 @@
   flex-shrink: 0;
 }
 
-.nav-bottom__menu-text {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.1;
-}
-
-.nav-bottom__menu-label {
-  font-size: var(--text-xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-tertiary);
-}
-
 .nav-bottom__menu-current {
   font-size: var(--text-sm);
   font-weight: var(--font-weight-semibold);
@@ -1517,14 +1502,14 @@
     gap: var(--space-2);
   }
 
-  .modal-panel--phone-nav .phone-nav-menu__item {
-    padding: var(--space-2);
-    gap: 6px;
-  }
-
   .modal-panel--phone-nav .phone-nav-menu__label {
     font-size: clamp(11px, 2.8vw, 13px);
     line-height: 1.15;
+  }
+
+  .modal-panel--phone-nav .phone-nav-menu__item {
+    padding: var(--space-2);
+    gap: 6px;
   }
 }
 

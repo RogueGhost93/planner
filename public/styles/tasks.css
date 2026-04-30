@@ -280,6 +280,52 @@
   background-color: var(--color-border-subtle);
 }
 
+.task-group__divider--trash {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.task-group__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.task-group__toggle:hover {
+  color: var(--color-text-primary);
+}
+
+.task-group__toggle-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.task-group--expanded .task-group__toggle-icon {
+  transform: rotate(90deg);
+}
+
+.task-group__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.task-group--trash.task-group--collapsed .task-group__body {
+  display: none;
+}
+
 /* --------------------------------------------------------
  * Swipe-Wrapper - Task-spezifische Styles
  * Basis-Styles (.swipe-row, .swipe-reveal, .swipe-reveal--done)

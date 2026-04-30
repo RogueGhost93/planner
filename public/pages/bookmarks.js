@@ -78,7 +78,7 @@ export async function render(container, { user }) {
         .bookmarks-content { grid-template-columns: 1fr !important }
         .bookmarks-sidebar { display: none !important }
         #mobile-tag-filter-btn { display: inline-flex !important }
-        .bookmarks-main { overflow-x: hidden; max-width: 100vw }
+        .bookmarks-main { overflow-x: auto; max-width: 100vw; -webkit-overflow-scrolling: touch }
         .bm-card { padding: 10px !important }
         .bm-title { font-size: 12px !important }
         .bm-url { font-size: 10px !important }
@@ -132,7 +132,7 @@ export async function render(container, { user }) {
           </div>
 
           <!-- Filter controls -->
-          <div style="display:flex;gap:var(--space-2);align-items:center">
+          <div class="bookmarks-filter-row" style="display:flex;gap:var(--space-2);align-items:center">
             <select id="bookmarks-filter" class="form-input" style="flex:1;min-width:0;padding:8px 10px;font-size:14px">
               <option value="all" ${currentStatusFilter === 'all' ? 'selected' : ''}>All Status</option>
               <option value="unread" ${currentStatusFilter === 'unread' ? 'selected' : ''}>Unread</option>

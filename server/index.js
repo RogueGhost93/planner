@@ -198,7 +198,6 @@ app.use('/filebox/share', fileboxShareRouter);
 app.use('/api/v1', requireAuth);
 app.use('/api/v1', csrfMiddleware);
 app.use('/api/v1/dashboard', dashboardRouter);
-app.use('/api/v1/dashboard-test', dashboardRouter);
 app.use('/api/v1/personal-lists', personalListsRouter);
 app.use('/api/v1/lists', listsRouter);
 app.use('/api/v1/meals', mealsRouter);

@@ -34,6 +34,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.bookmarks-filter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .bookmarks-save-form textarea {
@@ -47,4 +55,21 @@
   }
   .bookmarks-toolbar__title   { grid-area: title; }
   .bookmarks-toolbar__actions { grid-area: actions; }
+
+  .bookmarks-filter-row {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    touch-action: pan-x;
+  }
+
+  .bookmarks-filter-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bookmarks-filter-row > * {
+    flex: 0 0 auto;
+  }
 }

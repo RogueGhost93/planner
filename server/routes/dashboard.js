@@ -13,43 +13,32 @@ const log = createLogger('Dashboard');
 
 const router = express.Router();
 
-const DASHBOARD_LAYOUT_KEYS = {
-  main: 'dashboard_layout',
-  test: 'dashboard_layout_test',
-};
-
+const DASHBOARD_LAYOUT_KEY = 'dashboard_layout';
+const LEGACY_DASHBOARD_LAYOUT_KEY = 'dashboard_layout_test';
 const QUICK_NOTE_KEYS = {
-  main: {
-    public: 'quick_note_public',
-    private: 'quick_note',
-  },
-  test: {
-    public: 'quick_note_public_test',
-    private: 'quick_note_test',
-  },
+  public: 'quick_note_public',
+  private: 'quick_note',
 };
 
-function dashboardVariantForReq(req) {
-  return req.baseUrl.endsWith('/dashboard-test') ? 'test' : 'main';
-}
-
-function dashboardLayoutKeyForReq(req) {
-  return DASHBOARD_LAYOUT_KEYS[dashboardVariantForReq(req)] ?? DASHBOARD_LAYOUT_KEYS.main;
-}
-
-function quickNoteKeyForReq(req, scope) {
-  const variant = dashboardVariantForReq(req);
-  const keys = QUICK_NOTE_KEYS[variant] ?? QUICK_NOTE_KEYS.main;
-  return scope === 'private' ? keys.private : keys.public;
+function quickNoteKeyForReq(_req, scope) {
+  return scope === 'private' ? QUICK_NOTE_KEYS.private : QUICK_NOTE_KEYS.public;
 }
 
 function readDashboardLayout(userId, req) {
   try {
-    const row = db.get()
-      .prepare(`SELECT value FROM user_settings WHERE user_id = ? AND key = ?`)
-      .get(userId, dashboardLayoutKeyForReq(req));
-    if (!row?.value) return defaultDashboardLayout();
-    return normalizeDashboardLayout(JSON.parse(row.value));
+    const stmt = db.get().prepare(`SELECT value FROM user_settings WHERE user_id = ? AND key = ?`);
+    const row = stmt.get(userId, DASHBOARD_LAYOUT_KEY);
+    if (row?.value) return normalizeDashboardLayout(JSON.parse(row.value));
+
+    const legacyRow = stmt.get(userId, LEGACY_DASHBOARD_LAYOUT_KEY);
+    if (!legacyRow?.value) return defaultDashboardLayout();
+
+    const migrated = normalizeDashboardLayout(JSON.parse(legacyRow.value));
+    db.get().prepare(`
+      INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
+      ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
+    `).run(userId, DASHBOARD_LAYOUT_KEY, JSON.stringify(migrated));
+    return migrated;
   } catch (err) {
     log.error('dashboard layout load:', err.message);
     return defaultDashboardLayout();
@@ -68,7 +57,7 @@ function saveDashboardLayout(userId, layout, req) {
   db.get().prepare(`
     INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
     ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value
-  `).run(userId, dashboardLayoutKeyForReq(req), JSON.stringify(saved));
+  `).run(userId, DASHBOARD_LAYOUT_KEY, JSON.stringify(saved));
   return saved;
 }
 

@@ -58,6 +58,10 @@
   flex-shrink: 0;
 }
 
+.news-toolbar__actions--scrollable {
+  min-width: 0;
+}
+
 .news-limit-toggle {
   display: inline-flex;
   align-items: center;
@@ -311,6 +315,21 @@
     flex: 0 0 auto;
     gap: 2px;
     margin-left: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    flex-wrap: nowrap;
+    max-width: 100%;
+  }
+
+  .news-toolbar__actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .news-toolbar__actions > * {
+    flex: 0 0 auto;
   }
 
   .news-toolbar__actions .btn--icon {

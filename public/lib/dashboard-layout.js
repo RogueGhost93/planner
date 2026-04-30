@@ -1,20 +1,15 @@
 export const DASHBOARD_WIDGETS = [
   { id: 'quote-widget', labelKey: 'dashboard.quoteOfTheDay', defaultSpan: 'full', visibleByDefault: true },
-  { id: 'tasks-widget', labelKey: 'nav.tasks', defaultSpan: '2', visibleByDefault: true },
+  { id: 'tasks-widget', labelKey: 'nav.tasks', defaultSpan: '1', visibleByDefault: true },
   { id: 'events-widget', labelKey: 'nav.calendar', defaultSpan: '1', visibleByDefault: true },
-  { id: 'shopping-widget', labelKey: 'nav.lists', defaultSpan: '2', visibleByDefault: true },
+  { id: 'shopping-widget', labelKey: 'nav.lists', defaultSpan: '1', visibleByDefault: true },
   { id: 'quick-notes-widget', labelKey: 'dashboard.quickNotesTitle', defaultSpan: '1', visibleByDefault: true },
 ];
 
 const DASHBOARD_WIDGET_VISIBILITY_KEY_BASE = 'planium-dashboard-widget-visibility';
 
-function dashboardVariantSuffix() {
-  if (typeof window === 'undefined' || !window.location) return '';
-  return window.location.pathname === '/dashboard-test' ? '-test' : '';
-}
-
 function dashboardWidgetVisibilityKey() {
-  return `${DASHBOARD_WIDGET_VISIBILITY_KEY_BASE}${dashboardVariantSuffix()}`;
+  return DASHBOARD_WIDGET_VISIBILITY_KEY_BASE;
 }
 
 const DASHBOARD_WIDGET_SPANS = new Set(['1', '2', 'full']);
@@ -73,7 +68,7 @@ export function defaultDashboardLayout() {
       return acc;
     }, {}),
     heights: DASHBOARD_WIDGETS.reduce((acc, widget) => {
-      acc[widget.id] = 'normal';
+      acc[widget.id] = widget.id === 'quote-widget' ? 'xxs' : 'normal';
       return acc;
     }, {}),
   };

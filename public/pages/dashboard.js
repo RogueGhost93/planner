@@ -5,13 +5,16 @@
  */
 
 import { api } from '/api.js';
+import { renderRRuleFields, bindRRuleEvents, getRRuleValues } from '/rrule-ui.js';
 import { t, formatDate, formatTime, getLocale } from '/i18n.js';
 import { esc, linkify } from '/utils/html.js';
 import { openItemEditDialog } from '/pages/tasks.js';
 import { openNoteModal, openNotePreviewModal } from '/pages/notes.js';
 import { renderPriceTickers, wirePriceTickers } from '/components/price-tickers.js';
-import { showConfirm, openModal } from '/components/modal.js';
+import { showConfirm, openModal, closeModal } from '/components/modal.js';
 import { openDashboardWidgetPicker } from '/components/dashboard-widget-picker.js';
+import { defaultDashboardLayout } from '/lib/dashboard-layout.js';
+import { dashboardWidgetLabelMap } from '/lib/dashboard-layout.js';
 import {
   dashboardWidgetHeightClass,
   dashboardWidgetHeightLabel,
@@ -21,6 +24,7 @@ import {
 } from '/lib/dashboard-layout.js';
 import {
   renderWebviewCard,
+  webviewItemLabel,
   wireWebviewCards,
 } from '/components/webview-manager.js';
 import { broadcastPersonalItemChange, subscribePersonalItemChange } from '/lib/personal-item-sync.js';
@@ -62,59 +66,105 @@ subscribePersonalItemChange((change) => {
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
 
-function isDashboardTestVariant() {
-  return window.location.pathname === '/dashboard-test';
+function isDashboardPhoneLayout() {
+  const viewportWidth = Math.min(
+    window.innerWidth || Infinity,
+    document.documentElement?.clientWidth || Infinity,
+    window.visualViewport?.width || Infinity,
+  );
+  return viewportWidth <= 767 || window.matchMedia('(max-width: 767px)').matches;
 }
 
 function dashboardApiPath(path = '') {
-  return `${isDashboardTestVariant() ? '/dashboard-test' : '/dashboard'}${path}`;
+  return `/dashboard${path}`;
 }
 
 function dashboardStorageKey(base) {
-  return isDashboardTestVariant() ? `${base}:test` : base;
+  return base;
 }
 
-function dashboardTestTemplateKey() {
-  return dashboardStorageKey('planium-dashboard-test-template-v3');
+function dashboardPhoneHeightStorageKey() {
+  return 'planium-dashboard-phone-heights-v1';
 }
 
-const DASHBOARD_TEST_BOARD_KEY = 'planium-dashboard-test-board-v2';
-const DASHBOARD_TEST_BOARD_COLUMNS = 12;
-const DASHBOARD_TEST_BOARD_ROW_HEIGHT = 88;
-const DASHBOARD_TEST_BOARD_GAP = 16;
-const DASHBOARD_TEST_BOARD_MIN_COLS = 2;
-const DASHBOARD_TEST_BOARD_MIN_ROWS = 1;
-const DASHBOARD_TEST_BOARD_DEFAULTS = {
-  'quote-widget': { x: 0, y: 0, w: 12, h: 2 },
-  'tasks-widget': { x: 0, y: 2, w: 8, h: 4 },
-  'events-widget': { x: 8, y: 2, w: 4, h: 2 },
-  'shopping-widget': { x: 8, y: 4, w: 4, h: 2 },
-  'quick-notes-widget': { x: 8, y: 6, w: 4, h: 3 },
+function dashboardBoardTemplateKey() {
+  return 'planium-dashboard-board-template-v1';
+}
+
+function loadDashboardPhoneWidgetHeights() {
+  try {
+    const raw = localStorage.getItem(dashboardPhoneHeightStorageKey());
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return {};
+    return Object.keys(parsed).reduce((acc, key) => {
+      if (typeof key !== 'string') return acc;
+      acc[key] = normalizePhoneWidgetHeight(parsed[key]);
+      return acc;
+    }, {});
+  } catch {
+    return {};
+  }
+}
+
+function saveDashboardPhoneWidgetHeights(heights = {}) {
+  const normalized = Object.keys(heights).reduce((acc, key) => {
+    if (typeof key !== 'string') return acc;
+    acc[key] = normalizePhoneWidgetHeight(heights[key]);
+    return acc;
+  }, {});
+  localStorage.setItem(dashboardPhoneHeightStorageKey(), JSON.stringify(normalized));
+  return normalized;
+}
+
+function clearDashboardPhoneWidgetHeights() {
+  localStorage.removeItem(dashboardPhoneHeightStorageKey());
+}
+
+const DASHBOARD_BOARD_STATE_KEY = 'planium-dashboard-board-state-v1';
+const LEGACY_DASHBOARD_BOARD_STATE_KEY = 'planium-dashboard-test-board-v2';
+const DASHBOARD_BOARD_COLUMNS = 12;
+const DASHBOARD_BOARD_ROW_HEIGHT = 88;
+const DASHBOARD_BOARD_GAP = 16;
+const DASHBOARD_BOARD_MIN_COLS = 2;
+const DASHBOARD_BOARD_MIN_ROWS = 1;
+const DASHBOARD_BOARD_DEFAULTS = {
+  'quote-widget': { x: 0, y: 0, w: 12, h: 1 },
+  'tasks-widget': { x: 0, y: 1, w: 3, h: 3 },
+  'shopping-widget': { x: 3, y: 1, w: 3, h: 3 },
+  'events-widget': { x: 6, y: 1, w: 3, h: 3 },
+  'quick-notes-widget': { x: 9, y: 1, w: 3, h: 3 },
 };
 
+function dashboardBoardDefaultRectForId(id, yCursor = 0) {
+  if (typeof id === 'string' && id.startsWith('webview:')) {
+    return { x: 0, y: yCursor, w: 12, h: 4 };
+  }
+  return DASHBOARD_BOARD_DEFAULTS[id] ?? { x: 0, y: yCursor, w: 4, h: 3 };
+}
+
 function applyDashboardTestBoardTemplate(layoutState) {
-  if (!isDashboardTestVariant()) return false;
-  if (localStorage.getItem(dashboardTestTemplateKey()) === 'true') return false;
+  if (localStorage.getItem(dashboardBoardTemplateKey()) === 'true') return false;
 
   layoutState.order = [
     'quote-widget',
-    'events-widget',
-    'shopping-widget',
-    'quick-notes-widget',
     'tasks-widget',
+    'shopping-widget',
+    'events-widget',
+    'quick-notes-widget',
   ];
   layoutState.spans['quote-widget'] = 'full';
-  layoutState.heights['quote-widget'] = 'short';
-  layoutState.spans['tasks-widget'] = '2';
-  layoutState.heights['tasks-widget'] = 'xlarge';
+  layoutState.heights['quote-widget'] = 'xxs';
+  layoutState.spans['tasks-widget'] = '1';
+  layoutState.heights['tasks-widget'] = 'normal';
   layoutState.spans['events-widget'] = '1';
-  layoutState.heights['events-widget'] = 'short';
+  layoutState.heights['events-widget'] = 'normal';
   layoutState.spans['shopping-widget'] = '1';
-  layoutState.heights['shopping-widget'] = 'short';
+  layoutState.heights['shopping-widget'] = 'normal';
   layoutState.spans['quick-notes-widget'] = '1';
-  layoutState.heights['quick-notes-widget'] = 'short';
+  layoutState.heights['quick-notes-widget'] = 'normal';
 
-  localStorage.setItem(dashboardTestTemplateKey(), 'true');
+  localStorage.setItem(dashboardBoardTemplateKey(), 'true');
   return true;
 }
 
@@ -124,26 +174,27 @@ function normalizeDashboardTestBoardRect(value, fallback = { x: 0, y: 0, w: 4, h
   const y = Number.isFinite(Number(rect.y)) ? Math.max(0, Math.floor(Number(rect.y))) : fallback.y;
   const w = Number.isFinite(Number(rect.w)) ? Math.floor(Number(rect.w)) : fallback.w;
   const h = Number.isFinite(Number(rect.h)) ? Math.floor(Number(rect.h)) : fallback.h;
-  const safeW = Math.max(DASHBOARD_TEST_BOARD_MIN_COLS, Math.min(DASHBOARD_TEST_BOARD_COLUMNS, w));
+  const safeW = Math.max(DASHBOARD_BOARD_MIN_COLS, Math.min(DASHBOARD_BOARD_COLUMNS, w));
   return {
-    x: Math.max(0, Math.min(Math.max(0, DASHBOARD_TEST_BOARD_COLUMNS - safeW), x)),
+    x: Math.max(0, Math.min(Math.max(0, DASHBOARD_BOARD_COLUMNS - safeW), x)),
     y: Math.max(0, y),
     w: safeW,
-    h: Math.max(DASHBOARD_TEST_BOARD_MIN_ROWS, h),
+    h: Math.max(DASHBOARD_BOARD_MIN_ROWS, h),
   };
 }
 
-function loadDashboardTestBoardState(widgetIds = []) {
+function loadDashboardBoardState(widgetIds = []) {
   const defaults = {};
   let yCursor = 0;
   for (const id of widgetIds) {
-    const fallback = DASHBOARD_TEST_BOARD_DEFAULTS[id] ?? { x: 0, y: yCursor, w: 4, h: 3 };
+    const fallback = dashboardBoardDefaultRectForId(id, yCursor);
     defaults[id] = normalizeDashboardTestBoardRect(fallback, fallback);
     yCursor = Math.max(yCursor, defaults[id].y + defaults[id].h);
   }
 
   try {
-    const raw = localStorage.getItem(DASHBOARD_TEST_BOARD_KEY);
+    const raw = localStorage.getItem(DASHBOARD_BOARD_STATE_KEY)
+      ?? localStorage.getItem(LEGACY_DASHBOARD_BOARD_STATE_KEY);
     if (!raw) {
       return { rects: defaults };
     }
@@ -155,15 +206,25 @@ function loadDashboardTestBoardState(widgetIds = []) {
     const order = Array.isArray(parsed?.order)
       ? parsed.order.filter((id) => widgetIds.includes(id)).concat(widgetIds.filter((id) => !parsed.order.includes(id)))
       : widgetIds.slice();
-    return { rects, order };
+    const state = { rects, order };
+    if (!localStorage.getItem(DASHBOARD_BOARD_STATE_KEY)) {
+      try {
+        localStorage.setItem(DASHBOARD_BOARD_STATE_KEY, JSON.stringify(state));
+      } catch {}
+    }
+    return state;
   } catch {
-    return { rects: defaults, order: widgetIds.slice() };
+    const migrated = { rects: defaults, order: widgetIds.slice() };
+    try {
+      localStorage.setItem(DASHBOARD_BOARD_STATE_KEY, JSON.stringify(migrated));
+    } catch {}
+    return migrated;
   }
 }
 
-function saveDashboardTestBoardState(state) {
+function saveDashboardBoardState(state) {
   try {
-    localStorage.setItem(DASHBOARD_TEST_BOARD_KEY, JSON.stringify({
+    localStorage.setItem(DASHBOARD_BOARD_STATE_KEY, JSON.stringify({
       rects: state.rects,
       order: Array.isArray(state.order) ? state.order : [],
     }));
@@ -172,7 +233,7 @@ function saveDashboardTestBoardState(state) {
   }
 }
 
-function sortDashboardTestBoardOrder(rects, widgetIds) {
+function sortDashboardBoardOrder(rects, widgetIds) {
   return widgetIds.slice().sort((a, b) => {
     const rectA = rects[a] || { x: 0, y: 0, w: 0, h: 0 };
     const rectB = rects[b] || { x: 0, y: 0, w: 0, h: 0 };
@@ -184,17 +245,17 @@ function sortDashboardTestBoardOrder(rects, widgetIds) {
   });
 }
 
-function dashboardTestBoardCellSize(board) {
+function dashboardBoardCellSize(board) {
   const styles = window.getComputedStyle(board);
-  const rowHeight = parseFloat(styles.getPropertyValue('--test-board-row-height')) || DASHBOARD_TEST_BOARD_ROW_HEIGHT;
-  const columnGap = parseFloat(styles.getPropertyValue('--test-board-gap')) || DASHBOARD_TEST_BOARD_GAP;
-  const rowGap = parseFloat(styles.getPropertyValue('--test-board-gap')) || DASHBOARD_TEST_BOARD_GAP;
+  const rowHeight = parseFloat(styles.getPropertyValue('--test-board-row-height')) || DASHBOARD_BOARD_ROW_HEIGHT;
+  const columnGap = parseFloat(styles.getPropertyValue('--test-board-gap')) || DASHBOARD_BOARD_GAP;
+  const rowGap = parseFloat(styles.getPropertyValue('--test-board-gap')) || DASHBOARD_BOARD_GAP;
   const width = board.getBoundingClientRect().width || 0;
-  const colWidth = Math.max(1, (width - (columnGap * (DASHBOARD_TEST_BOARD_COLUMNS - 1))) / DASHBOARD_TEST_BOARD_COLUMNS);
+  const colWidth = Math.max(1, (width - (columnGap * (DASHBOARD_BOARD_COLUMNS - 1))) / DASHBOARD_BOARD_COLUMNS);
   return { colWidth, rowHeight, columnGap, rowGap };
 }
 
-function dashboardTestBoardRectToPixels(rect, metrics) {
+function dashboardBoardRectToPixels(rect, metrics) {
   const left = rect.x * (metrics.colWidth + metrics.columnGap);
   const top = rect.y * (metrics.rowHeight + metrics.rowGap);
   const width = (rect.w * metrics.colWidth) + ((rect.w - 1) * metrics.columnGap);
@@ -207,7 +268,7 @@ function dashboardTestBoardRectToPixels(rect, metrics) {
   };
 }
 
-function dashboardTestBoardOccupied(rows, x, y, w, h) {
+function dashboardBoardOccupied(rows, x, y, w, h) {
   for (let r = y; r < y + h; r += 1) {
     if (!rows[r]) rows[r] = Array(DASHBOARD_TEST_BOARD_COLUMNS).fill(false);
     for (let c = x; c < x + w; c += 1) {
@@ -217,7 +278,7 @@ function dashboardTestBoardOccupied(rows, x, y, w, h) {
   return false;
 }
 
-function dashboardTestBoardMark(rows, x, y, w, h) {
+function dashboardBoardMark(rows, x, y, w, h) {
   for (let r = y; r < y + h; r += 1) {
     if (!rows[r]) rows[r] = Array(DASHBOARD_TEST_BOARD_COLUMNS).fill(false);
     for (let c = x; c < x + w; c += 1) {
@@ -226,11 +287,11 @@ function dashboardTestBoardMark(rows, x, y, w, h) {
   }
 }
 
-function dashboardTestBoardFindSpot(rows, rect) {
-  const maxWidth = DASHBOARD_TEST_BOARD_COLUMNS - rect.w;
+function dashboardBoardFindSpot(rows, rect) {
+  const maxWidth = DASHBOARD_BOARD_COLUMNS - rect.w;
   for (let y = rect.y; y < rect.y + 800; y += 1) {
     for (let x = 0; x <= maxWidth; x += 1) {
-      if (!dashboardTestBoardOccupied(rows, x, y, rect.w, rect.h)) {
+      if (!dashboardBoardOccupied(rows, x, y, rect.w, rect.h)) {
         return { x, y, w: rect.w, h: rect.h };
       }
     }
@@ -238,20 +299,30 @@ function dashboardTestBoardFindSpot(rows, rect) {
   return { ...rect };
 }
 
-function packDashboardTestBoardRects(rects, order, activeId = null) {
+function packDashboardBoardRects(rects, order, activeId = null) {
   const rows = [];
   const packed = {};
-  const ids = activeId ? [activeId, ...order.filter((id) => id !== activeId)] : order.slice();
+  const ids = order.slice().filter((id) => id !== activeId);
+
+  if (activeId && order.includes(activeId)) {
+    const activeRect = normalizeDashboardTestBoardRect(
+      rects[activeId],
+      dashboardBoardDefaultRectForId(activeId),
+    );
+    packed[activeId] = activeRect;
+    dashboardBoardMark(rows, activeRect.x, activeRect.y, activeRect.w, activeRect.h);
+  }
+
   for (const id of ids) {
-    const rect = normalizeDashboardTestBoardRect(rects[id], DASHBOARD_TEST_BOARD_DEFAULTS[id] ?? { x: 0, y: 0, w: 4, h: 3 });
-    const placed = dashboardTestBoardFindSpot(rows, rect);
+    const rect = normalizeDashboardTestBoardRect(rects[id], dashboardBoardDefaultRectForId(id));
+    const placed = dashboardBoardFindSpot(rows, rect);
     packed[id] = placed;
-    dashboardTestBoardMark(rows, placed.x, placed.y, placed.w, placed.h);
+    dashboardBoardMark(rows, placed.x, placed.y, placed.w, placed.h);
   }
   return packed;
 }
 
-function renderDashboardTestBoardSlot(widgetId, widgetHtml, rect) {
+function renderDashboardBoardSlot(widgetId, widgetHtml, rect) {
   return `
     <div class="dashboard-test-board__slot" data-board-widget-id="${widgetId}"
          data-board-x="${rect.x}" data-board-y="${rect.y}" data-board-w="${rect.w}" data-board-h="${rect.h}">
@@ -285,7 +356,11 @@ function setDashboardEditMode(container, enabled) {
   if (testBoardBtn) {
     testBoardBtn.setAttribute('aria-pressed', String(enabled));
   }
-  if (enabled && isDashboardTestVariant()) {
+  container.querySelectorAll('[data-action="switch-widget-tab"], [data-action="widget-switch-head"], [data-action="tasks-tabs-scroll"], [data-action="widget-head-scroll"]').forEach((el) => {
+    el.disabled = enabled;
+    el.setAttribute('aria-disabled', String(enabled));
+  });
+  if (enabled) {
     window.planium?.showToast?.('Edit mode on. Drag widget edges to resize.', 'success');
   }
 }
@@ -432,6 +507,19 @@ function nextWidgetSpan(span = '1') {
   return '1';
 }
 
+const DASHBOARD_PHONE_HEIGHT_CHOICES = [
+  { value: 'xs', label: 'XS' },
+  { value: 'short', label: 'S' },
+  { value: 'normal', label: 'M' },
+  { value: 'tall', label: 'L' },
+  { value: 'xlarge', label: 'XL' },
+];
+
+function normalizePhoneWidgetHeight(height = 'normal') {
+  if (height === 'xxs') return 'xs';
+  return DASHBOARD_PHONE_HEIGHT_CHOICES.some((choice) => choice.value === height) ? height : 'normal';
+}
+
 function widgetHeightButton(widgetId, height = 'normal') {
   const nextHeight = nextDashboardWidgetHeight(height);
   const nextLabel = dashboardWidgetHeightLabel(nextHeight);
@@ -444,6 +532,128 @@ function widgetHeightButton(widgetId, height = 'normal') {
       <span class="widget__height-btn-label">${dashboardWidgetHeightLabel(height)}</span>
     </button>
   `;
+}
+
+function renderPhoneHeightChoiceButtons(widgetId, height = 'normal') {
+  const activeHeight = normalizePhoneWidgetHeight(height);
+  return DASHBOARD_PHONE_HEIGHT_CHOICES.map((choice) => `
+    <button type="button"
+            class="dashboard-phone-height-editor__choice ${choice.value === activeHeight ? 'dashboard-phone-height-editor__choice--active' : ''}"
+            data-phone-height-choice
+            data-widget-id="${widgetId}"
+            data-height="${choice.value}"
+            aria-pressed="${choice.value === activeHeight ? 'true' : 'false'}">
+      ${choice.label}
+    </button>
+  `).join('');
+}
+
+function openPhoneHeightEditor({ items = [], layoutState, onSaved } = {}) {
+  const draftHeights = {
+    ...loadDashboardPhoneWidgetHeights(),
+  };
+
+  const renderRows = () => items.map((item) => `
+    <div class="dashboard-phone-height-editor__row" data-phone-widget-row data-widget-id="${item.id}">
+      <div class="dashboard-phone-height-editor__label">
+        <span class="dashboard-phone-height-editor__name">${esc(item.label)}</span>
+        <span class="dashboard-phone-height-editor__value" data-phone-height-value>${dashboardWidgetHeightLabel(draftHeights[item.id] ?? 'normal')}</span>
+      </div>
+      <div class="dashboard-phone-height-editor__choices">
+        ${renderPhoneHeightChoiceButtons(item.id, draftHeights[item.id] ?? 'normal')}
+      </div>
+    </div>
+  `).join('');
+
+  openModal({
+    title: t('common.phoneWidgetHeightsTitle') || 'Phone widget heights',
+    size: 'md',
+    content: `
+      <div class="dashboard-phone-height-editor" data-phone-height-editor>
+        <p class="dashboard-phone-height-editor__help">${t('common.phoneWidgetHeightsHelp') || 'Choose a height for each widget on phones.'}</p>
+        <div class="dashboard-phone-height-editor__card" data-phone-height-card>
+          ${renderRows()}
+        </div>
+        <p class="dashboard-phone-height-editor__status" hidden data-phone-height-status></p>
+        <div class="dashboard-phone-height-editor__footer">
+          <button class="btn btn--secondary" type="button" data-phone-height-reset>${t('common.reset')}</button>
+          <button class="btn btn--secondary" type="button" data-phone-height-cancel>${t('common.cancel')}</button>
+          <button class="btn btn--primary" type="button" data-phone-height-save>${t('common.save')}</button>
+        </div>
+      </div>
+    `,
+    onSave(panel) {
+      const status = panel.querySelector('[data-phone-height-status]');
+      const card = panel.querySelector('[data-phone-height-card]');
+      const resetBtn = panel.querySelector('[data-phone-height-reset]');
+      const cancelBtn = panel.querySelector('[data-phone-height-cancel]');
+      const saveBtn = panel.querySelector('[data-phone-height-save]');
+
+      const updateStatus = (message = '', tone = 'default') => {
+        if (!status) return;
+        status.hidden = !message;
+        status.textContent = message;
+        status.dataset.tone = tone;
+      };
+
+      const syncRow = (row) => {
+        const widgetId = row.dataset.widgetId;
+        const current = normalizePhoneWidgetHeight(draftHeights[widgetId] ?? 'normal');
+        row.querySelectorAll('[data-phone-height-choice]').forEach((btn) => {
+          const active = btn.dataset.height === current;
+          btn.classList.toggle('dashboard-phone-height-editor__choice--active', active);
+          btn.setAttribute('aria-pressed', String(active));
+        });
+        row.querySelector('[data-phone-height-value]').textContent = dashboardWidgetHeightLabel(current);
+      };
+
+      const syncAllRows = () => {
+        card?.querySelectorAll('[data-phone-widget-row]').forEach(syncRow);
+      };
+
+      cancelBtn?.addEventListener('click', () => closeModal());
+
+      resetBtn?.addEventListener('click', async () => {
+        const ok = await showConfirm(t('common.phoneWidgetHeightsResetConfirm') || 'Reset phone widget heights to the default sizes?', { danger: false });
+        if (!ok) return;
+        try {
+          const nextHeights = {};
+          items.forEach((item) => {
+            nextHeights[item.id] = 'normal';
+          });
+          saveDashboardPhoneWidgetHeights(nextHeights);
+          closeModal();
+          if (typeof onSaved === 'function') onSaved(nextHeights);
+          else window.location.reload();
+        } catch (error) {
+          updateStatus(error?.message || 'Could not reset phone widget heights.', 'danger');
+        }
+      });
+
+      card?.addEventListener('click', (event) => {
+        const choice = event.target.closest('[data-phone-height-choice]');
+        if (!choice) return;
+        const widgetId = choice.dataset.widgetId;
+        const height = normalizePhoneWidgetHeight(choice.dataset.height || 'normal');
+        draftHeights[widgetId] = height;
+        syncAllRows();
+        updateStatus('');
+      });
+
+      saveBtn?.addEventListener('click', async () => {
+        try {
+          saveDashboardPhoneWidgetHeights(draftHeights);
+          closeModal();
+          if (typeof onSaved === 'function') onSaved(draftHeights);
+          else window.location.reload();
+        } catch (error) {
+          updateStatus(error?.message || 'Could not save phone widget heights.', 'danger');
+        }
+      });
+
+      syncAllRows();
+    },
+  });
 }
 
 function widgetSizeButton(widgetId, span = '1') {
@@ -474,7 +684,7 @@ function widgetDragHandle(widgetId) {
 function widgetHeader(icon, title, count, linkHref, linkLabel, addRoute, addFlag, { widgetId = null, span = '1', height = 'normal' } = {}) {
   linkLabel = linkHref ? (linkLabel ?? t('dashboard.allLink')) : null;
   const addBtn = addRoute
-    ? `<button class="widget__add-btn" data-route="${addRoute}"${addFlag ? ` data-create-flag="${addFlag}"` : ''}
+    ? `<button class="widget__add-btn" type="button" data-route="${addRoute}"${addFlag ? ` data-create-flag="${addFlag}"` : ''}
                aria-label="${t('common.add')}">
          <i data-lucide="plus" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
        </button>`
@@ -706,6 +916,15 @@ function isPhoneViewport() {
   return window.matchMedia('(max-width: 767px)').matches;
 }
 
+function syncPhoneWidgetScrollability(container) {
+  const bodies = container.querySelectorAll('.widget__body');
+
+  bodies.forEach((body) => {
+    const scrollable = body.scrollHeight > body.clientHeight + 2;
+    body.classList.toggle('widget__body--scrollable', scrollable);
+  });
+}
+
 function renderPersonalListBody(list, items) {
   const pending = sortWidgetItems(filterWidgetItems(items));
   const accentEnabled = showPriorityAccent();
@@ -806,7 +1025,8 @@ function renderTasksWidget(personalLists, personalItems, span = '2', height = 'n
     return `
       <button class="tasks-widget__tab ${isActive ? 'tasks-widget__tab--active' : ''}"
               data-action="switch-widget-tab" data-tab="${l.id}"
-              style="--tab-color:${esc(l.color)}">
+              style="--tab-color:${esc(l.color)}"
+              ${isDashboardEditModeEnabled() ? 'disabled aria-disabled="true"' : ''}>
         ${indicator}
         <span>${esc(l.name)}</span>
         ${pending > 0 ? `<span class="tasks-widget__tab-count">${pending}</span>` : ''}
@@ -819,13 +1039,15 @@ function renderTasksWidget(personalLists, personalItems, span = '2', height = 'n
   return `<div class="widget ${widgetSpanClass(span)} ${widgetHeightClass(height)}" id="tasks-widget" data-widget-id="tasks-widget" data-widget-span="${span}" data-widget-height="${height}" data-active-tab="${activeTab}">
     ${widgetHeader('check-square', t('nav.tasks'), headerCount, '/tasks', undefined, '/tasks', 'tasks-create-new', { widgetId: 'tasks-widget', span, height })}
     <div class="tasks-widget__tabs-wrap">
-      <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="-1" aria-label="Scroll left" hidden>
+      <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="-1" aria-label="Scroll left" hidden
+              ${isDashboardEditModeEnabled() ? 'disabled aria-disabled="true"' : ''}>
         <i data-lucide="chevron-left" style="width:14px;height:14px" aria-hidden="true"></i>
       </button>
       <div class="tasks-widget__tabs" id="tasks-widget-tabs">
         ${personalTabs}
       </div>
-      <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="1" aria-label="Scroll right" hidden>
+      <button class="tasks-widget__tabs-arrow" data-action="tasks-tabs-scroll" data-dir="1" aria-label="Scroll right" hidden
+              ${isDashboardEditModeEnabled() ? 'disabled aria-disabled="true"' : ''}>
         <i data-lucide="chevron-right" style="width:14px;height:14px" aria-hidden="true"></i>
       </button>
     </div>
@@ -968,17 +1190,20 @@ function renderShoppingWidget(heads, sublists, allItems, span = '2', height = 'n
 
   const tabsHtml = `
     <div class="shopping-widget__head-wrap">
-      <button class="shopping-widget__head-arrow" data-action="widget-head-scroll" data-dir="-1" aria-label="Scroll left" hidden>
+      <button class="shopping-widget__head-arrow" data-action="widget-head-scroll" data-dir="-1" aria-label="Scroll left" hidden
+              ${isDashboardEditModeEnabled() ? 'disabled aria-disabled="true"' : ''}>
         <i data-lucide="chevron-left" style="width:14px;height:14px" aria-hidden="true"></i>
       </button>
       <div class="shopping-widget__head-tabs" id="shopping-widget-head-tabs">
         ${heads.map((h) => `
           <button class="shopping-widget__head-tab ${h.id === _widgetActiveHeadId ? 'shopping-widget__head-tab--active' : ''}"
-                  data-action="widget-switch-head" data-id="${h.id}">
+                  data-action="widget-switch-head" data-id="${h.id}"
+                  ${isDashboardEditModeEnabled() ? 'disabled aria-disabled="true"' : ''}>
             ${esc(h.name)}${h.unchecked_count > 0 ? ` <span class="shopping-widget__head-count">${h.unchecked_count}</span>` : ''}
           </button>`).join('')}
       </div>
-      <button class="shopping-widget__head-arrow" data-action="widget-head-scroll" data-dir="1" aria-label="Scroll right" hidden>
+      <button class="shopping-widget__head-arrow" data-action="widget-head-scroll" data-dir="1" aria-label="Scroll right" hidden
+              ${isDashboardEditModeEnabled() ? 'disabled aria-disabled="true"' : ''}>
         <i data-lucide="chevron-right" style="width:14px;height:14px" aria-hidden="true"></i>
       </button>
     </div>`;
@@ -1205,12 +1430,12 @@ function isTickersEnabled() {
   return localStorage.getItem(TICKERS_LS_KEY) === 'true';
 }
 
-function renderQuoteWidget(quote, span = 'full', height = 'normal') {
+function renderQuoteWidget(quote, span = 'full', height = 'normal', phoneLayout = false) {
   if (!quote || !isQuoteEnabled()) return '';
   const quoteText = String(quote.quote ?? '').trim();
   const author = quote.author ? `<span class="quote-widget__author">\u2014 ${esc(quote.author)}</span>` : '';
   const compact = height === 'xxs' || height === 'xs' || height === 'short';
-  if (isDashboardTestVariant()) {
+  if (!phoneLayout) {
     const authorHtml = quote.author
       ? `<div style="margin-top:6px;font-size:11px;line-height:1.2;color:var(--color-text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">— ${esc(quote.author)}</div>`
       : '';
@@ -1266,6 +1491,7 @@ function scheduleMidnightQuoteRefresh(container, signal) {
           fresh,
           el.dataset.widgetSpan || 'full',
           el.dataset.widgetHeight || 'normal',
+          window.matchMedia('(max-width: 767px)').matches,
         );
         const newEl = container.querySelector('#quote-widget');
         if (newEl && window.lucide) window.lucide.createIcons({ el: newEl });
@@ -1290,11 +1516,10 @@ function wireDashboardLayout(container, layoutState, data) {
 
   const widgetNodes = () => [...grid.querySelectorAll('.widget[data-widget-id]')];
   const widgetOrder = () => widgetNodes().map((el) => el.dataset.widgetId).filter(Boolean);
-  const canEditLayout = () => desktopQuery.matches && (isEditMode() || isDashboardTestVariant());
+  const canEditLayout = () => desktopQuery.matches && isEditMode();
 
   let masonryRaf = 0;
   const syncWidgetMasonry = () => {
-    if (!isDashboardTestVariant()) return;
     masonryRaf = 0;
     const widgets = widgetNodes();
     if (!desktopQuery.matches) {
@@ -1356,7 +1581,6 @@ function wireDashboardLayout(container, layoutState, data) {
   };
 
   const scheduleWidgetMasonry = () => {
-    if (!isDashboardTestVariant()) return;
     window.cancelAnimationFrame(masonryRaf);
     masonryRaf = window.requestAnimationFrame(syncWidgetMasonry);
   };
@@ -1377,6 +1601,21 @@ function wireDashboardLayout(container, layoutState, data) {
         window.planium?.showToast(err.message, 'danger');
       });
     }, 120);
+  };
+
+  const applyWidgetHeight = (widget, widgetId, height) => {
+    const next = height === 'xxs' ? 'xs' : height;
+    layoutState.heights[widgetId] = next;
+    widget.dataset.widgetHeight = next;
+    widget.classList.remove(
+      'widget-layout--height-xs',
+      'widget-layout--height-short',
+      'widget-layout--height-normal',
+      'widget-layout--height-tall',
+      'widget-layout--height-xlarge',
+    );
+    widget.classList.add(widgetHeightClass(next));
+    return next;
   };
 
   container.addEventListener('click', (e) => {
@@ -1412,16 +1651,7 @@ function wireDashboardLayout(container, layoutState, data) {
       const current = widget.dataset.widgetHeight || 'normal';
       const next = nextDashboardWidgetHeight(current);
       const nextLabel = dashboardWidgetHeightLabel(next);
-      layoutState.heights[widgetId] = next;
-      widget.dataset.widgetHeight = next;
-      widget.classList.remove(
-        'widget-layout--height-xs',
-        'widget-layout--height-short',
-        'widget-layout--height-normal',
-        'widget-layout--height-tall',
-        'widget-layout--height-xlarge',
-      );
-      widget.classList.add(widgetHeightClass(next));
+      applyWidgetHeight(widget, widgetId, next);
       heightBtn.querySelector('.widget__height-btn-label').textContent = dashboardWidgetHeightLabel(next);
       heightBtn.setAttribute('aria-label', `Resize widget height to ${nextLabel}`);
       scheduleWidgetMasonry();
@@ -1530,25 +1760,25 @@ function wireDashboardLayout(container, layoutState, data) {
   scheduleWidgetMasonry();
 }
 
-function wireDashboardTestBoard(container, boardState, widgetIds) {
+function wireDashboardBoard(container, boardState, widgetIds) {
   const board = container.querySelector('#dashboard-test-board');
   if (!board) return;
 
   const desktopQuery = window.matchMedia('(min-width: 1024px)');
   const isEditMode = () => container.querySelector('.dashboard')?.classList.contains('dashboard--edit-mode');
-  const canInteract = () => isEditMode() && (desktopQuery.matches || isDashboardTestVariant());
+  const canInteract = () => isEditMode() && desktopQuery.matches;
   const slotsById = new Map(
     [...board.querySelectorAll('.dashboard-test-board__slot')].map((slot) => [slot.dataset.boardWidgetId, slot])
   );
 
   const applyRects = (rects) => {
-    const metrics = dashboardTestBoardCellSize(board);
+    const metrics = dashboardBoardCellSize(board);
     let maxBottom = 0;
     for (const id of widgetIds) {
       const slot = slotsById.get(id);
       const rect = rects[id];
       if (!slot || !rect) continue;
-      const pixels = dashboardTestBoardRectToPixels(rect, metrics);
+      const pixels = dashboardBoardRectToPixels(rect, metrics);
       slot.style.left = pixels.left;
       slot.style.top = pixels.top;
       slot.style.width = pixels.width;
@@ -1560,10 +1790,10 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
   };
 
   const commitRects = (activeId = null) => {
-    boardState.rects = packDashboardTestBoardRects(boardState.rects, widgetIds, activeId);
-    boardState.order = sortDashboardTestBoardOrder(boardState.rects, widgetIds);
+    boardState.rects = packDashboardBoardRects(boardState.rects, widgetIds, activeId);
+    boardState.order = sortDashboardBoardOrder(boardState.rects, widgetIds);
     applyRects(boardState.rects);
-    saveDashboardTestBoardState(boardState);
+    saveDashboardBoardState(boardState);
   };
 
   let interaction = null;
@@ -1573,6 +1803,7 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
     const { id, rect } = interaction;
     boardState.rects[id] = normalizeDashboardTestBoardRect(rect, boardState.rects[id]);
     commitRects(id);
+    slotsById.get(id)?.classList.remove('dashboard-test-board__slot--dragging');
     interaction = null;
     board.classList.remove('dashboard__test-board--dragging');
     window.removeEventListener('pointermove', onPointerMove);
@@ -1609,7 +1840,8 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
     interaction.rect = next;
     const slot = slotsById.get(interaction.id);
     if (slot) {
-      const pixels = dashboardTestBoardRectToPixels(next, interaction.metrics);
+      slot.classList.add('dashboard-test-board__slot--dragging');
+      const pixels = dashboardBoardRectToPixels(next, interaction.metrics);
       slot.style.left = pixels.left;
       slot.style.top = pixels.top;
       slot.style.width = pixels.width;
@@ -1633,9 +1865,10 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
       startY: event.clientY,
       startRect: { ...startRect },
       rect: { ...startRect },
-      metrics: dashboardTestBoardCellSize(board),
+      metrics: dashboardBoardCellSize(board),
     };
     board.classList.add('dashboard__test-board--dragging');
+    slot.classList.add('dashboard-test-board__slot--dragging');
     try { event.target.setPointerCapture(event.pointerId); } catch {}
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', endInteraction, { once: true });
@@ -1669,14 +1902,543 @@ function wireDashboardTestBoard(container, boardState, widgetIds) {
 // FAB Speed-Dial
 // --------------------------------------------------------
 
+function getCsrfToken() {
+  return document.cookie.split(';')
+    .map((c) => c.trim())
+    .find((c) => c.startsWith('csrf-token='))
+    ?.slice('csrf-token='.length) ?? '';
+}
+
+function xhrUpload({ url, headers = {}, body, onProgress }) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    xhr.withCredentials = true;
+    for (const [key, value] of Object.entries(headers)) {
+      xhr.setRequestHeader(key, value);
+    }
+    if (onProgress) {
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) onProgress(event.loaded, event.total);
+      });
+    }
+    xhr.addEventListener('load', () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (_) {}
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data });
+    });
+    xhr.addEventListener('error', () => reject(new TypeError('Network error during upload')));
+    xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+    xhr.send(body);
+  });
+}
+
+async function uploadFileToDashboardFilebox(file, scope, onProgress) {
+  const result = await xhrUpload({
+    url: `/api/v1/filebox/upload-raw?scope=${encodeURIComponent(scope)}&filename=${encodeURIComponent(file.name)}`,
+    headers: {
+      'X-CSRF-Token': getCsrfToken(),
+      'Content-Type': file.type || 'application/octet-stream',
+    },
+    body: file,
+    onProgress,
+  });
+  if (!result.ok) throw new Error(result.data?.error || `Upload failed (${result.status})`);
+  return result.data;
+}
+
+async function uploadFilesToDashboardFilebox(fileList, scope, onProgress) {
+  if (!fileList?.length) return { count: 0, scope };
+  const files = Array.from(fileList);
+  const totalBytes = files.reduce((sum, file) => sum + (file.size || 0), 0);
+  const label = files.length === 1 ? `Uploading ${files[0].name}` : `Uploading ${files.length} files`;
+
+  const form = new FormData();
+  for (const file of files) form.append('file', file);
+
+  try {
+    const result = await xhrUpload({
+      url: `/api/v1/filebox/upload?scope=${encodeURIComponent(scope)}`,
+      headers: { 'X-CSRF-Token': getCsrfToken() },
+      body: form,
+      onProgress: onProgress ? (loaded, total) => onProgress(label, loaded, total) : null,
+    });
+    if (!result.ok) throw new Error(result.data?.error || `Upload failed (${result.status})`);
+    return {
+      count: result.data?.files?.length || files.length,
+      scope,
+    };
+  } catch (err) {
+    const isNetworkErr = err?.name === 'TypeError' && /fetch|load|network/i.test(err.message);
+    if (!isNetworkErr) throw err;
+  }
+
+  let ok = 0;
+  let cumulative = 0;
+  let lastError = null;
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const perFileLabel = files.length === 1
+      ? `Uploading ${file.name}`
+      : `Uploading ${file.name} (${i + 1}/${files.length})`;
+    try {
+      await uploadFileToDashboardFilebox(file, scope, onProgress ? (loaded, total) => onProgress(perFileLabel, cumulative + loaded, totalBytes) : null);
+      cumulative += file.size || 0;
+      ok++;
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  if (ok > 0) {
+    return { count: ok, scope, partial: ok !== files.length, error: lastError };
+  }
+  throw lastError || new Error('Upload failed');
+}
+
+const FILEBOX_SCOPE_HANDOFF_KEY = 'planium-filebox-scope';
+
+function openDashboardUploadDialog() {
+  openModal({
+    title: t('dashboard.fabUpload'),
+    size: 'sm',
+    content: `
+      <div class="dashboard-upload-picker" data-dashboard-upload-picker>
+        <div class="dashboard-upload-picker__intro" style="display:grid;gap:var(--space-2);margin-bottom:var(--space-4)">
+          <p class="dashboard-upload-picker__lead" style="margin:0;color:var(--color-text-secondary);line-height:1.5">
+            Choose where to store the files, then pick them from your device.
+          </p>
+          <p class="dashboard-upload-picker__status" data-dashboard-upload-status hidden
+             style="margin:0;color:var(--color-text-secondary);font-size:var(--text-sm);line-height:1.45"></p>
+        </div>
+        <div class="dashboard-upload-picker__scope" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+          <button type="button" class="btn btn--secondary" data-dashboard-upload-scope="global" disabled
+                  style="min-height:48px;justify-content:center">Global</button>
+          <button type="button" class="btn btn--primary" data-dashboard-upload-scope="private" disabled
+                  style="min-height:48px;justify-content:center">Private</button>
+        </div>
+        <input type="file" data-dashboard-upload-input multiple hidden>
+        <div class="dashboard-upload-picker__footer" style="display:flex;justify-content:flex-end;gap:var(--space-3);margin-top:var(--space-4)">
+          <button class="btn btn--ghost" type="button" data-dashboard-upload-cancel>${t('common.cancel')}</button>
+        </div>
+      </div>
+    `,
+    onSave(panel) {
+      const cancelBtn = panel.querySelector('[data-dashboard-upload-cancel]');
+      const input = panel.querySelector('[data-dashboard-upload-input]');
+      const status = panel.querySelector('[data-dashboard-upload-status]');
+      const scopeBtns = [...panel.querySelectorAll('[data-dashboard-upload-scope]')];
+      let enabled = null;
+      let uploading = false;
+
+      const setStatus = (message, tone = 'default') => {
+        if (!status) return;
+        status.hidden = false;
+        status.textContent = message;
+        status.dataset.tone = tone;
+      };
+
+      const setBusy = (busy) => {
+        scopeBtns.forEach((btn) => {
+          btn.disabled = busy || enabled === false;
+        });
+        if (cancelBtn) cancelBtn.disabled = busy;
+      };
+
+      cancelBtn?.addEventListener('click', () => closeModal());
+
+      const startUpload = async (scope, files) => {
+        if (!files?.length || uploading || enabled === false) return;
+        uploading = true;
+        setBusy(true);
+        try {
+          const result = await uploadFilesToDashboardFilebox(files, scope, (label, loaded, total) => {
+            const percent = total ? Math.min(100, Math.round((loaded / total) * 100)) : 0;
+            setStatus(`${label} to ${scope === 'private' ? 'private' : 'global'} files... ${percent}%`);
+          });
+          closeModal();
+          const scopeLabel = scope === 'private' ? 'private files' : 'global files';
+          const countLabel = result.count === 1 ? 'file' : 'files';
+          const message = `Uploaded ${result.count} ${countLabel} to ${scopeLabel}`;
+          window.planium?.showToast(result.partial ? `${message}; some files failed` : message, result.partial ? 'danger' : 'success');
+          try {
+            window.sessionStorage?.setItem(FILEBOX_SCOPE_HANDOFF_KEY, scope);
+          } catch (_) {}
+          window.planium?.navigate('/filebox');
+        } catch (err) {
+          setStatus(err?.message || 'Upload failed', 'danger');
+          window.planium?.showToast(err?.message || 'Upload failed', 'danger');
+        } finally {
+          uploading = false;
+          setBusy(false);
+        }
+      };
+
+      scopeBtns.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          if (enabled === false || uploading) return;
+          input.dataset.scope = btn.dataset.dashboardUploadScope;
+          input.click();
+        });
+      });
+
+      input.addEventListener('change', () => {
+        const scope = input.dataset.scope;
+        const files = Array.from(input.files || []);
+        input.value = '';
+        if (!scope || !files.length) return;
+        void startUpload(scope, files);
+      });
+
+      void api.get('/filebox/status').then((res) => {
+        enabled = !!res?.enabled;
+        if (!enabled) {
+          setStatus('Enable Filebox in Settings to upload files.', 'warning');
+        } else {
+          setStatus('Choose a destination, then select files to upload.');
+        }
+        setBusy(false);
+      }).catch(() => {
+        enabled = false;
+        setStatus('Enable Filebox in Settings to upload files.', 'danger');
+        setBusy(false);
+      });
+    },
+  });
+}
+
+function openDashboardTaskDialog(container, taskLists, onSaved) {
+  openItemEditDialog({
+    item: {
+      id: null,
+      title: '',
+      priority: 'none',
+      due_date: null,
+      due_time: null,
+      alarm_at: null,
+      description: null,
+      recurrence_rule: null,
+    },
+    container,
+    taskLists,
+    showListPicker: true,
+    onSaved,
+  });
+}
+
+function buildDashboardEventModalContent({ users = [] } = {}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const userOpts = [
+    `<option value="">${t('calendar.assignedNobody')}</option>`,
+    ...users.map((u) =>
+      `<option value="${u.id}">${esc(u.display_name)}</option>`
+    ),
+  ].join('');
+
+  return `
+    <div class="form-group">
+      <label class="form-label" for="modal-title">${t('calendar.titleLabel')}</label>
+      <input type="text" class="form-input" id="modal-title"
+             placeholder="${t('calendar.titlePlaceholder')}" value="">
+    </div>
+
+    <div class="form-group">
+      <label class="toggle">
+        <input type="checkbox" id="modal-allday">
+        <span class="toggle__track"></span>
+        <span>${t('calendar.allDayToggle')}</span>
+      </label>
+    </div>
+
+    <div id="time-fields">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+        <div class="form-group">
+          <label class="form-label" for="modal-start-date">${t('calendar.startDateLabel')}</label>
+          <input type="date" class="form-input" id="modal-start-date" value="${today}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modal-start-time">${t('calendar.startTimeLabel')}</label>
+          <input type="time" class="form-input" id="modal-start-time" value="09:00">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+        <div class="form-group">
+          <label class="form-label" for="modal-end-date">${t('calendar.endDateLabel')}</label>
+          <input type="date" class="form-input" id="modal-end-date" value="${today}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modal-end-time">${t('calendar.endTimeLabel')}</label>
+          <input type="time" class="form-input" id="modal-end-time" value="10:00">
+        </div>
+      </div>
+    </div>
+
+    <div id="allday-fields" style="display:none;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+        <div class="form-group">
+          <label class="form-label" for="modal-allday-start">${t('calendar.fromLabel')}</label>
+          <input type="date" class="form-input" id="modal-allday-start" value="${today}">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modal-allday-end">${t('calendar.toLabel')}</label>
+          <input type="date" class="form-input" id="modal-allday-end" value="${today}">
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="modal-location">${t('calendar.locationLabel')}</label>
+      <input type="text" class="form-input" id="modal-location"
+             placeholder="${t('calendar.locationPlaceholder')}" value="">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="modal-assigned">${t('calendar.assignedLabel')}</label>
+      <select class="form-input" id="modal-assigned">${userOpts}</select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">${t('calendar.colorLabel')}</label>
+      <div class="color-picker">
+        ${['#007AFF', '#34C759', '#FF9500', '#FF3B30', '#AF52DE', '#FF6B35', '#5AC8FA', '#FFCC00', '#8E8E93', '#30B0C7'].map((c, idx) => `
+          <div class="color-swatch ${idx === 0 ? 'color-swatch--active' : ''}" data-color="${c}" style="background-color:${c};"
+               role="radio" tabindex="0" aria-label="${t('calendar.colorLabel', { color: c })}"></div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label" for="modal-description">${t('calendar.descriptionLabel')}</label>
+      <textarea class="form-input" id="modal-description" rows="2"
+                placeholder="${t('calendar.descriptionPlaceholder')}"></textarea>
+    </div>
+
+    ${renderRRuleFields('event', null)}
+
+    <div class="modal-panel__footer" style="border:none;padding:0;margin-top:var(--space-4)">
+      <div></div>
+      <div style="display:flex;gap:var(--space-3)">
+        <button class="btn btn--secondary" id="modal-cancel">${t('common.cancel')}</button>
+        <button class="btn btn--primary" id="modal-save">${t('common.create')}</button>
+      </div>
+    </div>`;
+}
+
+async function openDashboardEventDialog({ onSaved } = {}) {
+  const users = await api.get('/auth/users').then((res) => res.data ?? []).catch(() => []);
+  openModal({
+    title: t('calendar.newEvent'),
+    content: buildDashboardEventModalContent({ users }),
+    size: 'md',
+    onSave(panel) {
+      bindRRuleEvents(panel, 'event');
+
+      panel.querySelectorAll('.color-swatch').forEach((sw) => {
+        sw.addEventListener('click', () => {
+          panel.querySelectorAll('.color-swatch').forEach((s) => s.classList.remove('color-swatch--active'));
+          sw.classList.add('color-swatch--active');
+        });
+      });
+
+      const alldayCheck = panel.querySelector('#modal-allday');
+      const timeFields = panel.querySelector('#time-fields');
+      const alldayFields = panel.querySelector('#allday-fields');
+      alldayCheck.addEventListener('change', () => {
+        if (alldayCheck.checked) {
+          timeFields.style.display = 'none';
+          alldayFields.style.display = '';
+        } else {
+          timeFields.style.display = '';
+          alldayFields.style.display = 'none';
+        }
+      });
+
+      panel.querySelector('#modal-cancel')?.addEventListener('click', () => closeModal());
+      panel.querySelector('#modal-save')?.addEventListener('click', async () => {
+        const title = panel.querySelector('#modal-title').value.trim();
+        if (!title) {
+          window.planium?.showToast(t('calendar.titleRequired'), 'danger');
+          return;
+        }
+
+        const allday = panel.querySelector('#modal-allday').checked;
+        const location = panel.querySelector('#modal-location').value.trim() || null;
+        const assigned_to = panel.querySelector('#modal-assigned').value || null;
+        const description = panel.querySelector('#modal-description').value.trim() || null;
+        const color = panel.querySelector('.color-swatch--active')?.dataset.color || '#007AFF';
+
+        let start_datetime;
+        let end_datetime;
+        if (allday) {
+          start_datetime = panel.querySelector('#modal-allday-start')?.value || panel.querySelector('#modal-start-date').value;
+          end_datetime = panel.querySelector('#modal-allday-end')?.value || panel.querySelector('#modal-end-date').value || null;
+        } else {
+          const sd = panel.querySelector('#modal-start-date').value;
+          const st = panel.querySelector('#modal-start-time').value;
+          const ed = panel.querySelector('#modal-end-date').value;
+          const et = panel.querySelector('#modal-end-time').value;
+          start_datetime = st ? `${sd}T${st}` : sd;
+          end_datetime = et ? `${ed}T${et}` : (ed || null);
+        }
+
+        if (end_datetime && start_datetime && end_datetime < start_datetime) {
+          window.planium?.showToast(t('calendar.endBeforeStart') || 'End must be after start', 'danger');
+          return;
+        }
+
+        const body = {
+          title,
+          description,
+          start_datetime,
+          end_datetime,
+          all_day: allday ? 1 : 0,
+          location,
+          color,
+          assigned_to: assigned_to ? parseInt(assigned_to, 10) : null,
+          recurrence_rule: getRRuleValues(panel, 'event').recurrence_rule,
+        };
+
+        const saveBtn = panel.querySelector('#modal-save');
+        saveBtn.disabled = true;
+        saveBtn.textContent = '…';
+        try {
+          const res = await api.post('/calendar', body);
+          closeModal();
+          window.planium?.showToast(t('calendar.createdToast'), 'success');
+          if (typeof onSaved === 'function') onSaved(res.data);
+        } catch (err) {
+          window.planium?.showToast(err?.data?.error ?? t('calendar.saveError'), 'danger');
+          saveBtn.disabled = false;
+          saveBtn.textContent = t('common.create');
+        }
+      });
+    },
+  });
+}
+
+function buildDashboardShoppingItemDialogContent({ allSublists = [], defaultSublistId = null } = {}) {
+  const defaultId = defaultSublistId ?? allSublists[0]?.id ?? null;
+  return `
+    <form id="add-item-form" novalidate autocomplete="off">
+      <div class="form-group">
+        <label class="form-label" for="shopping-sublist">${t('shopping.addToSublist')}</label>
+        <select name="sublist" id="shopping-sublist" class="form-input" autofocus>
+          ${allSublists.map((s) => `
+            <option value="${s.id}" ${s.id === defaultId ? 'selected' : ''}>
+              ${esc(s.head_name ? `${s.head_name} › ${s.name}` : s.name)}
+            </option>`).join('')}
+          <option value="__new__">＋ ${esc(t('shopping.newSublistOption'))}</option>
+        </select>
+      </div>
+      <div class="form-group" data-new-only style="display:none">
+        <label class="form-label" for="shopping-new-head">${t('shopping.newHeadPrompt')}</label>
+        <input type="text" name="newHeadName" id="shopping-new-head" class="form-input">
+      </div>
+      <div class="form-group" data-new-only style="display:none">
+        <label class="form-label" for="shopping-new-sub">${t('shopping.newSublistPrompt')}</label>
+        <input type="text" name="newSubName" id="shopping-new-sub" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="shopping-item-name">${t('shopping.itemNameLabel')}</label>
+        <input type="text" name="name" id="shopping-item-name" class="form-input" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="shopping-item-qty">${t('shopping.itemQtyLabel')}</label>
+        <input type="text" name="quantity" id="shopping-item-qty" class="form-input" placeholder="${t('shopping.itemQtyPlaceholder')}">
+      </div>
+      <div class="modal-panel__footer" style="border:none;padding:0;margin-top:var(--space-4)">
+        <div></div>
+        <div style="display:flex;gap:var(--space-3)">
+          <button type="button" class="btn btn--secondary" data-action="dialog-cancel">${t('shopping.cancel')}</button>
+          <button type="submit" class="btn btn--primary">${t('shopping.addItem')}</button>
+        </div>
+      </div>
+    </form>
+  `;
+}
+
+async function openDashboardShoppingItemDialog({ onSaved } = {}) {
+  let allSublists = [];
+  try {
+    const res = await api.get('/lists/sublists');
+    allSublists = res.data || [];
+  } catch (err) {
+    window.planium?.showToast(err.message || t('shopping.listsLoadError'), 'danger');
+    return;
+  }
+  if (!allSublists.length) {
+    window.planium?.showToast(t('shopping.noSublistsHint'), 'danger');
+    return;
+  }
+
+  openModal({
+    title: t('shopping.fabAddItem'),
+    size: 'sm',
+    content: buildDashboardShoppingItemDialogContent({ allSublists, defaultSublistId: allSublists[0]?.id ?? null }),
+    onSave(panel) {
+      const form = panel.querySelector('#add-item-form');
+      const select = form.querySelector('select[name="sublist"]');
+      const newFields = form.querySelectorAll('[data-new-only]');
+      const newHeadInput = form.querySelector('input[name="newHeadName"]');
+      const newSubInput = form.querySelector('input[name="newSubName"]');
+      const cancelBtn = panel.querySelector('[data-action="dialog-cancel"]');
+      cancelBtn?.addEventListener('click', () => closeModal());
+
+      const toggleNewFields = () => {
+        const show = select.value === '__new__';
+        newFields.forEach((el) => { el.style.display = show ? '' : 'none'; });
+        newHeadInput.required = show;
+        newSubInput.required = show;
+      };
+      select.addEventListener('change', toggleNewFields);
+      toggleNewFields();
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fd = new FormData(form);
+        const name = String(fd.get('name') || '').trim();
+        const quantity = String(fd.get('quantity') || '').trim() || null;
+        if (!name) return;
+
+        let sublistId;
+        try {
+          if (select.value === '__new__') {
+            const headName = String(fd.get('newHeadName') || '').trim();
+            const subName = String(fd.get('newSubName') || '').trim();
+            if (!headName || !subName) return;
+            const headRes = await api.post('/lists/heads', { name: headName });
+            const subRes = await api.post(`/lists/heads/${headRes.data.id}/sublists`, { name: subName });
+            sublistId = subRes.data.id;
+          } else {
+            sublistId = Number(select.value);
+          }
+          if (!sublistId) return;
+
+          const res = await api.post(`/lists/${sublistId}/items`, { name, quantity });
+          localStorage.setItem('lists-last-sublist', String(sublistId));
+          closeModal();
+          window.planium?.showToast(t('shopping.itemAddedToast'));
+          if (typeof onSaved === 'function') onSaved(res.data);
+        } catch (err) {
+          window.planium?.showToast(err.message, 'danger');
+        }
+      });
+    },
+  });
+}
+
 const FAB_ACTIONS = (user) => [
-  { route: '/tasks',    label: t('dashboard.fabTask'),     icon: 'check-square'   },
-  { route: '/calendar', label: t('dashboard.fabCalendar'), icon: 'calendar-plus'  },
-  { route: '/lists', label: t('dashboard.fabShopping'), icon: 'shopping-cart'  },
+  { action: 'create-task', label: t('dashboard.fabTask'), icon: 'check-square'   },
+  { action: 'create-calendar', label: t('dashboard.fabCalendar'), icon: 'calendar-plus'  },
+  { action: 'create-shopping-item', label: t('dashboard.fabShopping'), icon: 'list-checks'  },
   { action: 'create-note', label: t('dashboard.fabNote'), icon: 'sticky-note'    },
+  { action: 'upload-files', label: t('dashboard.fabUpload'), icon: 'upload'     },
 ];
 
 function renderFab(user) {
+  const editLabel = isDashboardPhoneLayout()
+    ? (t('common.phoneWidgetHeightsTitle') || 'Phone widget heights')
+    : 'Edit widgets';
   const actionsHtml = FAB_ACTIONS(user).map((a) => `
     <div class="fab-action" ${a.route ? `data-route="${a.route}"` : `data-action="${a.action}"`} role="button" tabindex="-1"
          aria-label="${a.label}">
@@ -1696,8 +2458,8 @@ function renderFab(user) {
         <i data-lucide="settings" aria-hidden="true"></i>
       </button>
       <button class="fab-settings fab-edit-toggle" id="fab-edit-mode" type="button"
-              aria-label="Edit widgets" aria-pressed="${isDashboardEditModeEnabled() ? 'true' : 'false'}"
-              title="Edit widgets">
+              aria-label="${editLabel}" aria-pressed="${isDashboardEditModeEnabled() ? 'true' : 'false'}"
+              title="${editLabel}">
         <i data-lucide="pencil" aria-hidden="true"></i>
       </button>
       <div class="fab-actions" id="fab-actions" aria-hidden="true">
@@ -1707,7 +2469,7 @@ function renderFab(user) {
   `;
 }
 
-function initFab(container, signal, user, onNoteSaved = null) {
+function initFab(container, signal, user, onNoteSaved = null, onTaskSaved = null, taskLists = null, onPhoneEdit = null) {
   const fabMain    = container.querySelector('#fab-main');
   const fabActions = container.querySelector('#fab-actions');
   const fabEdit    = container.querySelector('#fab-edit-mode');
@@ -1732,23 +2494,19 @@ function initFab(container, signal, user, onNoteSaved = null) {
   if (fabEdit) {
     fabEdit.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (isDashboardPhoneLayout()) {
+        toggleFab(false);
+        onPhoneEdit?.();
+        return;
+      }
       const enabled = !container.querySelector('.dashboard')?.classList.contains('dashboard--edit-mode');
       setDashboardEditMode(container, enabled);
     });
   }
 
-  const FAB_CREATE_FLAGS = {
-    '/tasks':    'tasks-create-new',
-    '/calendar': 'calendar-create-new',
-    '/notes':    'notes-create-new',
-    '/lists': 'lists-add-item',
-  };
-
   fabActions.querySelectorAll('[data-route]').forEach((el) => {
     const go = () => {
       toggleFab(false);
-      const flag = FAB_CREATE_FLAGS[el.dataset.route];
-      if (flag) localStorage.setItem(flag, '1');
       window.planium.navigate(el.dataset.route);
     };
     el.addEventListener('click', go);
@@ -1764,6 +2522,57 @@ function initFab(container, signal, user, onNoteSaved = null) {
         mode: 'create',
         onSaved: onNoteSaved,
       });
+    };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+
+  fabActions.querySelectorAll('[data-action="create-task"]').forEach((el) => {
+    const go = () => {
+      toggleFab(false);
+      openDashboardTaskDialog(container, taskLists, (savedTask) => {
+        if (typeof onTaskSaved === 'function') onTaskSaved(savedTask);
+        else window.planium?.navigate('/tasks');
+      });
+    };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+
+  fabActions.querySelectorAll('[data-action="create-calendar"]').forEach((el) => {
+    const go = () => {
+      toggleFab(false);
+      openDashboardEventDialog({
+        onSaved: () => window.planium?.navigate('/calendar'),
+      });
+    };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+
+  fabActions.querySelectorAll('[data-action="create-shopping-item"]').forEach((el) => {
+    const go = () => {
+      toggleFab(false);
+      openDashboardShoppingItemDialog({
+        onSaved: () => window.planium?.navigate('/lists'),
+      });
+    };
+    el.addEventListener('click', go);
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+    });
+  });
+
+  fabActions.querySelectorAll('[data-action="upload-files"]').forEach((el) => {
+    const go = () => {
+      toggleFab(false);
+      openDashboardUploadDialog();
     };
     el.addEventListener('click', go);
     el.addEventListener('keydown', (e) => {
@@ -2107,7 +2916,8 @@ function wireTasksWidget(container, dashData, refreshWidget) {
   // Plus button: open full create dialog for the currently selected personal list
   const addBtn = widgetEl?.querySelector('.widget__add-btn');
   if (addBtn) {
-    addBtn.addEventListener('click', (e) => {
+    let lastTouchAt = 0;
+    const openAddDialog = (e) => {
       e.stopPropagation();
       const listId = Number(widgetEl.dataset.activeTab);
       if (!listId) return;
@@ -2121,6 +2931,17 @@ function wireTasksWidget(container, dashData, refreshWidget) {
           refreshWidget();
         },
       });
+    };
+
+    addBtn.addEventListener('touchend', (e) => {
+      lastTouchAt = Date.now();
+      e.preventDefault();
+      openAddDialog(e);
+    }, { passive: false });
+
+    addBtn.addEventListener('click', (e) => {
+      if (Date.now() - lastTouchAt < 400) return;
+      openAddDialog(e);
     });
   }
 
@@ -2129,6 +2950,11 @@ function wireTasksWidget(container, dashData, refreshWidget) {
   const rightArrow = container.querySelector('[data-action="tasks-tabs-scroll"][data-dir="1"]');
   function updateTabsArrows() {
     if (!tabsEl || !leftArrow || !rightArrow) return;
+    if (isDashboardEditModeEnabled()) {
+      leftArrow.hidden = true;
+      rightArrow.hidden = true;
+      return;
+    }
     const overflow = tabsEl.scrollWidth - tabsEl.clientWidth > 2;
     leftArrow.hidden  = !overflow || tabsEl.scrollLeft <= 2;
     rightArrow.hidden = !overflow || tabsEl.scrollLeft + tabsEl.clientWidth >= tabsEl.scrollWidth - 2;
@@ -2153,7 +2979,9 @@ function wireTasksWidget(container, dashData, refreshWidget) {
       wireTasksWidgetBody(body, dashData, refreshWidget);
       wireLinks(body);
     }
-    ensureActiveTabVisible(tabsEl, true);
+    if (!isDashboardEditModeEnabled()) {
+      ensureActiveTabVisible(tabsEl, true);
+    }
   }
 
   container.querySelectorAll('[data-action="switch-widget-tab"]').forEach((btn) => {
@@ -2171,13 +2999,16 @@ function wireTasksWidget(container, dashData, refreshWidget) {
     wireScrollClickGuard(tabsEl);
     tabsEl.addEventListener('scroll', updateTabsArrows, { passive: true });
     tabsEl.addEventListener('wheel', (e) => {
+      if (isDashboardEditModeEnabled()) return;
       if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return;
       if (tabsEl.scrollWidth - tabsEl.clientWidth <= 2) return;
       e.preventDefault();
       tabsEl.scrollBy({ left: e.deltaY, behavior: 'auto' });
     }, { passive: false });
     requestAnimationFrame(() => {
-      ensureActiveTabVisible(tabsEl, false);
+      if (!isDashboardEditModeEnabled()) {
+        ensureActiveTabVisible(tabsEl, false);
+      }
       updateTabsArrows();
     });
     window.addEventListener('resize', updateTabsArrows);
@@ -2185,6 +3016,7 @@ function wireTasksWidget(container, dashData, refreshWidget) {
   container.querySelectorAll('[data-action="tasks-tabs-scroll"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (isDashboardEditModeEnabled()) return;
       if (!tabsEl) return;
       const dir = Number(btn.dataset.dir);
       tabsEl.scrollBy({ left: dir * Math.max(120, tabsEl.clientWidth * 0.7), behavior: 'smooth' });
@@ -2402,72 +3234,104 @@ export async function render(container, { user }) {
   if (seededTestBoard) {
     api.put(dashboardApiPath('/layout'), { layout: stripDashboardLayoutVisibility(layoutState) }).catch(() => {});
   }
+  const dashboardDefaults = defaultDashboardLayout();
+  const isPhoneLayout = isDashboardPhoneLayout();
+  const widgetLayoutHeights = isPhoneLayout
+    ? { ...dashboardDefaults.heights, ...loadDashboardPhoneWidgetHeights() }
+    : layoutState.heights;
   const hiddenWidgets = new Set(layoutState.hidden ?? []);
   const webviewItems = (webview.items ?? []).filter((item) => item && item.url);
+  const visibleWebviewItems = webviewItems.filter((item) => !hiddenWidgets.has(dashboardLayoutItemId('webview', item.id)));
+  for (const item of visibleWebviewItems) {
+    layoutState.spans[dashboardLayoutItemId('webview', item.id)] = 'full';
+  }
   const pinnedNotes = (data.pinnedNotes ?? []).filter((note) => note && note.id != null);
   const boardNotes = pinnedNotes;
+  const widgetLabels = dashboardWidgetLabelMap(t);
   const widgetHtmlById = {
     'quote-widget': renderQuoteWidget(
       quote,
-      layoutState.spans['quote-widget'],
-      layoutState.heights['quote-widget'] ?? 'normal',
+      isPhoneLayout ? 'full' : (layoutState.spans['quote-widget'] ?? dashboardDefaults.spans['quote-widget']),
+      widgetLayoutHeights['quote-widget'] ?? 'normal',
+      isPhoneLayout,
     ),
     'tasks-widget': renderTasksWidget(
       data.personalLists ?? [],
       data.personalItems ?? [],
-      layoutState.spans['tasks-widget'],
-      layoutState.heights['tasks-widget'] ?? 'normal',
+      isPhoneLayout ? 'full' : (layoutState.spans['tasks-widget'] ?? dashboardDefaults.spans['tasks-widget']),
+      widgetLayoutHeights['tasks-widget'] ?? 'normal',
     ),
     'events-widget': renderUpcomingEvents(
       data.upcomingEvents ?? [],
-      layoutState.spans['events-widget'],
-      layoutState.heights['events-widget'] ?? 'normal',
+      isPhoneLayout ? 'full' : (layoutState.spans['events-widget'] ?? dashboardDefaults.spans['events-widget']),
+      widgetLayoutHeights['events-widget'] ?? 'normal',
     ),
     'shopping-widget': renderShoppingWidget(
       data.heads ?? [],
       data.sublists ?? [],
       data.listItems ?? [],
-      layoutState.spans['shopping-widget'],
-      layoutState.heights['shopping-widget'] ?? 'normal',
+      isPhoneLayout ? 'full' : (layoutState.spans['shopping-widget'] ?? dashboardDefaults.spans['shopping-widget']),
+      widgetLayoutHeights['shopping-widget'] ?? 'normal',
     ),
     'quick-notes-widget': renderQuickNotes(
       getQNMode(),
-      layoutState.spans['quick-notes-widget'],
-      layoutState.heights['quick-notes-widget'] ?? 'normal',
+      isPhoneLayout ? 'full' : (layoutState.spans['quick-notes-widget'] ?? dashboardDefaults.spans['quick-notes-widget']),
+      widgetLayoutHeights['quick-notes-widget'] ?? 'normal',
     ),
   };
   const dynamicWidgetHtmlById = Object.fromEntries([
-    ...webviewItems.map((item) => {
+    ...visibleWebviewItems.map((item) => {
       const id = dashboardLayoutItemId('webview', item.id);
       return [id, renderWebviewCard(item, {
         variant: 'widget',
-        span: layoutState.spans[id] ?? 'full',
-        height: layoutState.heights[id] ?? 'normal',
+        span: 'full',
+        height: isPhoneLayout ? 'normal' : (layoutState.heights[id] ?? 'normal'),
       })];
     }),
   ]);
+  const phonePrimaryOrder = [
+    'tasks-widget',
+    'shopping-widget',
+    'events-widget',
+    'quick-notes-widget',
+  ];
+  const phoneTailOrder = ['quote-widget'];
+  const phoneHeightEditorItems = [
+    ...phonePrimaryOrder,
+    ...visibleWebviewItems.map((item) => dashboardLayoutItemId('webview', item.id)),
+    ...phoneTailOrder,
+  ]
+    .map((id) => {
+      const knownLabel = widgetLabels[id];
+      if (knownLabel) return { id, label: knownLabel };
+      const webviewItem = webviewItems.find((item) => dashboardLayoutItemId('webview', item.id) === id);
+      return webviewItem ? { id, label: webviewItemLabel(webviewItem) } : null;
+    })
+    .filter((item) => item && (widgetHtmlById[item.id] || dynamicWidgetHtmlById[item.id]));
 
-  if (isDashboardTestVariant()) {
+  if (!isPhoneLayout) {
     const visibleWidgetIds = layoutState.order
       .filter((id) => !hiddenWidgets.has(id))
       .filter((id) => widgetHtmlById[id] || dynamicWidgetHtmlById[id]);
+    const visibleWebviewIds = visibleWebviewItems
+      .map((item) => dashboardLayoutItemId('webview', item.id))
+      .filter((id) => dynamicWidgetHtmlById[id]);
     const boardWidgetIds = [
       ...visibleWidgetIds,
-      ...webviewItems.map((item) => dashboardLayoutItemId('webview', item.id))
-        .filter((id) => !visibleWidgetIds.includes(id) && dynamicWidgetHtmlById[id]),
+      ...visibleWebviewIds.filter((id) => !visibleWidgetIds.includes(id)),
     ];
-    const testBoardState = loadDashboardTestBoardState(boardWidgetIds);
+    const testBoardState = loadDashboardBoardState(boardWidgetIds);
     const boardOrder = Array.isArray(testBoardState.order) && testBoardState.order.length
       ? testBoardState.order.filter((id) => boardWidgetIds.includes(id)).concat(boardWidgetIds.filter((id) => !testBoardState.order.includes(id)))
       : boardWidgetIds.slice();
-    const packedRects = packDashboardTestBoardRects(testBoardState.rects, boardOrder);
+    const packedRects = packDashboardBoardRects(testBoardState.rects, boardOrder);
     testBoardState.rects = packedRects;
-    testBoardState.order = sortDashboardTestBoardOrder(packedRects, boardWidgetIds);
-    saveDashboardTestBoardState(testBoardState);
+    testBoardState.order = sortDashboardBoardOrder(packedRects, boardWidgetIds);
+    saveDashboardBoardState(testBoardState);
 
     const testBoardHtml = testBoardState.order.map((id) => {
       const widgetHtml = widgetHtmlById[id] ?? dynamicWidgetHtmlById[id];
-      return renderDashboardTestBoardSlot(id, widgetHtml, packedRects[id]);
+      return renderDashboardBoardSlot(id, widgetHtml, packedRects[id]);
     }).join('');
 
     container.innerHTML = `
@@ -2487,7 +3351,7 @@ export async function render(container, { user }) {
     wireGreetingLink(container);
     wireWeatherChip(container, weather);
     wireNewsRotation(container, headlines, _fabController.signal);
-    wireDashboardTestBoard(container, testBoardState, boardWidgetIds);
+    wireDashboardBoard(container, testBoardState, boardWidgetIds);
     if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
     scheduleMidnightQuoteRefresh(container, _fabController.signal);
     initFab(container, _fabController.signal, user, (savedNote) => {
@@ -2501,7 +3365,15 @@ export async function render(container, { user }) {
         data.pinnedNotes.splice(idx, 1);
       }
       updateBoardNotesSection(container, data.pinnedNotes);
-    });
+    }, () => {
+      window.planium?.navigate('/tasks');
+    }, data.personalLists ?? [], () => openPhoneHeightEditor({
+      items: phoneHeightEditorItems,
+      layoutState,
+      onSaved: () => {
+        window.location.reload();
+      },
+    }));
 
     function refreshTasksWidget() {
       const widgetEl = container.querySelector('#tasks-widget');
@@ -2526,28 +3398,46 @@ export async function render(container, { user }) {
     wireQuickNotes(container);
     wireWebviewCards(container);
     if (window.lucide) window.lucide.createIcons();
+    syncPhoneWidgetScrollability(container);
     const fabEditToggle = container.querySelector('#fab-edit-mode');
-    if (fabEditToggle && isDashboardTestVariant()) {
+    if (fabEditToggle && !isPhoneLayout) {
       fabEditToggle.classList.add('fab-edit-toggle--testboard');
     }
     return;
   }
 
-  const orderedWidgets = layoutState.order
-    .filter((id) => !hiddenWidgets.has(id))
-    .map((id) => widgetHtmlById[id] ?? dynamicWidgetHtmlById[id])
-    .filter(Boolean)
-    .join('');
-  const unorderedWidgets = [
-    ...webviewItems.map((item) => dashboardLayoutItemId('webview', item.id)),
-  ]
-    .filter((id) => !layoutState.order.includes(id) && !hiddenWidgets.has(id))
-    .map((id) => dynamicWidgetHtmlById[id])
-    .filter(Boolean)
-    .join('');
+  const orderedWidgets = isPhoneLayout
+    ? [
+        ...phonePrimaryOrder
+          .filter((id) => !hiddenWidgets.has(id) && (widgetHtmlById[id] || dynamicWidgetHtmlById[id]))
+          .map((id) => widgetHtmlById[id] ?? dynamicWidgetHtmlById[id])
+          .filter(Boolean),
+        ...webviewItems
+          .map((item) => dashboardLayoutItemId('webview', item.id))
+          .filter((id) => !hiddenWidgets.has(id) && dynamicWidgetHtmlById[id])
+          .map((id) => dynamicWidgetHtmlById[id])
+          .filter(Boolean),
+        ...phoneTailOrder
+          .filter((id) => !hiddenWidgets.has(id) && (widgetHtmlById[id] || dynamicWidgetHtmlById[id]))
+          .map((id) => widgetHtmlById[id] ?? dynamicWidgetHtmlById[id])
+          .filter(Boolean),
+      ].join('')
+    : layoutState.order
+        .filter((id) => !hiddenWidgets.has(id))
+        .map((id) => widgetHtmlById[id] ?? dynamicWidgetHtmlById[id])
+        .filter(Boolean)
+        .join('');
+  const unorderedWidgets = isPhoneLayout
+    ? ''
+    : visibleWebviewItems
+        .map((item) => dashboardLayoutItemId('webview', item.id))
+        .filter((id) => !layoutState.order.includes(id) && !hiddenWidgets.has(id))
+        .map((id) => dynamicWidgetHtmlById[id])
+        .filter(Boolean)
+        .join('');
 
   container.innerHTML = `
-    <div class="dashboard${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}${isDashboardTestVariant() ? ' dashboard--test-board' : ''}">
+    <div class="dashboard${isDashboardEditModeEnabled() ? ' dashboard--edit-mode' : ''}${!isPhoneLayout ? ' dashboard--test-board' : ''}">
       <h1 class="sr-only">${t('dashboard.title')}</h1>
       <div class="dashboard__grid">
         ${renderGreeting(user, stats, headlines, weather)}
@@ -2576,9 +3466,17 @@ export async function render(container, { user }) {
       else data.pinnedNotes[idx] = savedNote;
     } else if (idx !== -1) {
       data.pinnedNotes.splice(idx, 1);
-    }
-    updateBoardNotesSection(container, data.pinnedNotes);
-  });
+      }
+      updateBoardNotesSection(container, data.pinnedNotes);
+    }, () => {
+      window.planium?.navigate('/tasks');
+    }, data.personalLists ?? [], () => openPhoneHeightEditor({
+      items: phoneHeightEditorItems,
+      layoutState,
+      onSaved: () => {
+        window.location.reload();
+      },
+    }));
 
   function refreshTasksWidget() {
     const widgetEl = container.querySelector('#tasks-widget');
@@ -2602,6 +3500,48 @@ export async function render(container, { user }) {
   wireQuickNotes(container);
   wireWebviewCards(container);
   if (window.lucide) window.lucide.createIcons();
+  syncPhoneWidgetScrollability(container);
+
+  let widgetScrollSyncRaf = 0;
+  const scheduleWidgetScrollSync = () => {
+    if (widgetScrollSyncRaf) return;
+    widgetScrollSyncRaf = window.requestAnimationFrame(() => {
+      widgetScrollSyncRaf = 0;
+      syncPhoneWidgetScrollability(container);
+    });
+  };
+  window.addEventListener('resize', scheduleWidgetScrollSync, { signal: _fabController.signal });
+  const widgetScrollObserver = new MutationObserver(scheduleWidgetScrollSync);
+  widgetScrollObserver.observe(container, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+  });
+  _fabController.signal.addEventListener('abort', () => {
+    widgetScrollObserver.disconnect();
+    if (widgetScrollSyncRaf) window.cancelAnimationFrame(widgetScrollSyncRaf);
+  });
+
+  const viewportQuery = window.matchMedia('(max-width: 767px)');
+  let lastLayoutIsPhone = isPhoneLayout;
+  let rerenderQueued = false;
+  const queueLayoutRerender = () => {
+    if (rerenderQueued) return;
+    const nextIsPhone = isDashboardPhoneLayout();
+    if (nextIsPhone === lastLayoutIsPhone) return;
+    rerenderQueued = true;
+    window.requestAnimationFrame(() => {
+      rerenderQueued = false;
+      const currentIsPhone = isDashboardPhoneLayout();
+      if (currentIsPhone !== lastLayoutIsPhone) {
+        render(container, { user });
+      }
+    });
+  };
+
+  viewportQuery.addEventListener?.('change', queueLayoutRerender, { signal: _fabController.signal });
+  window.addEventListener('resize', queueLayoutRerender, { signal: _fabController.signal });
 
   // Wetter: 30-Minuten-Hintergrund-Refresh — aktualisiert nur die Greeting-Chips
   const weatherTimerId = setInterval(async () => {
@@ -2613,6 +3553,26 @@ export async function render(container, { user }) {
     if (tempEl) tempEl.textContent = res.data.current.temp + '°';
   }, 30 * 60 * 1000);
   _fabController.signal.addEventListener('abort', () => clearInterval(weatherTimerId));
+
+  let phoneScrollSyncRaf = 0;
+  const schedulePhoneScrollSync = () => {
+    if (phoneScrollSyncRaf) return;
+    phoneScrollSyncRaf = window.requestAnimationFrame(() => {
+      phoneScrollSyncRaf = 0;
+      syncPhoneWidgetScrollability(container);
+    });
+  };
+  const phoneScrollObserver = new MutationObserver(schedulePhoneScrollSync);
+  phoneScrollObserver.observe(container, {
+    subtree: true,
+    childList: true,
+    characterData: true,
+    attributes: true,
+  });
+  _fabController.signal.addEventListener('abort', () => {
+    phoneScrollObserver.disconnect();
+    if (phoneScrollSyncRaf) window.cancelAnimationFrame(phoneScrollSyncRaf);
+  });
 }
 
 function wireShoppingWidgetReorder(container, lists) {
@@ -2752,6 +3712,11 @@ function wireShoppingWidget(container, data) {
   const rightArrow = widget.querySelector('[data-action="widget-head-scroll"][data-dir="1"]');
   function updateArrows() {
     if (!tabsEl || !leftArrow || !rightArrow) return;
+    if (isDashboardEditModeEnabled()) {
+      leftArrow.hidden = true;
+      rightArrow.hidden = true;
+      return;
+    }
     const overflow = tabsEl.scrollWidth - tabsEl.clientWidth > 2;
     leftArrow.hidden  = !overflow || tabsEl.scrollLeft <= 2;
     rightArrow.hidden = !overflow || tabsEl.scrollLeft + tabsEl.clientWidth >= tabsEl.scrollWidth - 2;
@@ -2761,7 +3726,9 @@ function wireShoppingWidget(container, data) {
     wireScrollClickGuard(tabsEl);
     tabsEl.addEventListener('scroll', updateArrows, { passive: true });
     requestAnimationFrame(() => {
-      ensureActiveShoppingTabVisible(tabsEl, false);
+      if (!isDashboardEditModeEnabled()) {
+        ensureActiveShoppingTabVisible(tabsEl, false);
+      }
       updateArrows();
     });
     window.addEventListener('resize', updateArrows);
@@ -2770,6 +3737,7 @@ function wireShoppingWidget(container, data) {
   widget.querySelectorAll('[data-action="widget-head-scroll"]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (isDashboardEditModeEnabled()) return;
       if (!tabsEl) return;
       const dir = Number(btn.dataset.dir);
       tabsEl.scrollBy({ left: dir * Math.max(120, tabsEl.clientWidth * 0.7), behavior: 'smooth' });
@@ -2830,7 +3798,7 @@ function wireShoppingWidget(container, data) {
       if (window.lucide) window.lucide.createIcons({ el: body });
       wireShoppingWidgetReorder(container, sublists);
     }
-    if (tabsEl) ensureActiveShoppingTabVisible(tabsEl, true);
+    if (tabsEl && !isDashboardEditModeEnabled()) ensureActiveShoppingTabVisible(tabsEl, true);
     wireShoppingWidgetLinks(widget);
   }
 

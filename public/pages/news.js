@@ -53,7 +53,7 @@ function renderToolbar() {
       <div class="news-toolbar__title-wrap">
         <h1 class="news-toolbar__title">${t('news.title')}</h1>
       </div>
-      <div class="news-toolbar__actions">
+      <div class="news-toolbar__actions news-toolbar__actions--scrollable">
         <div class="news-font-toggle" role="group" aria-label="Font size">
           <button class="news-font-toggle__btn" id="news-font-decrease" type="button"
                   aria-label="Decrease font size"${state.fontSize <= FONT_SIZE_MIN ? ' disabled' : ''}>A−</button>
