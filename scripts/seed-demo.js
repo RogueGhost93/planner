@@ -4,7 +4,7 @@
  * Usage: node scripts/seed-demo.js [--db /path/to/planium.db]
  *
  * Creates:
- *   - 2 users (admin: alex / member: sam)
+ *   - 2 users (admin: demo / member: sam)
  *   - Tasks (varied priorities, statuses, due dates)
  *   - Calendar events (appointments, activities, recurring)
  *   - Meals (full week, all slots)
@@ -81,10 +81,10 @@ const insertUser = db.prepare(`
   VALUES (?, ?, ?, ?, ?)
 `);
 
-const alexId = insertUser.run('alex', 'Alex Johnson', pw, 'admin', '#2563EB').lastInsertRowid;
+const alexId = insertUser.run('demo', 'Demo Admin', pw, 'admin', '#2563EB').lastInsertRowid;
 const samId  = insertUser.run('sam',  'Sam Johnson',  pw, 'member', '#16A34A').lastInsertRowid;
 
-console.log(`  alex (id=${alexId}), sam (id=${samId})`);
+console.log(`  demo (id=${alexId}), sam (id=${samId})`);
 
 // ── Tasks ────────────────────────────────────────────────────────────────────
 
@@ -261,6 +261,10 @@ const insertNote = db.prepare(`
 `);
 
 [
+  ['How to use this demo',
+   'Tasks: track what needs doing.\nCalendar: appointments and recurring events.\nMeals: the week plan and ingredients.\nBudget: income, expenses, and monthly trends.\nNotes: quick reference cards.\nContacts: family and service numbers.\nShopping list: what to buy next.',
+   '#2563EB', 1, alexId],
+
   ['Holiday Checklist 🌍',
    'Passports (exp. 2028)\nTravel insurance - check!\nEuro cash - €300\nBook airport parking\nAsk Mike to water plants\nPack sunscreen SPF 50',
    '#0EA5E9', 1, alexId],
@@ -339,5 +343,5 @@ const insertItem = db.prepare(`
 
 db.close();
 console.log('\n✓ Demo data inserted successfully!');
-console.log('  Login: alex / demo1234  (admin)');
+console.log('  Login: demo / demo1234  (admin)');
 console.log('  Login: sam  / demo1234  (member)');

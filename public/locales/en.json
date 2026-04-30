@@ -1011,6 +1011,8 @@
     "passwordPlaceholder": "••••••••",
     "loginButton": "Log in",
     "loggingIn": "Logging in…",
+    "demoHint": "A demo account is preloaded with tasks, calendar events, meals, budget entries, notes, contacts, and shopping lists.",
+    "demoButton": "Use demo account",
     "tooManyAttempts": "Too many attempts. Please wait a moment.",
     "invalidCredentials": "Invalid credentials."
   },

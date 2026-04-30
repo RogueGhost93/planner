@@ -54,6 +54,13 @@ export async function render(container) {
           <button type="submit" class="btn btn--primary login-form__submit" id="login-btn">
             ${t('login.loginButton')}
           </button>
+
+          <div class="login-form__demo">
+            <p class="login-form__demo-copy">${t('login.demoHint')}</p>
+            <button type="button" class="btn btn--secondary login-form__demo-btn" id="demo-login-btn">
+              ${t('login.demoButton')}
+            </button>
+          </div>
         </form>
       </div>
     </main>
@@ -62,6 +69,7 @@ export async function render(container) {
   const form = container.querySelector('#login-form');
   const errorEl = container.querySelector('#login-error');
   const submitBtn = container.querySelector('#login-btn');
+  const demoBtn = container.querySelector('#demo-login-btn');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -90,6 +98,12 @@ export async function render(container) {
       submitBtn.disabled = false;
       submitBtn.textContent = t('login.loginButton');
     }
+  });
+
+  demoBtn.addEventListener('click', () => {
+    form.username.value = 'demo';
+    form.password.value = 'demo1234';
+    form.requestSubmit();
   });
 }
 

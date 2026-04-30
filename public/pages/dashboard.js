@@ -950,7 +950,7 @@ function syncPhoneWidgetScrollability(container) {
   });
 }
 
-function renderPersonalListBody(list, items) {
+function renderPersonalListItems(list, items) {
   const pending = sortWidgetItems(filterWidgetItems(items));
   const accentEnabled = showPriorityAccent();
   const flagEnabled = showPriorityFlags();
@@ -1010,6 +1010,11 @@ function renderPersonalListBody(list, items) {
          </div>
        </div>`;
 
+  return `<div class="personal-widget-items">${itemsHtml}</div>`;
+}
+
+function renderPersonalListAddRow(list) {
+  if (!list) return '';
   return `
     <div class="personal-widget-add-row" data-list-id="${list.id}">
       <form class="personal-widget-add" data-action="add-personal-widget-item" data-list-id="${list.id}" novalidate autocomplete="off">
@@ -1021,7 +1026,6 @@ function renderPersonalListBody(list, items) {
         <i data-lucide="plus" style="width:16px;height:16px;pointer-events:none" aria-hidden="true"></i>
       </button>
     </div>
-    <div class="personal-widget-items">${itemsHtml}</div>
   `;
 }
 
@@ -1029,7 +1033,7 @@ function renderTasksWidgetBody(activeTab, personalLists, personalItems) {
   const list = personalLists.find((l) => l.id === activeTab);
   const items = personalItems.filter((i) => i.list_id === activeTab);
   if (!list) return `<div class="widget__empty"><div>${t('dashboard.personalListEmpty')}</div></div>`;
-  return renderPersonalListBody(list, items);
+  return renderPersonalListItems(list, items);
 }
 
 function renderTasksWidget(personalLists, personalItems, span = '2', height = 'normal') {
@@ -1061,6 +1065,8 @@ function renderTasksWidget(personalLists, personalItems, span = '2', height = 'n
   }).join('');
 
   const body = renderTasksWidgetBody(activeTab, personalLists, personalItems);
+  const activeList = personalLists.find((l) => l.id === activeTab);
+  const addRow = renderPersonalListAddRow(activeList);
   const headerCount = filterWidgetItems(personalItems.filter((i) => i.list_id === activeTab)).length;
 
   return `<div class="widget ${widgetSpanClass(span)} ${widgetHeightClass(height)}" id="tasks-widget" data-widget-id="tasks-widget" data-widget-span="${span}" data-widget-height="${height}" data-active-tab="${activeTab}">
@@ -1078,6 +1084,7 @@ function renderTasksWidget(personalLists, personalItems, span = '2', height = 'n
         <i data-lucide="chevron-right" style="width:14px;height:14px" aria-hidden="true"></i>
       </button>
     </div>
+    <div class="tasks-widget__add-host" id="tasks-widget-add-host">${addRow}</div>
     <div class="widget__body" id="tasks-widget-body">${body}</div>
   </div>`;
 }
@@ -2999,7 +3006,7 @@ function wireScrollClickGuard(scrollEl) {
 function wireTasksWidget(container, dashData, refreshWidget) {
   const widgetEl = container.querySelector('#tasks-widget');
   const bodyEl = container.querySelector('#tasks-widget-body');
-  if (bodyEl) wireTasksWidgetBody(bodyEl, dashData, refreshWidget);
+  if (widgetEl && bodyEl) wireTasksWidgetBody(widgetEl, dashData, refreshWidget);
 
   const tabsEl = container.querySelector('#tasks-widget-tabs');
   const leftArrow  = container.querySelector('[data-action="tasks-tabs-scroll"][data-dir="-1"]');
@@ -3026,14 +3033,18 @@ function wireTasksWidget(container, dashData, refreshWidget) {
     const body = container.querySelector('#tasks-widget-body');
     if (body) {
       const activeTab = Number(tab);
+      const activeList = (dashData.personalLists ?? []).find((l) => l.id === activeTab);
+      const addHost = widgetEl.querySelector('#tasks-widget-add-host');
+      if (addHost) addHost.innerHTML = renderPersonalListAddRow(activeList);
       body.innerHTML = renderTasksWidgetBody(
         activeTab,
         dashData.personalLists ?? [],
         dashData.personalItems ?? [],
       );
       if (window.lucide) window.lucide.createIcons();
-      wireTasksWidgetBody(body, dashData, refreshWidget);
-      wireLinks(body);
+      wireTasksWidgetBody(widgetEl, dashData, refreshWidget);
+      wireLinks(widgetEl);
+      syncPhoneWidgetScrollability(container);
     }
     if (!isDashboardEditModeEnabled()) {
       ensureActiveTabVisible(tabsEl, true);

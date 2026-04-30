@@ -11,6 +11,7 @@
     "start": "node --import dotenv/config server/index.js",
     "dev": "node --import dotenv/config --watch server/index.js",
     "setup": "node --import dotenv/config setup.js",
+    "seed:demo": "node --import dotenv/config scripts/seed-demo.js",
     "test:db": "node --experimental-sqlite test-db.js",
     "test:dashboard": "node --experimental-sqlite test-dashboard.js",
     "test:tasks": "node --experimental-sqlite test-tasks.js",

@@ -74,6 +74,14 @@ docker compose exec planium node setup.js
 
 Then open `http://localhost:3000` and log in with the admin credentials you set in the previous step. Add family members from Settings.
 
+For a prefilled demo instead of a fresh account, run:
+
+```bash
+npm run seed:demo
+```
+
+The demo login is `demo` / `demo1234`.
+
 > **New to Docker?** The **[Installation Guide](docs/installation.md)** walks you through every step: From installing Docker to HTTPS setup, backups, and troubleshooting.
 
 ## Tech Stack

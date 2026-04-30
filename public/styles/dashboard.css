@@ -2893,6 +2893,13 @@ a.price-ticker:hover {
   position: relative;
   z-index: 20;
   isolation: isolate;
+  flex: 0 0 auto;
+}
+
+.tasks-widget__add-host {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 20;
 }
 
 .personal-widget-add {
@@ -2971,10 +2978,6 @@ a.price-ticker:hover {
 
 #tasks-widget-body.widget__body--scrollable {
   overflow: hidden !important;
-}
-
-#tasks-widget-body .personal-widget-add-row {
-  flex: 0 0 auto;
 }
 
 #tasks-widget-body .personal-widget-items {

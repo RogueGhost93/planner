@@ -144,6 +144,14 @@ The interactive setup asks you for:
 - **Display name** (e.g. "Jane Doe")
 - **Password** (minimum 8 characters, entered with masked input)
 
+If you want a prefilled demo instead, run:
+
+```bash
+npm run seed:demo
+```
+
+Then log in with `demo` / `demo1234`.
+
 ### 6. Open Planium
 
 Open your browser and navigate to:
