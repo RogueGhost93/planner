@@ -321,7 +321,7 @@ function applyFormat(textarea, format) {
 // Modal
 // --------------------------------------------------------
 
-export function openNotePreviewModal({ note, onSaved = null } = {}) {
+export function openNotePreviewModal({ note, onSaved = null, size = 'lg' } = {}) {
   if (!note) return;
   const title = note.title ? esc(note.title) : t('dashboard.pinnedNote');
   const textColor = isLightColor(note.color) ? 'rgba(0,0,0,0.8)' : '#ffffff';
@@ -346,7 +346,7 @@ export function openNotePreviewModal({ note, onSaved = null } = {}) {
   openSharedModal({
     title,
     content,
-    size: 'lg',
+    size,
     onSave(panel) {
       panel.querySelector('#note-preview-edit')?.addEventListener('click', () => {
         closeModal();

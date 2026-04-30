@@ -934,7 +934,18 @@ function syncPhoneWidgetScrollability(container) {
   const bodies = container.querySelectorAll('.widget__body');
 
   bodies.forEach((body) => {
-    const scrollable = body.scrollHeight > body.clientHeight - 6;
+    if (body.id === 'tasks-widget-body') {
+      const items = body.querySelector('.personal-widget-items');
+      const itemOverflow = items ? items.scrollHeight - items.clientHeight : 0;
+      body.classList.remove('widget__body--scrollable');
+      items?.classList.toggle('personal-widget-items--scrollable', itemOverflow > 12);
+      return;
+    }
+
+    const isQuoteBody = body.classList.contains('quote-widget__body');
+    const isEmptyState = !!body.querySelector('.widget__empty');
+    const overflow = body.scrollHeight - body.clientHeight;
+    const scrollable = !isQuoteBody && !isEmptyState && overflow > 12;
     body.classList.toggle('widget__body--scrollable', scrollable);
   });
 }
@@ -1000,14 +1011,16 @@ function renderPersonalListBody(list, items) {
        </div>`;
 
   return `
-    <form class="personal-widget-add" data-action="add-personal-widget-item" data-list-id="${list.id}" novalidate autocomplete="off">
-      <input class="personal-widget-add__input" type="text" name="title"
-             placeholder="${t('dashboard.personalListAddPlaceholder')}"
-             maxlength="600" autocomplete="off">
-      <button class="personal-widget-add__btn" type="submit" aria-label="${t('tasks.personalListAdd')}">
+    <div class="personal-widget-add-row" data-list-id="${list.id}">
+      <form class="personal-widget-add" data-action="add-personal-widget-item" data-list-id="${list.id}" novalidate autocomplete="off">
+        <input class="personal-widget-add__input" type="text" name="title"
+               placeholder="${t('dashboard.personalListAddPlaceholder')}"
+               maxlength="600" autocomplete="off">
+      </form>
+      <button class="personal-widget-add__btn" type="button" data-action="add-personal-widget-item-submit" data-list-id="${list.id}" aria-label="${t('tasks.personalListAdd')}">
         <i data-lucide="plus" style="width:16px;height:16px;pointer-events:none" aria-hidden="true"></i>
       </button>
-    </form>
+    </div>
     <div class="personal-widget-items">${itemsHtml}</div>
   `;
 }
@@ -1641,6 +1654,7 @@ function wireDashboardLayout(container, layoutState, data) {
         openNote.blur?.();
         openNotePreviewModal({
           note,
+          size: 'notes',
           onSaved: (savedNote) => {
             const idx = (data.pinnedNotes ?? []).findIndex((n) => n.id === note.id);
             if (idx !== -1) data.pinnedNotes[idx] = savedNote;
@@ -2848,32 +2862,52 @@ function wireTasksWidgetBody(root, dashData, refreshWidget) {
   });
 
   // Personal item: add via inline form (Enter submits, focus stays on input)
-  root.querySelectorAll('[data-action="add-personal-widget-item"]').forEach((form) => {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const input = form.querySelector('.personal-widget-add__input');
-      const title = (input?.value ?? '').trim();
-      if (!title) return;
-      const listId = Number(form.dataset.listId);
-      const submitBtn = form.querySelector('button[type="submit"]');
-      if (submitBtn) submitBtn.disabled = true;
-      try {
-        const res = await api.post(`/personal-lists/${listId}/items`, { title });
-        if (res?.data) {
-          dashData.personalItems = [...(dashData.personalItems || []), res.data];
-        }
-        input.value = '';
-        refreshWidget();
-        // After re-render, refocus the new input for the same list so Enter-Enter chains
-        const fresh = root.ownerDocument.querySelector(
-          `[data-action="add-personal-widget-item"][data-list-id="${listId}"] .personal-widget-add__input`
-        );
-        fresh?.focus();
-      } catch {
-        window.planium?.showToast('Could not add item', 'danger');
-      } finally {
-        if (submitBtn) submitBtn.disabled = false;
+  const submitPersonalWidgetItem = async (form, submitBtn, event = null) => {
+    event?.preventDefault();
+    event?.stopPropagation();
+    if (!form) return;
+    if (submitBtn?.disabled) return;
+    const input = form.querySelector('.personal-widget-add__input');
+    const title = (input?.value ?? '').trim();
+    if (!title) {
+      input?.focus();
+      return;
+    }
+    const listId = Number(form.dataset.listId || submitBtn?.dataset.listId);
+    if (!listId) return;
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const res = await api.post(`/personal-lists/${listId}/items`, { title });
+      if (res?.data) {
+        dashData.personalItems = [...(dashData.personalItems || []), res.data];
       }
+      input.value = '';
+      refreshWidget();
+      // After re-render, refocus the new input for the same list so Enter-Enter chains.
+      const fresh = root.ownerDocument.querySelector(
+        `[data-action="add-personal-widget-item"][data-list-id="${listId}"] .personal-widget-add__input`
+      );
+      fresh?.focus();
+    } catch {
+      window.planium?.showToast('Could not add item', 'danger');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  };
+
+  root.querySelectorAll('[data-action="add-personal-widget-item"]').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      const row = form.closest('.personal-widget-add-row');
+      const submitBtn = row?.querySelector('[data-action="add-personal-widget-item-submit"]');
+      void submitPersonalWidgetItem(form, submitBtn, e);
+    });
+  });
+
+  root.querySelectorAll('[data-action="add-personal-widget-item-submit"]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const row = btn.closest('.personal-widget-add-row');
+      const form = row?.querySelector('[data-action="add-personal-widget-item"]');
+      void submitPersonalWidgetItem(form, btn, e);
     });
   });
 }
@@ -3415,6 +3449,7 @@ export async function render(container, { user }) {
       if (window.lucide) window.lucide.createIcons();
       wireTasksWidget(container, data, refreshTasksWidget);
       wireLinks(container);
+      syncPhoneWidgetScrollability(container);
     }
 
     currentDashboardData = data;
@@ -3515,6 +3550,7 @@ export async function render(container, { user }) {
     if (window.lucide) window.lucide.createIcons();
     wireTasksWidget(container, data, refreshTasksWidget);
     wireLinks(container);
+    syncPhoneWidgetScrollability(container);
   }
   currentDashboardData = data;
   currentRefreshTasksWidget = refreshTasksWidget;

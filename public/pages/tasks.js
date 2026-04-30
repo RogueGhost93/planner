@@ -3089,7 +3089,8 @@ export function openItemEditDialog({
     <button type="button"
             class="task-list-picker__option ${l.id === targetListId ? 'task-list-picker__option--active' : ''}"
             data-action="pick-list"
-            data-list-id="${l.id}">
+            data-list-id="${l.id}"
+            style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text-primary);font:inherit;font-weight:var(--font-weight-medium);text-align:left;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3)">
       ${esc(l.name)}
     </button>
   `).join('');
@@ -3109,12 +3110,12 @@ export function openItemEditDialog({
           <label class="label">${t('tasks.listLabel') === 'tasks.listLabel' ? 'List' : t('tasks.listLabel')}</label>
           <button type="button" class="input" id="pi-list-toggle"
                   aria-haspopup="listbox" aria-expanded="false"
-                  style="min-height:44px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);text-align:left">
+                  style="min-height:44px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);text-align:left;color:var(--color-text-primary);background:var(--color-surface);border-color:var(--color-border)">
             <span id="pi-list-selected" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(currentListName())}</span>
             <i data-lucide="chevron-down" aria-hidden="true" style="width:16px;height:16px;flex:0 0 auto"></i>
           </button>
           <div id="pi-list-options" hidden
-               style="margin-top:var(--space-2);display:grid;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);max-height:240px;overflow:auto">
+               style="margin-top:var(--space-2);display:grid;gap:var(--space-2);padding:var(--space-2);border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);max-height:240px;overflow:auto;box-shadow:var(--shadow-md)">
             ${listOptions || `<div class="task-label-picker__empty">${t('tasks.labelsNone')}</div>`}
           </div>
         </div>` : ''}
@@ -3249,6 +3250,9 @@ export function openItemEditDialog({
           listOptionsPanel.querySelectorAll('[data-action="pick-list"]').forEach((btn) => {
             const active = Number(btn.dataset.listId) === targetListId;
             btn.classList.toggle('task-list-picker__option--active', active);
+            btn.style.background = active ? 'var(--color-accent-light)' : 'var(--color-surface)';
+            btn.style.borderColor = active ? 'var(--color-accent-subtle)' : 'var(--color-border)';
+            btn.style.color = 'var(--color-text-primary)';
           });
         }
       };

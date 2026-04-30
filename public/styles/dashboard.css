@@ -538,12 +538,13 @@
   .dashboard--board #tasks-widget-body {
     flex: 1;
     min-height: 0;
+    overflow: hidden;
   }
 
   .dashboard--board #tasks-widget-body .personal-widget-items {
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow: visible;
   }
 
   .dashboard--board #shopping-widget-body {
@@ -2884,15 +2885,25 @@ a.price-ticker:hover {
 /* --------------------------------------------------------
  * Tasks-Widget — Personal items + quick add
  * -------------------------------------------------------- */
-.personal-widget-add {
+.personal-widget-add-row {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
+  position: relative;
+  z-index: 20;
+  isolation: isolate;
+}
+
+.personal-widget-add {
+  flex: 1;
+  min-width: 0;
 }
 
 .personal-widget-add__input {
-  flex: 1;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   background: var(--color-surface-2);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -2923,19 +2934,68 @@ a.price-ticker:hover {
   background-color: var(--color-accent);
   color: #fff;
   border: none;
-  cursor: pointer;
+  cursor: pointer !important;
   flex-shrink: 0;
   transition: filter var(--transition-fast);
   touch-action: manipulation;
+  position: relative;
+  z-index: 21;
+  pointer-events: auto;
+  -webkit-appearance: none;
+  appearance: none;
+  margin-left: 0;
 }
 
 .personal-widget-add__btn:hover { filter: brightness(0.92); }
 .personal-widget-add__btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .personal-widget-items {
+  position: relative;
+  z-index: 1;
+  margin-top: 0;
+}
+
+.personal-widget-items {
   display: flex;
   flex-direction: column;
   gap: 0;
+  min-height: 0;
+}
+
+#tasks-widget-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+  touch-action: auto;
+}
+
+#tasks-widget-body.widget__body--scrollable {
+  overflow: hidden !important;
+}
+
+#tasks-widget-body .personal-widget-add-row {
+  flex: 0 0 auto;
+}
+
+#tasks-widget-body .personal-widget-items {
+  flex: 1 1 auto;
+  overflow: visible;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none;
+}
+
+#tasks-widget-body .personal-widget-items--scrollable {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+#tasks-widget-body .personal-widget-items::-webkit-scrollbar,
+#tasks-widget-body .personal-widget-items--scrollable::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
 }
 
 .dashboard .widget__body,
@@ -2943,6 +3003,8 @@ a.price-ticker:hover {
   scrollbar-width: none !important;
   scrollbar-color: transparent transparent !important;
   -ms-overflow-style: none;
+  overflow-y: visible;
+  overscroll-behavior: contain;
 }
 
 .dashboard .widget__body::-webkit-scrollbar,
@@ -2959,6 +3021,12 @@ a.price-ticker:hover {
 .dashboard .widget__body--scrollable::-webkit-scrollbar-track {
   background: transparent !important;
   border: 0 !important;
+}
+
+.dashboard .widget__body--scrollable {
+  overflow-y: auto;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .personal-widget-item {

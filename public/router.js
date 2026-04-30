@@ -557,10 +557,21 @@ function wirePhoneNavMenuSwipe(trigger) {
   let startY = 0;
   let tracking = false;
   let locked = null;
+  let suppressTapClick = false;
+  let suppressTapClickTimer = null;
 
   const suppressClick = (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
+  };
+
+  const suppressNextTapClick = () => {
+    suppressTapClick = true;
+    if (suppressTapClickTimer) window.clearTimeout(suppressTapClickTimer);
+    suppressTapClickTimer = window.setTimeout(() => {
+      suppressTapClick = false;
+      suppressTapClickTimer = null;
+    }, 500);
   };
 
   const navigateFromSwipe = (dx) => {
@@ -585,7 +596,6 @@ function wirePhoneNavMenuSwipe(trigger) {
     startY = e.clientY;
     tracking = true;
     locked = null;
-    try { trigger.setPointerCapture(pointerId); } catch {}
   });
 
   trigger.addEventListener('pointermove', (e) => {
@@ -607,9 +617,12 @@ function wirePhoneNavMenuSwipe(trigger) {
   trigger.addEventListener('pointerup', (e) => {
     if (!tracking || e.pointerId !== pointerId) return;
     tracking = false;
-    try { trigger.releasePointerCapture(pointerId); } catch {}
 
     if (locked !== 'h') {
+      if (e.pointerType !== 'mouse') {
+        suppressNextTapClick();
+        openPhoneNavMenu();
+      }
       pointerId = null;
       locked = null;
       return;
@@ -626,7 +639,19 @@ function wirePhoneNavMenuSwipe(trigger) {
     tracking = false;
     pointerId = null;
     locked = null;
-    try { trigger.releasePointerCapture(e.pointerId); } catch {}
+  });
+
+  trigger.addEventListener('click', (e) => {
+    if (suppressTapClick) {
+      suppressClick(e);
+      suppressTapClick = false;
+      if (suppressTapClickTimer) {
+        window.clearTimeout(suppressTapClickTimer);
+        suppressTapClickTimer = null;
+      }
+      return;
+    }
+    openPhoneNavMenu();
   });
 }
 
@@ -653,15 +678,6 @@ function isRouteSwipeExcludedTarget(target) {
     '[contenteditable="true"]',
     '.nav-sidebar',
     '.nav-bottom',
-    '.news-toolbar',
-    '.news-toolbar__actions',
-    '.bookmarks-toolbar',
-    '.bookmarks-filter-row',
-    '.bookmarks-main',
-    '.notebook-editor__header',
-    '.notebook-editor__actions',
-    '.notebook-editor__toolbar',
-    '.notebook-editor__toolbar-group',
     '.list-tabs-bar',
     '#list-tabs-bar',
     '.task-tabs-bar',
@@ -1028,7 +1044,6 @@ function wireBottomNav() {
 
   if (nav.classList.contains('nav-bottom--menu')) {
     const trigger = nav.querySelector('#phone-nav-menu-trigger');
-    trigger?.addEventListener('click', openPhoneNavMenu);
     if (trigger) wirePhoneNavMenuSwipe(trigger);
     return;
   }
