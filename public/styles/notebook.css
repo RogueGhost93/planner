@@ -59,11 +59,10 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-border);
   border-left: 3px solid var(--module-accent);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
 
@@ -179,11 +178,11 @@
   grid-template-columns: clamp(20rem, 16vw, 26rem) minmax(0, 1fr);
   min-height: 0;
   flex: 1;
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   overflow: hidden;
   background: var(--color-surface);
-  box-shadow: none;
+  box-shadow: var(--shadow-sm);
+  border-left: 3px solid var(--module-accent);
 }
 
 .notebook-sidebar {

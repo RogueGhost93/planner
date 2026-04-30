@@ -22,6 +22,7 @@
 
 .bookmarks-content {
   background: var(--color-surface);
+  border-left: 3px solid var(--module-accent);
 }
 
 .bookmarks-toolbar__title {

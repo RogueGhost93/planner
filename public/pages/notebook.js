@@ -2206,7 +2206,7 @@ function renderShell(container) {
           </button>
           <div>
             <h1>${esc(t('notebook.title'))}</h1>
-            <p>${esc(t('notebook.subtitle'))}</p>
+            ${t('notebook.subtitle') ? `<p>${esc(t('notebook.subtitle'))}</p>` : ''}
           </div>
         </div>
         <div class="notebook-topbar__actions">

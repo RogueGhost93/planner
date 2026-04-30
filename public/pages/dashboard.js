@@ -243,7 +243,7 @@ function saveDashboardBoardState(state) {
       order: Array.isArray(state.order) ? state.order : [],
     }));
   } catch {
-    // ignore write failures; test board remains usable in-memory
+    // ignore write failures; board remains usable in-memory
   }
 }
 
@@ -319,7 +319,7 @@ function packDashboardBoardRects(rects, order, activeId = null) {
   const ids = order.slice().filter((id) => id !== activeId);
 
   if (activeId && order.includes(activeId)) {
-    const activeRect = normalizeDashboardTestBoardRect(
+    const activeRect = normalizeDashboardBoardRect(
       rects[activeId],
       dashboardBoardDefaultRectForId(activeId),
     );
@@ -328,7 +328,7 @@ function packDashboardBoardRects(rects, order, activeId = null) {
   }
 
   for (const id of ids) {
-    const rect = normalizeDashboardTestBoardRect(rects[id], dashboardBoardDefaultRectForId(id));
+    const rect = normalizeDashboardBoardRect(rects[id], dashboardBoardDefaultRectForId(id));
     const placed = dashboardBoardFindSpot(rows, rect);
     packed[id] = placed;
     dashboardBoardMark(rows, placed.x, placed.y, placed.w, placed.h);
@@ -1815,7 +1815,7 @@ function wireDashboardBoard(container, boardState, widgetIds) {
   const endInteraction = () => {
     if (!interaction) return;
     const { id, rect } = interaction;
-    boardState.rects[id] = normalizeDashboardTestBoardRect(rect, boardState.rects[id]);
+    boardState.rects[id] = normalizeDashboardBoardRect(rect, boardState.rects[id]);
     commitRects(id);
     slotsById.get(id)?.classList.remove('dashboard-board__slot--dragging');
     interaction = null;
@@ -1850,7 +1850,7 @@ function wireDashboardBoard(container, boardState, widgetIds) {
       }
     }
 
-    next = normalizeDashboardTestBoardRect(next, base);
+    next = normalizeDashboardBoardRect(next, base);
     interaction.rect = next;
     const slot = slotsById.get(interaction.id);
     if (slot) {
@@ -3249,8 +3249,8 @@ export async function render(container, { user }) {
   const urgentTasks = [...householdUrgent, ...personalUrgent];
   const stats = { urgentTasks };
   const layoutState = normalizeDashboardLayoutForDevice(data.layout);
-  const seededTestBoard = applyDashboardTestBoardTemplate(layoutState);
-  if (seededTestBoard) {
+  const seededBoard = applyDashboardBoardTemplate(layoutState);
+  if (seededBoard) {
     api.put(dashboardApiPath('/layout'), { layout: stripDashboardLayoutVisibility(layoutState) }).catch(() => {});
   }
   const dashboardDefaults = defaultDashboardLayout();

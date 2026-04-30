@@ -59,7 +59,7 @@
   "notebook": {
     "untitled": "Untitled",
     "title": "Notebook",
-    "subtitle": "Hierarchical notes and a Joplin-style editor",
+    "subtitle": "",
     "notesFolder": "Notebook",
     "rootLabel": "Root",
     "searchPlaceholder": "Search notebook notes…",
