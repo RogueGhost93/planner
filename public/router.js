@@ -657,6 +657,7 @@ function isRouteSwipeExcludedTarget(target) {
     '.news-toolbar__actions',
     '.bookmarks-toolbar',
     '.bookmarks-filter-row',
+    '.bookmarks-main',
     '.notebook-editor__header',
     '.notebook-editor__actions',
     '.notebook-editor__toolbar',

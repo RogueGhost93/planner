@@ -12,9 +12,9 @@
  *   API: Always network (no caching of user data)
  */
 
-const SHELL_CACHE   = 'planium-shell-v261';
-const PAGES_CACHE   = 'planium-pages-v261';
-const ASSETS_CACHE  = 'planium-assets-v261';
+const SHELL_CACHE   = 'planium-shell-v263';
+const PAGES_CACHE   = 'planium-pages-v263';
+const ASSETS_CACHE  = 'planium-assets-v263';
 const ALL_CACHES    = [SHELL_CACHE, PAGES_CACHE, ASSETS_CACHE];
 
 // App shell: needed immediately for first render
@@ -65,6 +65,7 @@ const APP_SHELL = [
 const PAGE_MODULES = [
   '/pages/dashboard.js',
   '/pages/tasks.js',
+  '/pages/share-picker.js',
   '/pages/lists.js',
   '/pages/board.js',
   '/pages/meals.js',
