@@ -11,7 +11,7 @@ import { esc, linkify } from '/utils/html.js';
 import { openItemEditDialog } from '/pages/tasks.js';
 import { openNoteModal, openNotePreviewModal } from '/pages/board.js';
 import { renderPriceTickers, wirePriceTickers } from '/components/price-tickers.js';
-import { showConfirm, openModal, closeModal } from '/components/modal.js';
+import { showConfirm, openModal, closeModal, showPrompt } from '/components/modal.js';
 import { openDashboardWidgetPicker } from '/components/dashboard-widget-picker.js';
 import { defaultDashboardLayout } from '/lib/dashboard-layout.js';
 import { dashboardWidgetLabelMap } from '/lib/dashboard-layout.js';
@@ -3266,7 +3266,7 @@ export async function render(container, { user }) {
     ${renderFab(user)}
   `;
 
-  let data      = { upcomingEvents: [], urgentTasks: [], todayMeals: [], pinnedNotes: [], lists: [], listItems: [], layout: null };
+  let data      = { upcomingEvents: [], todayMeals: [], pinnedNotes: [], lists: [], listItems: [], layout: null };
   let weather   = null;
   let quote     = null;
   let headlines = null;
@@ -3291,15 +3291,9 @@ export async function render(container, { user }) {
 
   if (isStaleRender()) return;
 
-  // Greeting urgent chip: union of urgent household tasks + urgent personal items
-  // across every list the user has access to. Personal items use list_id for routing.
-  const householdUrgent = (data.urgentTasks ?? [])
-    .filter((t) => t.priority === 'urgent')
-    .map((t) => ({ id: t.id, title: t.title, kind: 'task' }));
-  const personalUrgent = (data.personalItems ?? [])
+  const urgentTasks = (data.personalItems ?? [])
     .filter((it) => it.priority === 'urgent' && !it.done)
     .map((it) => ({ id: it.id, title: it.title, kind: 'personal', list_id: it.list_id }));
-  const urgentTasks = [...householdUrgent, ...personalUrgent];
   const stats = { urgentTasks };
   const layoutState = normalizeDashboardLayoutForDevice(data.layout);
   const seededBoard = applyDashboardBoardTemplate(layoutState);

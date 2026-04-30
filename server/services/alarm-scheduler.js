@@ -38,20 +38,13 @@ export function getVapidKeys() {
 export function fetchAndMarkDueAlarms() {
   const nowStr = localNowStr();
 
-  const dueTasks = [
-    ...db.get().prepare(`
-      SELECT id, title, 'task' AS src FROM tasks
-      WHERE alarm_at <= ? AND alarm_sent = 0 AND status != 'done'
-    `).all(nowStr),
-    ...db.get().prepare(`
-      SELECT id, title, 'personal' AS src FROM personal_tasks
-      WHERE alarm_at <= ? AND alarm_sent = 0 AND done = 0
-    `).all(nowStr),
-  ];
+  const dueTasks = db.get().prepare(`
+    SELECT id, title FROM personal_tasks
+    WHERE alarm_at <= ? AND alarm_sent = 0 AND done = 0
+  `).all(nowStr);
 
   for (const task of dueTasks) {
-    const table = task.src === 'personal' ? 'personal_tasks' : 'tasks';
-    db.get().prepare(`UPDATE ${table} SET alarm_sent = 1 WHERE id = ?`).run(task.id);
+    db.get().prepare(`UPDATE personal_tasks SET alarm_sent = 1 WHERE id = ?`).run(task.id);
   }
 
   return dueTasks;
