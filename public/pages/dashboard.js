@@ -65,6 +65,7 @@ subscribePersonalItemChange((change) => {
 
 // Hält den AbortController des aktuellen FAB-Listeners - wird bei jedem render() erneuert.
 let _fabController = null;
+let _dashboardRenderSeq = 0;
 
 function isDashboardPhoneLayout() {
   const viewportWidth = Math.min(
@@ -3183,6 +3184,9 @@ function wireNewsRotation(container, headlines, signal) {
 export async function render(container, { user }) {
   _fabController?.abort();
   _fabController = new AbortController();
+  const renderSignal = _fabController.signal;
+  const renderSeq = ++_dashboardRenderSeq;
+  const isStaleRender = () => renderSeq !== _dashboardRenderSeq || renderSignal.aborted;
   currentDashboardData = null;
   currentRefreshTasksWidget = null;
 
@@ -3232,6 +3236,8 @@ export async function render(container, { user }) {
     window.planium?.showToast(t('dashboard.loadError'), 'warning');
   }
 
+  if (isStaleRender()) return;
+
   // Greeting urgent chip: union of urgent household tasks + urgent personal items
   // across every list the user has access to. Personal items use list_id for routing.
   const householdUrgent = (data.urgentTasks ?? [])
@@ -3249,6 +3255,7 @@ export async function render(container, { user }) {
   }
   const dashboardDefaults = defaultDashboardLayout();
   const isPhoneLayout = isDashboardPhoneLayout();
+  if (isStaleRender()) return;
   const widgetLayoutHeights = isPhoneLayout
     ? { ...dashboardDefaults.heights, ...loadDashboardPhoneWidgetHeights() }
     : layoutState.heights;
@@ -3366,8 +3373,8 @@ export async function render(container, { user }) {
     wireNewsRotation(container, headlines, _fabController.signal);
     wireDashboardBoard(container, testBoardState, boardWidgetIds);
     if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
-    scheduleMidnightQuoteRefresh(container, _fabController.signal);
-    initFab(container, _fabController.signal, user, (savedNote) => {
+    scheduleMidnightQuoteRefresh(container, renderSignal);
+    initFab(container, renderSignal, user, (savedNote) => {
       if (!savedNote) return;
       data.pinnedNotes = Array.isArray(data.pinnedNotes) ? data.pinnedNotes.slice() : [];
       const idx = data.pinnedNotes.findIndex((n) => n.id === savedNote.id);
@@ -3405,6 +3412,7 @@ export async function render(container, { user }) {
 
     currentDashboardData = data;
     currentRefreshTasksWidget = refreshTasksWidget;
+    if (isStaleRender()) return;
     wireTasksWidget(container, data, refreshTasksWidget);
     wireShoppingWidget(container, data);
     wireEventsWidget(container, data);
@@ -3467,10 +3475,10 @@ export async function render(container, { user }) {
   wireGreetingLink(container);
   wireWeatherChip(container, weather);
   wireNewsRotation(container, headlines, _fabController.signal);
-  wireDashboardLayout(container, layoutState, data);
-  if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
-  scheduleMidnightQuoteRefresh(container, _fabController.signal);
-  initFab(container, _fabController.signal, user, (savedNote) => {
+    wireDashboardLayout(container, layoutState, data);
+    if (isTickersEnabled()) wirePriceTickers(container, _fabController.signal);
+    scheduleMidnightQuoteRefresh(container, renderSignal);
+    initFab(container, renderSignal, user, (savedNote) => {
     if (!savedNote) return;
     data.pinnedNotes = Array.isArray(data.pinnedNotes) ? data.pinnedNotes.slice() : [];
     const idx = data.pinnedNotes.findIndex((n) => n.id === savedNote.id);
@@ -3507,6 +3515,7 @@ export async function render(container, { user }) {
   }
   currentDashboardData = data;
   currentRefreshTasksWidget = refreshTasksWidget;
+  if (isStaleRender()) return;
   wireTasksWidget(container, data, refreshTasksWidget);
   wireShoppingWidget(container, data);
   wireEventsWidget(container, data);
@@ -3523,7 +3532,7 @@ export async function render(container, { user }) {
       syncPhoneWidgetScrollability(container);
     });
   };
-  window.addEventListener('resize', scheduleWidgetScrollSync, { signal: _fabController.signal });
+  window.addEventListener('resize', scheduleWidgetScrollSync, { signal: renderSignal });
   const widgetScrollObserver = new MutationObserver(scheduleWidgetScrollSync);
   widgetScrollObserver.observe(container, {
     subtree: true,
@@ -3531,7 +3540,7 @@ export async function render(container, { user }) {
     characterData: true,
     attributes: true,
   });
-  _fabController.signal.addEventListener('abort', () => {
+  renderSignal.addEventListener('abort', () => {
     widgetScrollObserver.disconnect();
     if (widgetScrollSyncRaf) window.cancelAnimationFrame(widgetScrollSyncRaf);
   });
@@ -3553,8 +3562,8 @@ export async function render(container, { user }) {
     });
   };
 
-  viewportQuery.addEventListener?.('change', queueLayoutRerender, { signal: _fabController.signal });
-  window.addEventListener('resize', queueLayoutRerender, { signal: _fabController.signal });
+  viewportQuery.addEventListener?.('change', queueLayoutRerender, { signal: renderSignal });
+  window.addEventListener('resize', queueLayoutRerender, { signal: renderSignal });
 
   // Wetter: 30-Minuten-Hintergrund-Refresh — aktualisiert nur die Greeting-Chips
   const weatherTimerId = setInterval(async () => {
@@ -3565,7 +3574,7 @@ export async function render(container, { user }) {
     if (iconEl) { iconEl.src = WEATHER_ICON_BASE + res.data.current.icon; iconEl.alt = esc(res.data.current.desc); }
     if (tempEl) tempEl.textContent = res.data.current.temp + '°';
   }, 30 * 60 * 1000);
-  _fabController.signal.addEventListener('abort', () => clearInterval(weatherTimerId));
+  renderSignal.addEventListener('abort', () => clearInterval(weatherTimerId));
 
   let phoneScrollSyncRaf = 0;
   const schedulePhoneScrollSync = () => {
@@ -3582,7 +3591,7 @@ export async function render(container, { user }) {
     characterData: true,
     attributes: true,
   });
-  _fabController.signal.addEventListener('abort', () => {
+  renderSignal.addEventListener('abort', () => {
     phoneScrollObserver.disconnect();
     if (phoneScrollSyncRaf) window.cancelAnimationFrame(phoneScrollSyncRaf);
   });
