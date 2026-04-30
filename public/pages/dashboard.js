@@ -135,6 +135,19 @@ const DASHBOARD_BOARD_DEFAULTS = {
   'events-widget': { x: 6, y: 1, w: 3, h: 3 },
   'quick-notes-widget': { x: 9, y: 1, w: 3, h: 3 },
 };
+const DASHBOARD_BOARD_SPAN_WIDTHS = {
+  '1': 3,
+  '2': 6,
+  full: 12,
+};
+const DASHBOARD_BOARD_SPAN_ROWS = {
+  xxs: 1,
+  xs: 2,
+  short: 2,
+  normal: 3,
+  tall: 4,
+  xlarge: 5,
+};
 
 function dashboardBoardDefaultRectForId(id, yCursor = 0) {
   if (typeof id === 'string' && id.startsWith('webview:')) {
@@ -270,7 +283,7 @@ function dashboardBoardRectToPixels(rect, metrics) {
 
 function dashboardBoardOccupied(rows, x, y, w, h) {
   for (let r = y; r < y + h; r += 1) {
-    if (!rows[r]) rows[r] = Array(DASHBOARD_TEST_BOARD_COLUMNS).fill(false);
+    if (!rows[r]) rows[r] = Array(DASHBOARD_BOARD_COLUMNS).fill(false);
     for (let c = x; c < x + w; c += 1) {
       if (rows[r][c]) return true;
     }
@@ -280,7 +293,7 @@ function dashboardBoardOccupied(rows, x, y, w, h) {
 
 function dashboardBoardMark(rows, x, y, w, h) {
   for (let r = y; r < y + h; r += 1) {
-    if (!rows[r]) rows[r] = Array(DASHBOARD_TEST_BOARD_COLUMNS).fill(false);
+    if (!rows[r]) rows[r] = Array(DASHBOARD_BOARD_COLUMNS).fill(false);
     for (let c = x; c < x + w; c += 1) {
       rows[r][c] = true;
     }
@@ -1533,7 +1546,7 @@ function wireDashboardLayout(container, layoutState, data) {
     const occupied = [];
     const ensureRows = (rowCount) => {
       while (occupied.length < rowCount) {
-        occupied.push(Array(TEST_BOARD_COLUMN_COUNT).fill(false));
+        occupied.push(Array(DASHBOARD_BOARD_COLUMNS).fill(false));
       }
     };
     const canPlace = (rowIndex, colIndex, colSpan, rowSpan) => {
@@ -1563,12 +1576,12 @@ function wireDashboardLayout(container, layoutState, data) {
       if (!widget.isConnected) return;
       const span = widget.dataset.widgetSpan || '1';
       const height = widget.dataset.widgetHeight || 'normal';
-      const colSpan = TEST_BOARD_SPAN_WIDTHS[span] ?? 4;
-      const rowSpan = TEST_BOARD_SPAN_ROWS[height] ?? 3;
+      const colSpan = DASHBOARD_BOARD_SPAN_WIDTHS?.[span] ?? 4;
+      const rowSpan = DASHBOARD_BOARD_SPAN_ROWS?.[height] ?? 3;
       let placed = false;
 
       for (let rowIndex = 0; !placed; rowIndex += 1) {
-        for (let colIndex = 0; colIndex <= TEST_BOARD_COLUMN_COUNT - colSpan; colIndex += 1) {
+        for (let colIndex = 0; colIndex <= DASHBOARD_BOARD_COLUMNS - colSpan; colIndex += 1) {
           if (!canPlace(rowIndex, colIndex, colSpan, rowSpan)) continue;
           occupy(rowIndex, colIndex, colSpan, rowSpan);
           widget.style.gridColumn = `${colIndex + 1} / span ${colSpan}`;
