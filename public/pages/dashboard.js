@@ -95,54 +95,49 @@ function setupPhoneWidgetOverflow(container) {
 
     if (widget.classList.contains('widget--expanded')) continue;
 
-    requestAnimationFrame(() => {
-      const targetHeight = parseFloat(window.getComputedStyle(widget).getPropertyValue('--widget-fixed-height')) || 350;
-      // Offset within widget where items start (header + tabs + add-host)
-      const widgetTop = widget.getBoundingClientRect().top;
-      const items = Array.from(body.querySelectorAll('.personal-widget-item, .shopping-widget__item, .event-item'));
-      if (!items.length) return;
+    const targetHeight = parseFloat(window.getComputedStyle(widget).getPropertyValue('--widget-fixed-height')) || 350;
+    const widgetTop = widget.getBoundingClientRect().top;
+    const items = Array.from(body.querySelectorAll('.personal-widget-item, .shopping-widget__item, .event-item'));
+    if (!items.length) continue;
 
-      const reservedForButton = 44; // approximate height of "See more" row
-      const cutoff = targetHeight - reservedForButton;
-      let visibleCount = 0;
-      for (const item of items) {
-        const rect = item.getBoundingClientRect();
-        const bottom = (rect.top - widgetTop) + rect.height;
-        if (bottom <= cutoff) visibleCount++;
-        else break;
-      }
-      // ensure at least one item visible if any exist
-      if (visibleCount === 0 && items.length > 0) visibleCount = 1;
-      const hiddenCount = items.length - visibleCount;
-      if (hiddenCount <= 0) return;
+    const reservedForButton = 44;
+    const cutoff = targetHeight - reservedForButton;
+    let visibleCount = 0;
+    for (const item of items) {
+      const rect = item.getBoundingClientRect();
+      const bottom = (rect.top - widgetTop) + rect.height;
+      if (bottom <= cutoff) visibleCount++;
+      else break;
+    }
+    if (visibleCount === 0 && items.length > 0) visibleCount = 1;
+    const hiddenCount = items.length - visibleCount;
+    if (hiddenCount <= 0) continue;
 
-      // Hide overflowing items
-      for (let i = visibleCount; i < items.length; i++) {
-        items[i].classList.add('widget-item--phone-hidden');
-      }
+    for (let i = visibleCount; i < items.length; i++) {
+      items[i].classList.add('widget-item--phone-hidden');
+    }
 
-      const seeMoreRow = document.createElement('div');
-      seeMoreRow.className = 'widget__see-more';
-      seeMoreRow.innerHTML = `<button class="widget__see-more-btn" type="button" aria-expanded="false">See ${hiddenCount} more</button>`;
-      widget.appendChild(seeMoreRow);
+    const seeMoreRow = document.createElement('div');
+    seeMoreRow.className = 'widget__see-more';
+    seeMoreRow.innerHTML = `<button class="widget__see-more-btn" type="button" aria-expanded="false">See ${hiddenCount} more</button>`;
+    widget.appendChild(seeMoreRow);
 
-      seeMoreRow.querySelector('.widget__see-more-btn').addEventListener('click', (e) => {
-        e.stopPropagation();
-        widget.classList.add('widget--expanded');
-        items.forEach((it) => it.classList.remove('widget-item--phone-hidden'));
-        seeMoreRow.remove();
+    seeMoreRow.querySelector('.widget__see-more-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      widget.classList.add('widget--expanded');
+      items.forEach((it) => it.classList.remove('widget-item--phone-hidden'));
+      seeMoreRow.remove();
 
-        const collapseRow = document.createElement('div');
-        collapseRow.className = 'widget__see-more';
-        collapseRow.innerHTML = `<button class="widget__see-more-btn" type="button" aria-expanded="true">See less</button>`;
-        widget.appendChild(collapseRow);
+      const collapseRow = document.createElement('div');
+      collapseRow.className = 'widget__see-more';
+      collapseRow.innerHTML = `<button class="widget__see-more-btn" type="button" aria-expanded="true">See less</button>`;
+      widget.appendChild(collapseRow);
 
-        collapseRow.querySelector('.widget__see-more-btn').addEventListener('click', (ev) => {
-          ev.stopPropagation();
-          widget.classList.remove('widget--expanded');
-          collapseRow.remove();
-          setupPhoneWidgetOverflow(container);
-        });
+      collapseRow.querySelector('.widget__see-more-btn').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        widget.classList.remove('widget--expanded');
+        collapseRow.remove();
+        setupPhoneWidgetOverflow(container);
       });
     });
   }

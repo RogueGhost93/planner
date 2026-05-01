@@ -637,12 +637,8 @@ function scrollNavToActive() {
 
 function isRouteSwipeExcludedTarget(target) {
   return !!target?.closest([
-    'a',
-    'button',
-    'input',
     'textarea',
     'select',
-    'label',
     '[contenteditable="true"]',
     '.nav-sidebar',
     '.nav-bottom',
@@ -652,6 +648,9 @@ function isRouteSwipeExcludedTarget(target) {
     '#task-tabs-bar',
     '.tasks-widget__tabs-wrap',
     '.shopping-widget__head-wrap',
+    '.bookmarks-filter-row',
+    '.news-toolbar__actions',
+    '.notebook-pane--editor',
   ].join(', '));
 }
 
