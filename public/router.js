@@ -552,16 +552,13 @@ function initBottomNavSwipe(container) {
 function wirePhoneNavMenuSwipe(trigger) {
   const SWIPE_THRESHOLD = 50;
   const LOCK_DELTA = 10;
+  const SUPPRESS_CLICK_MS = 350;
   let pointerId = null;
   let startX = 0;
   let startY = 0;
   let tracking = false;
   let locked = null;
-
-  const suppressClick = (e) => {
-    e.preventDefault();
-    e.stopImmediatePropagation();
-  };
+  let suppressClickUntil = 0;
 
   const navigateFromSwipe = (dx) => {
     if (Math.abs(dx) < SWIPE_THRESHOLD) return false;
@@ -573,7 +570,7 @@ function wirePhoneNavMenuSwipe(trigger) {
       : Math.max(0, currentIdx - 1);
     if (nextIdx === currentIdx) return false;
 
-    trigger.addEventListener('click', suppressClick, { once: true, capture: true });
+    suppressClickUntil = Date.now() + SUPPRESS_CLICK_MS;
     navigate(ROUTE_ORDER[nextIdx]);
     return true;
   };
@@ -610,7 +607,13 @@ function wirePhoneNavMenuSwipe(trigger) {
     const dx = e.clientX - startX;
     pointerId = null;
     locked = null;
-    if (wasLocked === 'h') navigateFromSwipe(dx);
+    if (wasLocked === 'h') {
+      if (!navigateFromSwipe(dx)) {
+        // Locked horizontal but didn't reach threshold — still suppress the
+        // click so a near-swipe doesn't open the menu by accident.
+        suppressClickUntil = Date.now() + SUPPRESS_CLICK_MS;
+      }
+    }
   });
 
   trigger.addEventListener('pointercancel', (e) => {
@@ -620,7 +623,14 @@ function wirePhoneNavMenuSwipe(trigger) {
     locked = null;
   });
 
-  trigger.addEventListener('click', () => openPhoneNavMenu());
+  trigger.addEventListener('click', (e) => {
+    if (Date.now() < suppressClickUntil) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
+    openPhoneNavMenu();
+  });
 }
 
 /**
