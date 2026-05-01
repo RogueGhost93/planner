@@ -1943,7 +1943,7 @@ a.price-ticker:hover {
   }
 
   .dashboard .widget {
-    height: var(--widget-fixed-height, 350px);
+    height: auto;
     min-height: 0;
   }
 
@@ -1968,9 +1968,38 @@ a.price-ticker:hover {
 
   #tasks-widget .widget__body,
   #shopping-widget .widget__body,
-  #events-widget .widget__body {
-    max-height: none;
+  #calendar-widget .widget__body {
+    max-height: var(--widget-fixed-height, 350px);
     min-height: 0;
+    overflow: visible;
+    overflow-x: auto;
+  }
+
+  #tasks-widget.widget--expanded .widget__body,
+  #shopping-widget.widget--expanded .widget__body,
+  #calendar-widget.widget--expanded .widget__body {
+    max-height: none;
+  }
+
+  .widget__see-more {
+    padding: var(--space-2) var(--space-4);
+    border-top: 1px solid var(--color-border-subtle);
+    text-align: center;
+  }
+
+  .widget__see-more-btn {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    padding: var(--space-2) 0;
+    transition: opacity var(--transition-fast);
+  }
+
+  .widget__see-more-btn:active {
+    opacity: 0.7;
   }
 }
 

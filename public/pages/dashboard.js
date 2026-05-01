@@ -76,6 +76,61 @@ function isDashboardPhoneLayout() {
   return viewportWidth <= 767 || window.matchMedia('(max-width: 767px)').matches;
 }
 
+function setupPhoneWidgetOverflow(container) {
+  if (!isDashboardPhoneLayout()) return;
+
+  const widgetIds = ['tasks-widget', 'shopping-widget', 'events-widget'];
+  for (const widgetId of widgetIds) {
+    const widget = container.querySelector(`#${widgetId}`);
+    if (!widget) continue;
+
+    const body = widget.querySelector('.widget__body');
+    if (!body) continue;
+
+    const updateOverflow = () => {
+      const isExpanded = widget.classList.contains('widget--expanded');
+      const scrollHeight = body.scrollHeight;
+      const clientHeight = body.clientHeight;
+      const isOverflowing = scrollHeight > clientHeight && !isExpanded;
+
+      let seeMoreRow = widget.querySelector('.widget__see-more');
+      if (isOverflowing && !seeMoreRow) {
+        seeMoreRow = document.createElement('div');
+        seeMoreRow.className = 'widget__see-more';
+        const items = body.querySelectorAll('.personal-widget-item, .shopping-widget__item, .event-item');
+        let visibleCount = 0;
+        let totalCount = items.length;
+        for (const item of items) {
+          const itemTop = item.offsetTop;
+          if (itemTop < maxHeight) visibleCount++;
+          else break;
+        }
+        const hiddenCount = totalCount - visibleCount;
+        seeMoreRow.innerHTML = `
+          <button class="widget__see-more-btn" aria-expanded="false">
+            See ${hiddenCount} more
+          </button>
+        `;
+        widget.appendChild(seeMoreRow);
+
+        const btn = seeMoreRow.querySelector('.widget__see-more-btn');
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          widget.classList.toggle('widget--expanded');
+          btn.textContent = widget.classList.contains('widget--expanded')
+            ? 'See less'
+            : `See ${hiddenCount} more`;
+          btn.setAttribute('aria-expanded', widget.classList.contains('widget--expanded'));
+        });
+      } else if (!isOverflowing && seeMoreRow) {
+        seeMoreRow.remove();
+      }
+    };
+
+    requestAnimationFrame(updateOverflow);
+  }
+}
+
 function dashboardApiPath(path = '') {
   return `/dashboard${path}`;
 }
@@ -1202,6 +1257,7 @@ function updateBoardNotesSection(container, notes) {
 }
 
 let _widgetActiveHeadId = null;
+const SHOPPING_COLLAPSE_AT = 5;
 
 function renderShoppingWidget(heads, sublists, allItems, span = '2', height = 'normal') {
   const items = allItems.filter((i) => !i.is_checked);
@@ -3122,21 +3178,7 @@ function wireGreetingLink(container) {
     const quickLink = btn.dataset.quickLink?.trim();
     if (!quickLink) return;
 
-    const isInternalRoute = quickLink.startsWith('/') && !quickLink.startsWith('//');
-    if (isInternalRoute && window.planium?.navigate) {
-      window.planium.navigate(quickLink);
-      return;
-    }
-
-    // Mobile/standalone shells can hand off "_blank" links to the external browser.
-    // Keep external links in the current browser context on small screens instead.
-    const isMobile = window.matchMedia('(max-width: 1023px)').matches
-      || window.matchMedia('(pointer: coarse)').matches;
-    if (isMobile) {
-      window.location.href = quickLink;
-      return;
-    }
-
+    // On desktop: opens new tab in same browser. On mobile PWA: hands off to external browser.
     window.open(quickLink, '_blank', 'noopener,noreferrer');
   });
 }
@@ -3556,6 +3598,7 @@ export async function render(container, { user }) {
     wireTasksWidget(container, data, refreshTasksWidget);
     wireLinks(container);
     syncPhoneWidgetScrollability(container);
+    setupPhoneWidgetOverflow(container);
   }
   currentDashboardData = data;
   currentRefreshTasksWidget = refreshTasksWidget;
@@ -3567,6 +3610,7 @@ export async function render(container, { user }) {
   wireWebviewCards(container);
   if (window.lucide) window.lucide.createIcons();
   syncPhoneWidgetScrollability(container);
+  setupPhoneWidgetOverflow(container);
 
   let widgetScrollSyncRaf = 0;
   const scheduleWidgetScrollSync = () => {

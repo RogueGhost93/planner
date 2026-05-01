@@ -119,14 +119,14 @@
    * 6. Farben - Prioritäten
    * -------------------------------------------------------- */
   --color-priority-low:    var(--neutral-500);
-  --color-priority-medium: #B45309;
-  --color-priority-high:   #D4511E;
+  --color-priority-medium: #D97706;
+  --color-priority-high:   #EA580C;
   --color-priority-urgent: #DC2626;
 
   /* Hintergrundfarben für Priority-Badges */
   --color-priority-low-bg:    rgba(142, 141, 137, 0.12);
-  --color-priority-medium-bg: rgba(180, 83, 9, 0.12);
-  --color-priority-high-bg:   rgba(212, 81, 30, 0.12);
+  --color-priority-medium-bg: rgba(217, 119, 6, 0.12);
+  --color-priority-high-bg:   rgba(234, 88, 12, 0.12);
   --color-priority-urgent-bg: rgba(220, 38, 38, 0.12);
 
   /* --------------------------------------------------------
@@ -335,9 +335,9 @@
 
     /* Priority-Badge Hintergründe */
     --color-priority-low-bg:    rgba(142, 141, 137, 0.18);
-    --color-priority-medium-bg: rgba(230, 147, 10, 0.18);
-    --color-priority-high-bg:   rgba(212, 81, 30, 0.18);
-    --color-priority-urgent-bg: rgba(229, 83, 75, 0.18);
+    --color-priority-medium-bg: rgba(217, 119, 6, 0.18);
+    --color-priority-high-bg:   rgba(234, 88, 12, 0.18);
+    --color-priority-urgent-bg: rgba(220, 38, 38, 0.18);
 
     /* Overlay */
     --color-overlay: rgba(0, 0, 0, 0.6);
@@ -935,13 +935,13 @@
 
   /* Semantic — Obsidian */
   --color-priority-low:        #737A87;
-  --color-priority-medium:     #E8B96A;
-  --color-priority-high:       #E88E6A;
-  --color-priority-urgent:     #E8716A;
+  --color-priority-medium:     #FBBF24;
+  --color-priority-high:       #F97316;
+  --color-priority-urgent:     #F87171;
   --color-priority-low-bg:     rgba(115,122,135,0.15);
-  --color-priority-medium-bg:  rgba(232,185,106,0.15);
-  --color-priority-high-bg:    rgba(232,142,106,0.15);
-  --color-priority-urgent-bg:  rgba(232,113,106,0.15);
+  --color-priority-medium-bg:  rgba(251,191,36,0.15);
+  --color-priority-high-bg:    rgba(249,115,22,0.15);
+  --color-priority-urgent-bg:  rgba(248,113,113,0.15);
 
   /* Shadows — stronger, cooler */
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
@@ -1022,13 +1022,13 @@
 
   /* Semantic — Midnight Forest */
   --color-priority-low:        #6A8870;
-  --color-priority-medium:     #D8B06A;
-  --color-priority-high:       #D88260;
-  --color-priority-urgent:     #D86060;
+  --color-priority-medium:     #FBBF24;
+  --color-priority-high:       #F97316;
+  --color-priority-urgent:     #F87171;
   --color-priority-low-bg:     rgba(106,136,112,0.18);
-  --color-priority-medium-bg:  rgba(216,176,106,0.18);
-  --color-priority-high-bg:    rgba(216,130,96,0.18);
-  --color-priority-urgent-bg:  rgba(216,96,96,0.18);
+  --color-priority-medium-bg:  rgba(251,191,36,0.18);
+  --color-priority-high-bg:    rgba(249,115,22,0.18);
+  --color-priority-urgent-bg:  rgba(248,113,113,0.18);
 
   /* Shadows — green-tinted darks */
   --shadow-sm: 0 1px 3px rgba(0,8,0,0.45);
@@ -1109,13 +1109,13 @@
 
   /* Semantic — Noir */
   --color-priority-low:        #787878;
-  --color-priority-medium:     #E8B86A;
-  --color-priority-high:       #E88A6A;
-  --color-priority-urgent:     #E86A6A;
+  --color-priority-medium:     #FBBF24;
+  --color-priority-high:       #F97316;
+  --color-priority-urgent:     #F87171;
   --color-priority-low-bg:     rgba(120,120,120,0.15);
-  --color-priority-medium-bg:  rgba(232,184,106,0.15);
-  --color-priority-high-bg:    rgba(232,138,106,0.15);
-  --color-priority-urgent-bg:  rgba(232,106,106,0.15);
+  --color-priority-medium-bg:  rgba(251,191,36,0.15);
+  --color-priority-high-bg:    rgba(249,115,22,0.15);
+  --color-priority-urgent-bg:  rgba(248,113,113,0.15);
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.5);
@@ -1366,13 +1366,13 @@
 
   /* Priority */
   --color-priority-low:        #887860;
-  --color-priority-medium:     #9A6A10;
-  --color-priority-high:       #A84820;
-  --color-priority-urgent:     #A83028;
+  --color-priority-medium:     #D97706;
+  --color-priority-high:       #EA580C;
+  --color-priority-urgent:     #DC2626;
   --color-priority-low-bg:     rgba(136,120,96,0.12);
-  --color-priority-medium-bg:  rgba(154,106,16,0.12);
-  --color-priority-high-bg:    rgba(168,72,32,0.12);
-  --color-priority-urgent-bg:  rgba(168,48,40,0.12);
+  --color-priority-medium-bg:  rgba(217,119,6,0.12);
+  --color-priority-high-bg:    rgba(234,88,12,0.12);
+  --color-priority-urgent-bg:  rgba(220,38,38,0.12);
 
   --shadow-sm: 0 1px 2px rgba(32,24,16,0.06), 0 1px 4px rgba(32,24,16,0.04);
   --shadow-md: 0 2px 8px rgba(32,24,16,0.10), 0 1px 2px rgba(32,24,16,0.06);
@@ -1446,13 +1446,13 @@
   --module-settings:  #7090B0;
 
   --color-priority-low:        #68839D;
-  --color-priority-medium:     #B45309;
-  --color-priority-high:       #1D6FCE;
-  --color-priority-urgent:     #C81E1E;
+  --color-priority-medium:     #D97706;
+  --color-priority-high:       #EA580C;
+  --color-priority-urgent:     #DC2626;
   --color-priority-low-bg:     rgba(104,131,157,0.12);
-  --color-priority-medium-bg:  rgba(180,83,9,0.12);
-  --color-priority-high-bg:    rgba(29,111,206,0.12);
-  --color-priority-urgent-bg:  rgba(200,30,30,0.12);
+  --color-priority-medium-bg:  rgba(217,119,6,0.12);
+  --color-priority-high-bg:    rgba(234,88,12,0.12);
+  --color-priority-urgent-bg:  rgba(220,38,38,0.12);
 
   --shadow-sm: 0 1px 2px rgba(21,32,47,0.06), 0 1px 4px rgba(21,32,47,0.04);
   --shadow-md: 0 2px 8px rgba(21,32,47,0.10), 0 1px 2px rgba(21,32,47,0.06);
@@ -1526,13 +1526,13 @@
   --module-settings:  #6D8BA6;
 
   --color-priority-low:        #567793;
-  --color-priority-medium:     #C17A1B;
-  --color-priority-high:       #1D6FCE;
-  --color-priority-urgent:     #D14B4B;
+  --color-priority-medium:     #D97706;
+  --color-priority-high:       #EA580C;
+  --color-priority-urgent:     #DC2626;
   --color-priority-low-bg:     rgba(86,119,147,0.12);
-  --color-priority-medium-bg:  rgba(193,122,27,0.12);
-  --color-priority-high-bg:    rgba(29,111,206,0.12);
-  --color-priority-urgent-bg:  rgba(209,75,75,0.12);
+  --color-priority-medium-bg:  rgba(217,119,6,0.12);
+  --color-priority-high-bg:    rgba(234,88,12,0.12);
+  --color-priority-urgent-bg:  rgba(220,38,38,0.12);
 
   --shadow-sm: 0 1px 2px rgba(18,27,36,0.06), 0 1px 4px rgba(18,27,36,0.04);
   --shadow-md: 0 2px 8px rgba(18,27,36,0.10), 0 1px 2px rgba(18,27,36,0.06);
@@ -1606,13 +1606,13 @@
   --module-settings:  #7AA1B8;
 
   --color-priority-low:        #66869D;
-  --color-priority-medium:     #C38A1C;
-  --color-priority-high:       #3B82F6;
-  --color-priority-urgent:     #E04E4E;
+  --color-priority-medium:     #D97706;
+  --color-priority-high:       #EA580C;
+  --color-priority-urgent:     #DC2626;
   --color-priority-low-bg:     rgba(102,134,157,0.12);
-  --color-priority-medium-bg:  rgba(195,138,28,0.12);
-  --color-priority-high-bg:    rgba(59,130,246,0.12);
-  --color-priority-urgent-bg:  rgba(224,78,78,0.12);
+  --color-priority-medium-bg:  rgba(217,119,6,0.12);
+  --color-priority-high-bg:    rgba(234,88,12,0.12);
+  --color-priority-urgent-bg:  rgba(220,38,38,0.12);
 
   --shadow-sm: 0 1px 2px rgba(20,32,42,0.06), 0 1px 4px rgba(20,32,42,0.04);
   --shadow-md: 0 2px 8px rgba(20,32,42,0.10), 0 1px 2px rgba(20,32,42,0.06);
@@ -1641,12 +1641,12 @@
 :root[data-theme],
 :root[data-accent] {
   --color-priority-low:    #8E8D89;
-  --color-priority-medium: #B45309;
-  --color-priority-high:   #D4511E;
+  --color-priority-medium: #D97706;
+  --color-priority-high:   #EA580C;
   --color-priority-urgent: #DC2626;
 
   --color-priority-low-bg:    rgba(142, 141, 137, 0.12);
-  --color-priority-medium-bg: rgba(180, 83, 9, 0.12);
-  --color-priority-high-bg:   rgba(212, 81, 30, 0.12);
+  --color-priority-medium-bg: rgba(217, 119, 6, 0.12);
+  --color-priority-high-bg:   rgba(234, 88, 12, 0.12);
   --color-priority-urgent-bg: rgba(220, 38, 38, 0.12);
 }

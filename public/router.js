@@ -557,21 +557,10 @@ function wirePhoneNavMenuSwipe(trigger) {
   let startY = 0;
   let tracking = false;
   let locked = null;
-  let suppressTapClick = false;
-  let suppressTapClickTimer = null;
 
   const suppressClick = (e) => {
     e.preventDefault();
     e.stopImmediatePropagation();
-  };
-
-  const suppressNextTapClick = () => {
-    suppressTapClick = true;
-    if (suppressTapClickTimer) window.clearTimeout(suppressTapClickTimer);
-    suppressTapClickTimer = window.setTimeout(() => {
-      suppressTapClick = false;
-      suppressTapClickTimer = null;
-    }, 500);
   };
 
   const navigateFromSwipe = (dx) => {
@@ -617,21 +606,11 @@ function wirePhoneNavMenuSwipe(trigger) {
   trigger.addEventListener('pointerup', (e) => {
     if (!tracking || e.pointerId !== pointerId) return;
     tracking = false;
-
-    if (locked !== 'h') {
-      if (e.pointerType !== 'mouse') {
-        suppressNextTapClick();
-        openPhoneNavMenu();
-      }
-      pointerId = null;
-      locked = null;
-      return;
-    }
-
+    const wasLocked = locked;
     const dx = e.clientX - startX;
-    navigateFromSwipe(dx);
     pointerId = null;
     locked = null;
+    if (wasLocked === 'h') navigateFromSwipe(dx);
   });
 
   trigger.addEventListener('pointercancel', (e) => {
@@ -641,18 +620,7 @@ function wirePhoneNavMenuSwipe(trigger) {
     locked = null;
   });
 
-  trigger.addEventListener('click', (e) => {
-    if (suppressTapClick) {
-      suppressClick(e);
-      suppressTapClick = false;
-      if (suppressTapClickTimer) {
-        window.clearTimeout(suppressTapClickTimer);
-        suppressTapClickTimer = null;
-      }
-      return;
-    }
-    openPhoneNavMenu();
-  });
+  trigger.addEventListener('click', () => openPhoneNavMenu());
 }
 
 /**

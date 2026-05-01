@@ -6,7 +6,7 @@
  */
 
 import { api } from '/api.js';
-import { stagger, vibrate } from '/utils/ux.js';
+import { vibrate } from '/utils/ux.js';
 import { t } from '/i18n.js';
 import { esc, linkify } from '/utils/html.js';
 import { showConfirm, showPrompt, openModal, closeModal } from '/components/modal.js';
@@ -95,7 +95,15 @@ function renderHeadBody(container) {
   `;
 
   if (window.lucide) window.lucide.createIcons();
-  stagger(content.querySelectorAll('.shopping-item'));
+  const rows = Array.from(content.querySelectorAll('.swipe-row'));
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    rows.forEach((el, i) => {
+      const d = Math.min(i, 5) * 30;
+      el.style.opacity = '0';
+      el.style.transition = `opacity 180ms ease ${d}ms`;
+      requestAnimationFrame(() => { el.style.opacity = '1'; });
+    });
+  }
   wireSwipeGestures(container);
   wireAllAutocomplete(container);
 }
