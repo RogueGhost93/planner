@@ -2565,6 +2565,22 @@ a.price-ticker:hover {
   flex-direction: column-reverse;
   align-items: flex-end;
   gap: var(--space-3);
+  pointer-events: none;
+}
+
+.fab-container * {
+  pointer-events: none;
+}
+
+.fab-container > .fab-main,
+.fab-container > .fab-settings,
+.fab-container > .fab-edit-toggle {
+  pointer-events: auto;
+}
+
+.fab-actions--visible,
+.fab-actions--visible * {
+  pointer-events: auto;
 }
 
 @media (min-width: 1024px) {

@@ -551,7 +551,7 @@ function initBottomNavSwipe(container) {
 
 function wirePhoneNavMenuSwipe(trigger) {
   const SWIPE_THRESHOLD = 50;
-  const LOCK_DELTA = 10;
+  const LOCK_DELTA = 25;
   const SUPPRESS_CLICK_MS = 350;
   let pointerId = null;
   let startX = 0;
@@ -594,10 +594,7 @@ function wirePhoneNavMenuSwipe(trigger) {
       if (Math.abs(dx) > LOCK_DELTA && Math.abs(dx) > Math.abs(dy)) locked = 'h';
       else if (Math.abs(dy) > LOCK_DELTA) locked = 'v';
     }
-
-    if (locked === 'h') {
-      e.preventDefault();
-    }
+    // No preventDefault — only act on pointerup if a real swipe completed.
   });
 
   trigger.addEventListener('pointerup', (e) => {
@@ -607,13 +604,7 @@ function wirePhoneNavMenuSwipe(trigger) {
     const dx = e.clientX - startX;
     pointerId = null;
     locked = null;
-    if (wasLocked === 'h') {
-      if (!navigateFromSwipe(dx)) {
-        // Locked horizontal but didn't reach threshold — still suppress the
-        // click so a near-swipe doesn't open the menu by accident.
-        suppressClickUntil = Date.now() + SUPPRESS_CLICK_MS;
-      }
-    }
+    if (wasLocked === 'h') navigateFromSwipe(dx);
   });
 
   trigger.addEventListener('pointercancel', (e) => {
@@ -657,7 +648,11 @@ function isRouteSwipeExcludedTarget(target) {
     '.task-tabs-bar',
     '#task-tabs-bar',
     '.tasks-widget__tabs-wrap',
+    '.tasks-widget__tabs',
+    '#tasks-widget-tabs',
     '.shopping-widget__head-wrap',
+    '.shopping-widget__head-tabs',
+    '#shopping-widget-head-tabs',
     '.bookmarks-filter-row',
     '.news-toolbar__actions',
     '.notebook-pane--editor',
@@ -674,12 +669,14 @@ function initRouteSwipe(container) {
 
   const isMobile = () => window.matchMedia('(max-width: 1023px)').matches;
   const SWIPE_THRESHOLD = 50;
-  const LOCK_DELTA = 10;
+  const LOCK_DELTA = 25;
+  const SUPPRESS_CLICK_MS = 350;
 
   let startX = 0;
   let startY = 0;
   let tracking = false;
   let locked = null;
+  let suppressClickUntil = 0;
 
   main.addEventListener('touchstart', (e) => {
     if (!isMobile()) return;
@@ -703,11 +700,10 @@ function initRouteSwipe(container) {
       if (Math.abs(dx) > LOCK_DELTA && Math.abs(dx) > Math.abs(dy)) locked = 'h';
       else if (Math.abs(dy) > LOCK_DELTA) locked = 'v';
     }
-
-    if (locked === 'h') {
-      e.preventDefault();
-    }
-  }, { passive: false });
+    // Don't preventDefault — keeping it passive lets native behaviors run
+    // (page scroll, touch-action pan-x on inner strips). We only act on
+    // touchend if a clear horizontal swipe was made.
+  }, { passive: true });
 
   main.addEventListener('touchend', (e) => {
     if (!tracking) return;
@@ -725,6 +721,7 @@ function initRouteSwipe(container) {
       : Math.max(0, currentIdx - 1);
     if (nextIdx === currentIdx) return;
 
+    suppressClickUntil = Date.now() + SUPPRESS_CLICK_MS;
     navigate(ROUTE_ORDER[nextIdx]);
   });
 
@@ -732,6 +729,15 @@ function initRouteSwipe(container) {
     tracking = false;
     locked = null;
   });
+
+  // Suppress clicks that fire on touchend after a real swipe, so the
+  // destination page doesn't immediately receive an accidental tap.
+  main.addEventListener('click', (e) => {
+    if (Date.now() < suppressClickUntil) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
+  }, true);
 }
 
 function setNavRouteHidden(path, hidden) {
