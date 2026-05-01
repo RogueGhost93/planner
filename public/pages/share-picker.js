@@ -74,7 +74,7 @@ export async function render(container) {
               Saves unread, no tags
             </div>
           </div>
-          <button type="button" id="share-as-bookmark" class="btn btn--secondary" style="justify-content:center;min-height:48px" ${linkdingAvailable ? '' : 'disabled'}>
+          <button type="button" id="share-as-bookmark" class="btn btn--primary" style="justify-content:center;min-height:48px" ${linkdingAvailable ? '' : 'disabled'}>
             Bookmark
           </button>
         </div>

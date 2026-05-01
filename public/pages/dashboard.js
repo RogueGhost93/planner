@@ -87,47 +87,64 @@ function setupPhoneWidgetOverflow(container) {
     const body = widget.querySelector('.widget__body');
     if (!body) continue;
 
-    const updateOverflow = () => {
-      const isExpanded = widget.classList.contains('widget--expanded');
-      const scrollHeight = body.scrollHeight;
-      const clientHeight = body.clientHeight;
-      const isOverflowing = scrollHeight > clientHeight && !isExpanded;
+    // Reset: clear hidden class on all items, remove old see-more row
+    body.querySelectorAll('.widget-item--phone-hidden').forEach((el) => {
+      el.classList.remove('widget-item--phone-hidden');
+    });
+    widget.querySelector('.widget__see-more')?.remove();
 
-      let seeMoreRow = widget.querySelector('.widget__see-more');
-      if (isOverflowing && !seeMoreRow) {
-        seeMoreRow = document.createElement('div');
-        seeMoreRow.className = 'widget__see-more';
-        const items = body.querySelectorAll('.personal-widget-item, .shopping-widget__item, .event-item');
-        let visibleCount = 0;
-        let totalCount = items.length;
-        for (const item of items) {
-          const itemTop = item.offsetTop;
-          if (itemTop < maxHeight) visibleCount++;
-          else break;
-        }
-        const hiddenCount = totalCount - visibleCount;
-        seeMoreRow.innerHTML = `
-          <button class="widget__see-more-btn" aria-expanded="false">
-            See ${hiddenCount} more
-          </button>
-        `;
-        widget.appendChild(seeMoreRow);
+    if (widget.classList.contains('widget--expanded')) continue;
 
-        const btn = seeMoreRow.querySelector('.widget__see-more-btn');
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          widget.classList.toggle('widget--expanded');
-          btn.textContent = widget.classList.contains('widget--expanded')
-            ? 'See less'
-            : `See ${hiddenCount} more`;
-          btn.setAttribute('aria-expanded', widget.classList.contains('widget--expanded'));
-        });
-      } else if (!isOverflowing && seeMoreRow) {
-        seeMoreRow.remove();
+    requestAnimationFrame(() => {
+      const targetHeight = parseFloat(window.getComputedStyle(widget).getPropertyValue('--widget-fixed-height')) || 350;
+      // Offset within widget where items start (header + tabs + add-host)
+      const widgetTop = widget.getBoundingClientRect().top;
+      const items = Array.from(body.querySelectorAll('.personal-widget-item, .shopping-widget__item, .event-item'));
+      if (!items.length) return;
+
+      const reservedForButton = 44; // approximate height of "See more" row
+      const cutoff = targetHeight - reservedForButton;
+      let visibleCount = 0;
+      for (const item of items) {
+        const rect = item.getBoundingClientRect();
+        const bottom = (rect.top - widgetTop) + rect.height;
+        if (bottom <= cutoff) visibleCount++;
+        else break;
       }
-    };
+      // ensure at least one item visible if any exist
+      if (visibleCount === 0 && items.length > 0) visibleCount = 1;
+      const hiddenCount = items.length - visibleCount;
+      if (hiddenCount <= 0) return;
 
-    requestAnimationFrame(updateOverflow);
+      // Hide overflowing items
+      for (let i = visibleCount; i < items.length; i++) {
+        items[i].classList.add('widget-item--phone-hidden');
+      }
+
+      const seeMoreRow = document.createElement('div');
+      seeMoreRow.className = 'widget__see-more';
+      seeMoreRow.innerHTML = `<button class="widget__see-more-btn" type="button" aria-expanded="false">See ${hiddenCount} more</button>`;
+      widget.appendChild(seeMoreRow);
+
+      seeMoreRow.querySelector('.widget__see-more-btn').addEventListener('click', (e) => {
+        e.stopPropagation();
+        widget.classList.add('widget--expanded');
+        items.forEach((it) => it.classList.remove('widget-item--phone-hidden'));
+        seeMoreRow.remove();
+
+        const collapseRow = document.createElement('div');
+        collapseRow.className = 'widget__see-more';
+        collapseRow.innerHTML = `<button class="widget__see-more-btn" type="button" aria-expanded="true">See less</button>`;
+        widget.appendChild(collapseRow);
+
+        collapseRow.querySelector('.widget__see-more-btn').addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          widget.classList.remove('widget--expanded');
+          collapseRow.remove();
+          setupPhoneWidgetOverflow(container);
+        });
+      });
+    });
   }
 }
 
@@ -985,15 +1002,25 @@ function isPhoneViewport() {
   return window.matchMedia('(max-width: 767px)').matches;
 }
 
+const PHONE_EXPAND_WIDGET_IDS = new Set(['tasks-widget-body', 'shopping-widget-body', 'events-widget-body']);
+
 function syncPhoneWidgetScrollability(container) {
   const bodies = container.querySelectorAll('.widget__body');
+  const isPhone = isDashboardPhoneLayout();
 
   bodies.forEach((body) => {
     if (body.id === 'tasks-widget-body') {
       const items = body.querySelector('.personal-widget-items');
       const itemOverflow = items ? items.scrollHeight - items.clientHeight : 0;
       body.classList.remove('widget__body--scrollable');
-      items?.classList.toggle('personal-widget-items--scrollable', itemOverflow > 12);
+      // on phones, items never get the scrollable class — page scrolls instead
+      items?.classList.toggle('personal-widget-items--scrollable', !isPhone && itemOverflow > 12);
+      return;
+    }
+
+    // on phones, shopping/events use expand-on-demand — no internal scroll
+    if (isPhone && PHONE_EXPAND_WIDGET_IDS.has(body.id)) {
+      body.classList.remove('widget__body--scrollable');
       return;
     }
 
@@ -1307,6 +1334,9 @@ function renderShoppingWidget(heads, sublists, allItems, span = '2', height = 'n
         </button>
         <span class="shopping-widget__item-name">${esc(i.name)}${i.quantity
           ? ` <span class="shopping-widget__qty">${esc(i.quantity)}</span>` : ''}</span>
+        <button class="shopping-widget__item-edit" data-action="edit-shopping-item" data-id="${i.id}" aria-label="${t('common.edit') ?? 'Edit'}">
+          <i data-lucide="pencil" style="width:13px;height:13px;pointer-events:none" aria-hidden="true"></i>
+        </button>
         ${deleteBtnHtml('delete-shopping-item', `data-id="${i.id}"`, t('common.delete'))}
       </div>`;
 
@@ -1318,6 +1348,9 @@ function renderShoppingWidget(heads, sublists, allItems, span = '2', height = 'n
             ${esc(sub.name)}
             <span data-badge="${sub.id}" hidden>${sub.unchecked_count}</span>
           </div>
+          <button class="shopping-widget__list-edit" data-action="edit-shopping-sublist" data-id="${sub.id}" aria-label="${t('common.edit') ?? 'Edit'}">
+            <i data-lucide="pencil" style="width:13px;height:13px;pointer-events:none" aria-hidden="true"></i>
+          </button>
           ${deleteBtnHtml('delete-shopping-sublist', `data-id="${sub.id}" data-name="${esc(sub.name)}"`, t('common.delete'))}
         </div>
         <div class="shopping-widget__items">
@@ -3115,6 +3148,7 @@ function wireTasksWidget(container, dashData, refreshWidget) {
       if (localStorage.getItem(tabKey) === tab) return;
       localStorage.setItem(tabKey, tab);
       softSwitchTab(tab);
+      setupPhoneWidgetOverflow(container);
     });
   });
 
@@ -3872,6 +3906,9 @@ function wireShoppingWidget(container, data) {
         </button>
         <span class="shopping-widget__item-name">${esc(i.name)}${i.quantity
           ? ` <span class="shopping-widget__qty">${esc(i.quantity)}</span>` : ''}</span>
+        <button class="shopping-widget__item-edit" data-action="edit-shopping-item" data-id="${i.id}" aria-label="${t('common.edit') ?? 'Edit'}">
+          <i data-lucide="pencil" style="width:13px;height:13px;pointer-events:none" aria-hidden="true"></i>
+        </button>
         ${deleteBtnHtml('delete-shopping-item', `data-id="${i.id}"`, t('common.delete'))}
       </div>`;
     const renderSub = (sub) => {
@@ -3886,6 +3923,9 @@ function wireShoppingWidget(container, data) {
               ${esc(sub.name)}
               <span data-badge="${sub.id}" hidden>${sub.unchecked_count}</span>
             </div>
+            <button class="shopping-widget__list-edit" data-action="edit-shopping-sublist" data-id="${sub.id}" aria-label="${t('common.edit') ?? 'Edit'}">
+              <i data-lucide="pencil" style="width:13px;height:13px;pointer-events:none" aria-hidden="true"></i>
+            </button>
             ${deleteBtnHtml('delete-shopping-sublist', `data-id="${sub.id}" data-name="${esc(sub.name)}"`, t('common.delete'))}
           </div>
           <div class="shopping-widget__items">
@@ -3918,6 +3958,7 @@ function wireShoppingWidget(container, data) {
       const newId = Number(btn.dataset.id);
       if (newId === _widgetActiveHeadId) return;
       softSwitchHead(newId);
+      setupPhoneWidgetOverflow(container);
     });
   });
 
@@ -3935,6 +3976,47 @@ function wireShoppingWidget(container, data) {
         moreBtn.remove();
         if (window.lucide) window.lucide.createIcons({ el: overflow });
       }
+      return;
+    }
+
+    // Edit shopping item
+    const editItemBtn = e.target.closest('[data-action="edit-shopping-item"]');
+    if (editItemBtn) {
+      e.stopPropagation();
+      const id = Number(editItemBtn.dataset.id);
+      const item = (data.listItems ?? []).find((i) => i.id === id);
+      if (!item) return;
+      openModal({
+        title: t('common.edit') ?? 'Edit item',
+        size: 'sm',
+        content: `
+          <form id="edit-shopping-item-form" novalidate autocomplete="off">
+            <div class="form-group">
+              <label class="form-label" for="edit-item-name">${t('shopping.itemNameLabel')}</label>
+              <input type="text" name="name" id="edit-item-name" class="form-input" value="${esc(item.name)}" required autofocus>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="edit-item-qty">${t('shopping.itemQtyLabel')}</label>
+              <input type="text" name="quantity" id="edit-item-qty" class="form-input" value="${esc(item.quantity || '')}" placeholder="${t('shopping.itemQtyPlaceholder')}">
+            </div>
+          </form>`,
+        async onSave(panel) {
+          const form = panel.querySelector('#edit-shopping-item-form');
+          const name = form.querySelector('[name="name"]').value.trim();
+          const quantity = form.querySelector('[name="quantity"]').value.trim();
+          if (!name) return false;
+          try {
+            const res = await api.patch(`/lists/items/${id}`, { name, quantity });
+            item.name = res.data.name;
+            item.quantity = res.data.quantity;
+            const itemEl = widget.querySelector(`.shopping-widget__item[data-item-id="${id}"]`);
+            if (itemEl) {
+              const nameEl = itemEl.querySelector('.shopping-widget__item-name');
+              if (nameEl) nameEl.innerHTML = `${esc(res.data.name)}${res.data.quantity ? ` <span class="shopping-widget__qty">${esc(res.data.quantity)}</span>` : ''}`;
+            }
+          } catch { window.planium?.showToast('Could not update item', 'danger'); }
+        },
+      });
       return;
     }
 
@@ -3974,6 +4056,26 @@ function wireShoppingWidget(container, data) {
       } catch {
         window.planium?.showToast('Could not delete item', 'danger');
       }
+      return;
+    }
+
+    // Rename shopping sublist
+    const editSubBtn = e.target.closest('[data-action="edit-shopping-sublist"]');
+    if (editSubBtn) {
+      e.stopPropagation();
+      const id = Number(editSubBtn.dataset.id);
+      const sub = (data.sublists ?? []).find((s) => s.id === id);
+      if (!sub) return;
+      const name = await showPrompt(t('shopping.renameSublistPrompt') ?? 'Rename list', sub.name);
+      if (!name?.trim() || name.trim() === sub.name) return;
+      try {
+        const res = await api.put(`/lists/${id}`, { name: name.trim() });
+        sub.name = res.data.name;
+        editSubBtn.closest('.shopping-widget__list')
+          ?.querySelector('.shopping-widget__list-name')
+          ?.childNodes[0]
+          ?.replaceWith(document.createTextNode(res.data.name));
+      } catch { window.planium?.showToast('Could not rename list', 'danger'); }
       return;
     }
 

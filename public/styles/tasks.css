@@ -250,6 +250,23 @@
   cursor: pointer;
 }
 
+@media (max-width: 640px) {
+  .filter-dropdown__menu {
+    position: fixed;
+    top: auto;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    min-width: unset;
+    max-height: 0;
+  }
+
+  .filter-dropdown__menu--open {
+    max-height: 70vh;
+  }
+}
+
 /* --------------------------------------------------------
  * Gruppen-Überschriften
  * -------------------------------------------------------- */

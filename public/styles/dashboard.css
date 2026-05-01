@@ -1968,17 +1968,26 @@ a.price-ticker:hover {
 
   #tasks-widget .widget__body,
   #shopping-widget .widget__body,
-  #calendar-widget .widget__body {
-    max-height: var(--widget-fixed-height, 350px);
+  #events-widget .widget__body {
+    max-height: none !important;
     min-height: 0;
-    overflow: visible;
-    overflow-x: auto;
+    overflow: visible !important;
+    touch-action: auto !important;
   }
 
-  #tasks-widget.widget--expanded .widget__body,
-  #shopping-widget.widget--expanded .widget__body,
-  #calendar-widget.widget--expanded .widget__body {
-    max-height: none;
+  #tasks-widget .personal-widget-items,
+  #tasks-widget .personal-widget-items--scrollable {
+    overflow: visible !important;
+    touch-action: auto !important;
+  }
+
+  #shopping-widget .shopping-widget__items {
+    overflow: visible !important;
+    touch-action: auto !important;
+  }
+
+  .widget-item--phone-hidden {
+    display: none !important;
   }
 
   .widget__see-more {
@@ -2014,6 +2023,66 @@ a.price-ticker:hover {
   align-items: center;
   gap: var(--space-1);
   margin-bottom: var(--space-1);
+}
+
+.shopping-widget__list-edit {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.shopping-widget__list:hover > .shopping-widget__list-header > .shopping-widget__list-edit,
+.shopping-widget__list-edit:focus-visible {
+  opacity: 0.6;
+}
+
+.shopping-widget__list-edit:hover {
+  color: var(--color-accent);
+  background: var(--color-glass);
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .shopping-widget__list-edit { opacity: 0.6; padding: 10px; }
+}
+
+.shopping-widget__item-edit {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all var(--transition-fast);
+}
+
+.shopping-widget__item:hover > .shopping-widget__item-edit,
+.shopping-widget__item-edit:focus-visible {
+  opacity: 0.6;
+}
+
+.shopping-widget__item-edit:hover {
+  color: var(--color-accent);
+  background: var(--color-glass);
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .shopping-widget__item-edit { opacity: 0.6; padding: 10px; }
 }
 
 .shopping-widget__list--dragging {

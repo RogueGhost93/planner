@@ -198,6 +198,7 @@
   margin-bottom: var(--space-1);
   color: inherit;
   padding-right: var(--space-6);
+  word-break: break-all;
 }
 
 .note-card__content {
@@ -205,7 +206,7 @@
   line-height: var(--line-height-relaxed);
   color: inherit;
   opacity: 0.78;
-  word-break: break-word;
+  word-break: break-all;
   white-space: pre-wrap;
 }
 
