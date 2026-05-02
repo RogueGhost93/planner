@@ -32,12 +32,6 @@ const PERSONAL_TASK_HAS_DELETED_AT = db
   .prepare('PRAGMA table_info(personal_tasks)')
   .all()
   .some((column) => column.name === 'deleted_at');
-const TASK_LIST_HAS_IS_HOUSEHOLD = db
-  .get()
-  .prepare('PRAGMA table_info(task_lists)')
-  .all()
-  .some((column) => column.name === 'is_household');
-
 // --------------------------------------------------------
 // Helpers
 // --------------------------------------------------------
@@ -244,7 +238,7 @@ router.get('/', (req, res) => {
          OR EXISTS (SELECT 1 FROM task_list_shares s
                     WHERE s.list_id = l.id AND s.user_id = ?)
       GROUP BY l.id
-      ORDER BY ${TASK_LIST_HAS_IS_HOUSEHOLD ? 'l.is_household DESC,' : ''} l.sort_order ASC, l.created_at ASC
+      ORDER BY l.sort_order ASC, l.created_at ASC
     `).all(uid, uid, uid);
 
     // Attach shared_user_ids only for lists this user owns (privacy)
