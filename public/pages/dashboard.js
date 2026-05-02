@@ -1047,10 +1047,11 @@ function renderPersonalListItems(list, items) {
   const itemsHtml = pending.length
     ? pending.map((it) => {
         const status = getPersonalWidgetItemStatus(it);
+        const displayStatus = list?.quick_done && status === 'in_progress' ? 'open' : status;
         const nextStatus = list?.quick_done
           ? (status === 'done' ? 'open' : 'done')
           : (PERSONAL_WIDGET_STATUS_CYCLE[status] ?? 'open');
-        const statusIcon = PERSONAL_WIDGET_STATUS_ICON[status] ?? 'circle';
+        const statusIcon = PERSONAL_WIDGET_STATUS_ICON[displayStatus] ?? 'circle';
         const priority = it.priority && it.priority !== 'none' ? it.priority : null;
         const priorityLabel = priority ? (t(`tasks.priority${priority.charAt(0).toUpperCase()}${priority.slice(1)}`) ?? priority) : '';
         const due = personalDueLabel(it.due_date);
@@ -1071,13 +1072,15 @@ function renderPersonalListItems(list, items) {
             </div>` : '';
         return `
         <div class="personal-widget-item ${priority && accentEnabled ? `personal-widget-item--priority personal-widget-item--priority-${priority}` : ''}" data-item-id="${it.id}" data-action="open-personal-widget-item" data-list-id="${list.id}">
-          <button class="personal-widget-item__check personal-widget-item__check--${status}"
+          <button class="personal-widget-item__check personal-widget-item__check--${displayStatus}"
                   data-action="toggle-personal-widget-item"
                   data-list-id="${list.id}" data-item-id="${it.id}"
                   data-next-status="${nextStatus}"
                   aria-label="${t('tasks.cycleStatus')}"
                   title="${t('tasks.cycleStatus')}">
-            <i data-lucide="${statusIcon}" style="width:10px;height:10px;pointer-events:none" aria-hidden="true"></i>
+            ${list?.quick_done && displayStatus !== 'done'
+              ? ''
+              : `<i data-lucide="${statusIcon}" style="width:10px;height:10px;pointer-events:none" aria-hidden="true"></i>`}
           </button>
           <div class="personal-widget-item__body">
             <span class="personal-widget-item__title">${linkify(it.title)}</span>
@@ -1144,10 +1147,13 @@ function renderTasksWidget(personalLists, personalItems, span = '2', height = 'n
            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
          </svg>`
       : '<span class="tasks-widget__tab-dot" aria-hidden="true"></span>';
+    const tabColorStyle = localStorage.getItem('planium-unified-tab-colors') === 'true'
+      ? ''
+      : `style="--tab-color:${esc(l.color)}"`;
     return `
       <button class="tasks-widget__tab ${isActive ? 'tasks-widget__tab--active' : ''}"
               data-action="switch-widget-tab" data-tab="${l.id}"
-              style="--tab-color:${esc(l.color)}"
+              ${tabColorStyle}
               ${isDashboardEditModeEnabled() ? 'disabled aria-disabled="true"' : ''}>
         ${indicator}
         <span>${esc(l.name)}</span>

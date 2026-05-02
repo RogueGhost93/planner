@@ -150,7 +150,7 @@ router.get('/', (req, res) => {
     const uid = req.session.userId;
     result.personalLists = d.prepare(`
       SELECT
-        l.id, l.name, l.color, l.owner_id, l.sort_order,
+        l.id, l.name, l.color, l.owner_id, l.sort_order, l.quick_done,
         u.display_name AS owner_name,
         (l.owner_id = ?) AS is_owner,
         EXISTS (SELECT 1 FROM task_list_shares s WHERE s.list_id = l.id) AS has_shares

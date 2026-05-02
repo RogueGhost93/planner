@@ -247,6 +247,16 @@ function applyUserPreferences(user) {
   }
   try { localStorage.setItem('planium-accent', accent); } catch { /* ignore */ }
 
+  // Apply unified tab colors: override all module colors to use the accent color
+  const unifiedTabColors = localStorage.getItem('planium-unified-tab-colors') === 'true';
+  if (unifiedTabColors && accent) {
+    const accentColorVar = `var(--color-accent)`;
+    const moduleNames = ['dashboard', 'tasks', 'lists', 'board', 'notes', 'notebook', 'calendar', 'meals', 'news', 'webview', 'bookmarks', 'filebox', 'contacts', 'budget', 'settings'];
+    moduleNames.forEach((name) => {
+      document.documentElement.style.setProperty(`--module-${name}`, `var(--color-accent)`);
+    });
+  }
+
   try {
     localStorage.setItem('planium-quick-link', quickLink);
     localStorage.setItem('planium-priority-appearance', priorityAppearance);

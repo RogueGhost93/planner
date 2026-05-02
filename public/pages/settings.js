@@ -219,6 +219,14 @@ export async function render(container, { user }) {
             </label>
           </div>
 
+          <div class="settings-toggle-row" style="margin-top:var(--space-3)">
+            <label class="settings-toggle-label" for="unified-tab-colors">Use accent color for all tabs</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="unified-tab-colors" ${localStorage.getItem('planium-unified-tab-colors') === 'true' ? 'checked' : ''} />
+              <span class="toggle-switch__slider"></span>
+            </label>
+          </div>
+
           <p class="settings-card__label" style="margin-top:var(--space-4);margin-bottom:var(--space-2)">${t('settings.priorityAppearanceLabel')}</p>
           <select id="priority-appearance" class="form-input settings-select" style="width:100%">
             <option value="accent" ${currentPriorityAppearance() === 'accent' ? 'selected' : ''}>${t('settings.priorityAppearanceAccent')}</option>
@@ -782,6 +790,19 @@ function bindEvents(container, user, webviewStatus) {
           appearance_daily_accent_date: dailyAccent.checked ? (localStorage.getItem('planium-daily-accent-date') || '') : '',
         }).catch(() => {});
       }
+    });
+  }
+
+  // Unified tab colors toggle
+  const unifiedTabColors = container.querySelector('#unified-tab-colors');
+  if (unifiedTabColors) {
+    unifiedTabColors.addEventListener('change', () => {
+      localStorage.setItem('planium-unified-tab-colors', unifiedTabColors.checked ? 'true' : 'false');
+      window.planium?.showToast(
+        unifiedTabColors.checked ? 'Tabs now use accent color' : 'Tabs use their individual colors',
+        'success'
+      );
+      setTimeout(() => window.location.reload(), 300);
     });
   }
 

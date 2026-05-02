@@ -739,6 +739,14 @@ function nextStatusFor(currentStatus, list) {
   }
   return PERSONAL_STATUS_CYCLE[currentStatus] ?? 'open';
 }
+
+// In quick_done mode, collapse in_progress to open for icon/class purposes —
+// the third state is invisible to the user and would otherwise show as a
+// circle-dot they can't reach via one click.
+function displayStatusFor(status, list) {
+  if (list?.quick_done && status === 'in_progress') return 'open';
+  return status;
+}
 const PERSONAL_ITEM_SYNC_SOURCE = 'tasks-page';
 
 let currentTasksContainer = null;
@@ -1197,6 +1205,7 @@ function wireKanbanDrag(container) {
         if (window.lucide) window.lucide.createIcons({ nodes: [cb] });
       }
       updateBulkBar(container);
+      e.stopPropagation();
       return;
     }
 
@@ -1635,7 +1644,8 @@ function renderTaskTabsBar(container) {
   if (!bar) return;
 
   const activeList = state.taskLists.find((l) => l.id === state.activeTab);
-  if (activeList?.color) {
+  const useUnifiedColors = localStorage.getItem('planium-unified-tab-colors') === 'true';
+  if (activeList?.color && !useUnifiedColors) {
     const c = activeList.color;
     container.querySelector('.tasks-page')?.style.setProperty('--module-accent', c);
     container.querySelector('.personal-list')?.style.setProperty('--module-accent', c);
@@ -1649,13 +1659,14 @@ function renderTaskTabsBar(container) {
     const indicator = isShared
       ? `<i data-lucide="users" style="width:12px;height:12px;pointer-events:none;flex-shrink:0;color:${isActive ? '#fff' : 'var(--tab-color)'}" aria-hidden="true"></i>`
       : '<span class="task-tab__color-dot" aria-hidden="true"></span>';
+    const tabColorStyle = useUnifiedColors ? '' : `style="--tab-color: ${esc(l.color)}"`;
     return `
       <button class="task-tab ${isActive ? 'task-tab--active' : ''}"
               data-action="switch-tab" data-tab="${l.id}"
               data-list-id="${l.id}" data-owned="${l.is_owner ? '1' : '0'}"
               data-household="${l.is_household ? '1' : '0'}"
               data-reorderable="${isReorderable ? '1' : '0'}"
-              style="--tab-color: ${esc(l.color)}"
+              ${tabColorStyle}
               title="${!l.is_owner && l.owner_name ? esc(t('tasks.sharedByLabel', { name: l.owner_name })) : esc(l.name)}">
         ${indicator}
         ${esc(l.name)}
@@ -1697,8 +1708,9 @@ function renderPersonalItemRow(item, opts = {}) {
   const isShared = list && (!list.is_owner || (list.shared_user_ids?.length > 0));
   const isTrashed = !!item.deleted_at;
   const status = getPersonalItemStatus(item);
+  const displayStatus = displayStatusFor(status, list);
   const nextStatus = nextStatusFor(status, list);
-  const statusIcon = PERSONAL_STATUS_ICON[status] ?? 'circle';
+  const statusIcon = PERSONAL_STATUS_ICON[displayStatus] ?? 'circle';
   const cardAction = isTrashed ? '' : 'data-action="open-personal-item"';
   return `
     <div class="task-card${accentEnabled ? priorityCardClass(item.priority) : ''} ${status === 'done' ? 'task-card--done' : ''} ${isTrashed ? 'task-card--trashed' : ''} ${isSelected ? 'task-card--selected' : ''} ${isFirst ? 'task-card--first' : ''}" data-item-id="${item.id}" ${cardAction}>
@@ -1708,11 +1720,13 @@ function renderPersonalItemRow(item, opts = {}) {
                   aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
             ${isSelected ? '<i data-lucide="check" style="width:12px;height:12px;color:#fff" aria-hidden="true"></i>' : ''}
           </button>
-          <button class="task-status-btn task-status-btn--${status}"
+          <button class="task-status-btn task-status-btn--${displayStatus}"
                   data-action="cycle-personal-item"
                   data-next-status="${nextStatus}"
                   aria-label="${t('tasks.cycleStatus')}">
-            <i data-lucide="${statusIcon}" style="width:12px;height:12px;pointer-events:none" aria-hidden="true"></i>
+            ${list?.quick_done && displayStatus !== 'done'
+              ? ''
+              : `<i data-lucide="${statusIcon}" style="width:12px;height:12px;pointer-events:none" aria-hidden="true"></i>`}
           </button>` : ''}
         <div class="task-card__body">
           <div class="task-card__title">
@@ -1935,20 +1949,30 @@ function renderPersonalKanbanCard(item) {
   const due  = formatPersonalDueDate(item.due_date);
   const list = state.taskLists.find((l) => l.id === state.activeTab);
   const status = getPersonalItemStatus(item);
+  const displayStatus = displayStatusFor(status, list);
   const nextStatus = nextStatusFor(status, list);
-  const icon = PERSONAL_STATUS_ICON[status] ?? 'circle';
+  const icon = PERSONAL_STATUS_ICON[displayStatus] ?? 'circle';
   const accentEnabled = showPriorityAccent();
   const flagEnabled = showPriorityFlags();
+  const isSelected = state.personalSelectedIds.has(item.id);
   return `
-    <div class="kanban-card${accentEnabled ? priorityCardClass(item.priority) : ''} ${status === 'done' ? 'kanban-card--done' : ''}"
-         data-item-id="${item.id}" draggable="true" data-action="open-personal-item">
+    <div class="kanban-card${accentEnabled ? priorityCardClass(item.priority) : ''} ${status === 'done' ? 'kanban-card--done' : ''} ${isSelected ? 'kanban-card--selected' : ''}"
+         data-item-id="${item.id}" draggable="${!state.personalSelectMode}">
+      ${state.personalSelectMode ? `
+        <button class="task-select-cb kanban-select-cb ${isSelected ? 'task-select-cb--checked' : ''}"
+                data-action="toggle-personal-select" data-item-id="${item.id}"
+                aria-pressed="${isSelected}" aria-label="${t('tasks.selectTask')}">
+          ${isSelected ? '<i data-lucide="check" style="width:12px;height:12px;color:#fff" aria-hidden="true"></i>' : ''}
+        </button>` : ''}
       <div class="kanban-card__header">
         <div class="kanban-card__title">${linkify(item.title)}</div>
-        <button class="kanban-card__status-btn kanban-card__status-btn--${status}" data-action="cycle-personal-item"
+        ${!state.personalSelectMode ? `<button class="kanban-card__status-btn kanban-card__status-btn--${displayStatus}" data-action="cycle-personal-item"
                 data-next-status="${nextStatus}"
                 aria-label="${t('tasks.cycleStatus')}">
-          <i data-lucide="${icon}" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>
-        </button>
+          ${list?.quick_done && displayStatus !== 'done'
+            ? ''
+            : `<i data-lucide="${icon}" style="width:14px;height:14px;pointer-events:none" aria-hidden="true"></i>`}
+        </button>` : ''}
       </div>
       ${item.description ? `<div class="kanban-card__description">${linkify(item.description)}</div>` : ''}
       <div class="kanban-card__meta">
@@ -2410,7 +2434,7 @@ function wirePersonalView(container) {
 
     // In select mode: clicking a card row toggles selection
     if (state.personalSelectMode && !action) {
-      const card = e.target.closest('.task-card[data-item-id]');
+      const card = e.target.closest('.task-card[data-item-id], .kanban-card[data-item-id]');
       if (card) {
         const itemId = parseInt(card.dataset.itemId, 10);
         if (state.personalSelectedIds.has(itemId)) state.personalSelectedIds.delete(itemId);
@@ -2427,7 +2451,7 @@ function wirePersonalView(container) {
       if (kanbanCard) {
         const itemId = parseInt(kanbanCard.dataset.itemId, 10);
         const item = state.personalItems.find((i) => i.id === itemId);
-        if (item) openItemEditDialog({ item, container });
+        if (item) openItemEditDialog({ item, container, listId: item.list_id });
       }
       return;
     }
@@ -2567,12 +2591,12 @@ function wirePersonalView(container) {
       const card = target.closest('.task-card[data-item-id]');
       if (card && selectionIsInsideElement(card)) return;
       const item = state.personalItems.find((i) => i.id === itemId);
-      if (item) openItemEditDialog({ item, container });
+      if (item) openItemEditDialog({ item, container, listId: item.list_id });
       return;
     }
     if (action === 'edit-personal-item') {
       const item = state.personalItems.find((i) => i.id === itemId);
-      if (item) openItemEditDialog({ item, container });
+      if (item) openItemEditDialog({ item, container, listId: item.list_id });
       return;
     }
     if (action === 'set-personal-priority') {

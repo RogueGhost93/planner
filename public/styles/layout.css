@@ -1070,6 +1070,20 @@ body.phone-nav-menu-mode .app-content {
   animation: modal-slide-up 0.25s var(--ease-out) forwards;
 }
 
+.modal-panel--notes {
+  height: 80dvh;
+  max-height: 80dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal-panel--notes .modal-panel__body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: var(--space-3);
+}
+
 @media (min-width: 768px) {
   .modal-panel {
     max-width: 520px;
