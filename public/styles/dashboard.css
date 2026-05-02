@@ -1966,6 +1966,10 @@ a.price-ticker:hover {
     min-height: 0;
   }
 
+  #quick-notes-widget {
+    height: var(--widget-fixed-height, 350px);
+  }
+
   #tasks-widget .widget__body,
   #shopping-widget .widget__body,
   #events-widget .widget__body {
@@ -2181,9 +2185,7 @@ a.price-ticker:hover {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin-bottom: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-all;
 }
 
 .note-item__content {
@@ -2193,6 +2195,7 @@ a.price-ticker:hover {
   -webkit-line-clamp: var(--board-note-preview-lines);
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-all;
 }
 
 .dashboard__board-notes--legacy {
