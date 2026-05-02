@@ -1486,12 +1486,10 @@ async function wireQuickNotes(container) {
     });
   }
 
-  // Expand to large dialog on desktop only
   const expandTrigger = widget.querySelector('.qn-expand-trigger');
   if (expandTrigger) {
     expandTrigger.addEventListener('click', (e) => {
       if (e.target.closest('[data-action="drag-widget"], [data-action="cycle-widget-span"]')) return;
-      if (window.innerWidth < 768) return;
       openModal({
         title: t('dashboard.quickNotesTitle'),
         size: 'notes',
@@ -3515,6 +3513,7 @@ export async function render(container, { user }) {
     function refreshTasksWidget() {
       const widgetEl = container.querySelector('#tasks-widget');
       if (!widgetEl) return;
+      const wasExpanded = widgetEl.classList.contains('widget--expanded');
       const html = renderTasksWidget(
         data.personalLists ?? [],
         data.personalItems ?? [],
@@ -3522,6 +3521,7 @@ export async function render(container, { user }) {
         widgetEl.dataset.widgetHeight ?? layoutState.heights['tasks-widget'] ?? 'normal',
       );
       widgetEl.outerHTML = html;
+      if (wasExpanded) container.querySelector('#tasks-widget')?.classList.add('widget--expanded');
       if (window.lucide) window.lucide.createIcons();
       wireTasksWidget(container, data, refreshTasksWidget);
       wireLinks(container);
@@ -3616,6 +3616,7 @@ export async function render(container, { user }) {
   function refreshTasksWidget() {
     const widgetEl = container.querySelector('#tasks-widget');
     if (!widgetEl) return;
+    const wasExpanded = widgetEl.classList.contains('widget--expanded');
     const html = renderTasksWidget(
       data.personalLists ?? [],
       data.personalItems ?? [],
@@ -3623,6 +3624,7 @@ export async function render(container, { user }) {
       widgetEl.dataset.widgetHeight ?? layoutState.heights['tasks-widget'] ?? 'normal',
     );
     widgetEl.outerHTML = html;
+    if (wasExpanded) container.querySelector('#tasks-widget')?.classList.add('widget--expanded');
     if (window.lucide) window.lucide.createIcons();
     wireTasksWidget(container, data, refreshTasksWidget);
     wireLinks(container);

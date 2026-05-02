@@ -1063,6 +1063,22 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 38,
+    description: 'Demote household task list to regular personal list',
+    up: () => {
+      db.exec(`
+        UPDATE task_lists
+        SET is_household = 0,
+            sort_order   = (
+              SELECT COALESCE(MAX(t2.sort_order), -1) + 1
+              FROM task_lists t2
+              WHERE t2.owner_id = task_lists.owner_id AND t2.id != task_lists.id
+            )
+        WHERE is_household = 1;
+      `);
+    },
+  },
 ];
 
 /**

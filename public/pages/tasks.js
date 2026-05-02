@@ -1635,7 +1635,7 @@ function renderTaskTabsBar(container) {
 
   const personalTabs = state.taskLists.map((l) => {
     const isActive = state.activeTab === l.id;
-    const isReorderable = l.is_owner && !l.is_household;
+    const isReorderable = !!l.is_owner;
     const isShared = !l.is_owner || (l.shared_user_ids?.length > 0);
     const indicator = isShared
       ? `<i data-lucide="users" style="width:12px;height:12px;pointer-events:none;flex-shrink:0;color:${isActive ? '#fff' : 'var(--tab-color)'}" aria-hidden="true"></i>`
@@ -3557,7 +3557,7 @@ function wirePersonalTabsReorder(container) {
     dragging.classList.remove('task-tab--dragging');
     const newOwnedOrder = getOwnedTabs().map((el) => Number(el.dataset.listId));
     const oldOwnedOrder = state.taskLists
-      .filter((l) => l.is_owner && !l.is_household)
+      .filter((l) => l.is_owner)
       .map((l) => l.id);
     dragging = null; dragPtrId = null; didDrag = false;
     if (!wasDragged) return;
