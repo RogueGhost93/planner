@@ -730,6 +730,15 @@ function setPersonalItemStatus(item, status) {
 
 const PERSONAL_STATUS_CYCLE = { open: 'in_progress', in_progress: 'done', done: 'open' };
 const PERSONAL_STATUS_ICON  = { open: 'circle', in_progress: 'circle-dot', done: 'check-circle' };
+
+// Lists with quick_done skip the in_progress step: open ↔ done.
+// Items already in_progress (legacy or set via the edit modal) still flip to done in one click.
+function nextStatusFor(currentStatus, list) {
+  if (list?.quick_done) {
+    return currentStatus === 'done' ? 'open' : 'done';
+  }
+  return PERSONAL_STATUS_CYCLE[currentStatus] ?? 'open';
+}
 const PERSONAL_ITEM_SYNC_SOURCE = 'tasks-page';
 
 let currentTasksContainer = null;
@@ -1688,7 +1697,7 @@ function renderPersonalItemRow(item, opts = {}) {
   const isShared = list && (!list.is_owner || (list.shared_user_ids?.length > 0));
   const isTrashed = !!item.deleted_at;
   const status = getPersonalItemStatus(item);
-  const nextStatus = PERSONAL_STATUS_CYCLE[status] ?? 'open';
+  const nextStatus = nextStatusFor(status, list);
   const statusIcon = PERSONAL_STATUS_ICON[status] ?? 'circle';
   const cardAction = isTrashed ? '' : 'data-action="open-personal-item"';
   return `
@@ -1924,8 +1933,9 @@ function wirePersonalFilterDropdown(container) {
 
 function renderPersonalKanbanCard(item) {
   const due  = formatPersonalDueDate(item.due_date);
+  const list = state.taskLists.find((l) => l.id === state.activeTab);
   const status = getPersonalItemStatus(item);
-  const nextStatus = PERSONAL_STATUS_CYCLE[status] ?? 'open';
+  const nextStatus = nextStatusFor(status, list);
   const icon = PERSONAL_STATUS_ICON[status] ?? 'circle';
   const accentEnabled = showPriorityAccent();
   const flagEnabled = showPriorityFlags();
@@ -2120,18 +2130,6 @@ function renderPersonalView(container) {
        </span>`
     : '';
 
-  const ownerActions = isOwner ? `
-    <button class="btn btn--ghost btn--icon" data-action="share-list"
-            aria-label="${t('tasks.sharePersonalList')}" title="${t('tasks.sharePersonalList')}"
-            style="color:var(--color-text-secondary)">
-      <i data-lucide="user-plus" style="width:18px;height:18px" aria-hidden="true"></i>
-    </button>
-    <button class="btn btn--ghost btn--icon" data-action="delete-list"
-            aria-label="${t('common.delete')}" title="${t('common.delete')}"
-            style="color:var(--color-text-secondary)">
-      <i data-lucide="trash" style="width:18px;height:18px" aria-hidden="true"></i>
-    </button>` : '';
-
   content.innerHTML = `
     <div class="personal-list" style="--list-color:${esc(list.color)};--module-accent:${esc(list.color)}">
       <div class="tasks-toolbar">
@@ -2181,7 +2179,6 @@ function renderPersonalView(container) {
           </button>
           <span class="bulk-bar__count tasks-toolbar__bulk-count" id="personal-bulk-count" hidden></span>
           <button class="btn btn--danger tasks-toolbar__bulk-btn" id="personal-btn-bulk-delete" hidden>${t('tasks.bulkDelete')}</button>
-          ${ownerActions}
         </div>
       </div>
 
@@ -2451,29 +2448,6 @@ function wirePersonalView(container) {
       if (list && list.is_owner) openListDialog({ list, container });
       return;
     }
-    if (action === 'share-list') {
-      const list = state.taskLists.find((l) => l.id === state.activeTab);
-      if (list && list.is_owner) openShareDialog({ list, container });
-      return;
-    }
-    if (action === 'delete-list') {
-      const ok = await showConfirm(t('tasks.deletePersonalListConfirm'), { danger: true });
-      if (!ok) return;
-      try {
-        await api.delete(`/personal-lists/${state.activeTab}`);
-        state.taskLists = state.taskLists.filter((l) => l.id !== state.activeTab);
-        const householdList = state.taskLists.find((l) => l.is_household) ?? state.taskLists[0];
-        state.activeTab = householdList?.id ?? null;
-        localStorage.setItem('tasks-active-tab', String(state.activeTab));
-        renderTaskTabsBar(container);
-        if (state.activeTab) await loadPersonalItems(state.activeTab);
-        renderPersonalView(container);
-        window.planium.showToast(t('tasks.personalListDeletedToast'), 'default');
-      } catch (err) {
-        window.planium.showToast(err.message, 'danger');
-      }
-      return;
-    }
     if (action === 'manage-labels') {
       openLabelManager({ container });
       return;
@@ -2522,7 +2496,8 @@ function wirePersonalView(container) {
       const item = state.personalItems.find((i) => i.id === itemId);
       if (!item) return;
       const currentStatus = getPersonalItemStatus(item);
-      const newStatus = target.dataset.nextStatus || PERSONAL_STATUS_CYCLE[currentStatus] || 'open';
+      const activeList = state.taskLists.find((l) => l.id === state.activeTab);
+      const newStatus = target.dataset.nextStatus || nextStatusFor(currentStatus, activeList);
       const wasRecurring = item.is_recurring && item.recurrence_rule;
       const wasDone = currentStatus === 'done';
       setPersonalItemStatus(item, newStatus);
@@ -2759,6 +2734,42 @@ function openListDialog({ list = null, container } = {}) {
             aria-label="${c}"></button>
   `).join('');
 
+  // Share section: only meaningful when editing a list this user owns.
+  const me = state.currentUser?.id;
+  const shareCandidates = isEdit
+    ? (state.users || []).filter((u) => u.id !== list.owner_id && u.id !== me)
+    : [];
+  const initialShares = new Set(list?.shared_user_ids || []);
+
+  const shareRows = shareCandidates.map((u) => `
+    <label class="share-user-row">
+      <input type="checkbox" class="share-user-row__cb" data-user-id="${u.id}"
+             ${initialShares.has(u.id) ? 'checked' : ''}>
+      <span class="share-user-row__avatar"
+            style="background-color:${esc(u.avatar_color || '#888')}">
+        ${esc(initials(u.display_name || ''))}
+      </span>
+      <span class="share-user-row__name">${esc(u.display_name)}</span>
+    </label>`).join('');
+
+  const shareSection = isEdit ? `
+        <div class="form-group">
+          <label class="label">${t('tasks.personalListShareSection')}</label>
+          ${shareCandidates.length
+            ? `<p class="share-help" style="margin-top:0">${t('tasks.shareDialogHelp')}</p>
+               <div class="share-user-list" id="personal-list-share-list">${shareRows}</div>`
+            : `<div class="share-empty">${t('tasks.shareDialogEmpty')}</div>`}
+        </div>` : '';
+
+  const deleteSection = isEdit ? `
+        <div class="form-group" style="margin-bottom:0">
+          <button type="button" class="btn btn--ghost" id="personal-list-delete"
+                  style="color:var(--color-danger);width:100%;justify-content:center">
+            <i data-lucide="trash" style="width:16px;height:16px" aria-hidden="true"></i>
+            ${t('tasks.personalListDelete')}
+          </button>
+        </div>` : '';
+
   openSharedModal({
     title: isEdit ? t('tasks.renamePersonalList') : t('tasks.newPersonalListTitle'),
     size: 'sm',
@@ -2778,12 +2789,24 @@ function openListDialog({ list = null, container } = {}) {
           <input type="hidden" id="personal-list-color" value="${currentColor}">
         </div>
 
-        <div class="form-group" style="margin-bottom:0">
+        <div class="form-group">
           <label class="label" style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer">
             <input type="checkbox" id="personal-list-show-priority" ${(list?.show_priority ?? 1) ? 'checked' : ''}>
             ${t('tasks.personalListShowPriority')}
           </label>
         </div>
+
+        <div class="form-group">
+          <label class="label" style="display:flex;align-items:center;gap:var(--space-3);cursor:pointer">
+            <input type="checkbox" id="personal-list-quick-done" ${(list?.quick_done ?? 0) ? 'checked' : ''}>
+            ${t('tasks.personalListQuickDone')}
+          </label>
+          <p class="share-help" style="margin:var(--space-1) 0 0 calc(18px + var(--space-3))">
+            ${t('tasks.personalListQuickDoneHelp')}
+          </p>
+        </div>
+
+        ${shareSection}
 
         <div id="personal-list-form-error" class="login-error" hidden></div>
 
@@ -2792,6 +2815,8 @@ function openListDialog({ list = null, container } = {}) {
             ${isEdit ? t('common.save') : t('common.create')}
           </button>
         </div>
+
+        ${deleteSection}
       </form>
     `,
     onSave(panel) {
@@ -2807,6 +2832,26 @@ function openListDialog({ list = null, container } = {}) {
         colorInput.value = swatch.dataset.color;
       });
 
+      // Delete button (edit only)
+      panel.querySelector('#personal-list-delete')
+        ?.addEventListener('click', async () => {
+          const ok = await showConfirm(t('tasks.deletePersonalListConfirm'), { danger: true });
+          if (!ok) return;
+          try {
+            await api.delete(`/personal-lists/${list.id}`);
+            state.taskLists = state.taskLists.filter((l) => l.id !== list.id);
+            state.activeTab = state.taskLists[0]?.id ?? null;
+            localStorage.setItem('tasks-active-tab', String(state.activeTab));
+            closeModal();
+            renderTaskTabsBar(container);
+            if (state.activeTab) await loadPersonalItems(state.activeTab);
+            renderPersonalView(container);
+            window.planium.showToast(t('tasks.personalListDeletedToast'), 'default');
+          } catch (err) {
+            window.planium.showToast(err.message, 'danger');
+          }
+        });
+
       // Form submit
       panel.querySelector('#personal-list-form')
         ?.addEventListener('submit', async (e) => {
@@ -2819,6 +2864,7 @@ function openListDialog({ list = null, container } = {}) {
           const name          = panel.querySelector('#personal-list-name').value.trim();
           const color         = colorInput.value;
           const show_priority = panel.querySelector('#personal-list-show-priority').checked ? 1 : 0;
+          const quick_done    = panel.querySelector('#personal-list-quick-done').checked ? 1 : 0;
           if (!name) {
             errEl.textContent = t('common.required');
             errEl.hidden = false;
@@ -2828,14 +2874,29 @@ function openListDialog({ list = null, container } = {}) {
 
           try {
             if (isEdit) {
-              const res = await api.put(`/personal-lists/${list.id}`, { name, color, show_priority });
+              const res = await api.put(`/personal-lists/${list.id}`, { name, color, show_priority, quick_done });
               const idx = state.taskLists.findIndex((l) => l.id === list.id);
               if (idx >= 0) state.taskLists[idx] = { ...state.taskLists[idx], ...res.data };
+
+              // Persist sharing changes if anything moved
+              if (shareCandidates.length) {
+                const newIds = [...panel.querySelectorAll('.share-user-row__cb:checked')]
+                  .map((cb) => Number(cb.dataset.userId));
+                const oldIds = [...initialShares].sort();
+                const sortedNew = [...newIds].sort();
+                const changed = oldIds.length !== sortedNew.length
+                  || oldIds.some((v, i) => v !== sortedNew[i]);
+                if (changed) {
+                  await api.put(`/personal-lists/${list.id}/shares`, { user_ids: newIds });
+                  if (idx >= 0) state.taskLists[idx].shared_user_ids = newIds;
+                }
+              }
+
               renderTaskTabsBar(container);
               renderPersonalView(container);
               window.planium.showToast(t('tasks.savedToast'), 'success');
             } else {
-              const res = await api.post('/personal-lists', { name, color, show_priority });
+              const res = await api.post('/personal-lists', { name, color, show_priority, quick_done });
               state.taskLists.push(res.data);
               state.activeTab = res.data.id;
               localStorage.setItem('tasks-active-tab', String(res.data.id));
@@ -2851,6 +2912,8 @@ function openListDialog({ list = null, container } = {}) {
             btn.disabled = false;
           }
         });
+
+      if (window.lucide) window.lucide.createIcons();
     },
   });
 }
@@ -3401,76 +3464,6 @@ export function openItemEditDialog({
       });
     },
   });
-}
-
-// --------------------------------------------------------
-// Share Personal List Dialog (owner-only)
-// --------------------------------------------------------
-
-function openShareDialog({ list, container }) {
-  const me = state.currentUser?.id;
-  const candidates = (state.users || []).filter((u) => u.id !== list.owner_id && u.id !== me);
-  const initial = new Set(list.shared_user_ids || []);
-
-  const userRows = candidates.length
-    ? candidates.map((u) => {
-        const checked = initial.has(u.id) ? 'checked' : '';
-        return `
-          <label class="share-user-row">
-            <input type="checkbox" class="share-user-row__cb" data-user-id="${u.id}" ${checked}>
-            <span class="share-user-row__avatar"
-                  style="background-color:${esc(u.avatar_color || '#888')}">
-              ${esc(initials(u.display_name || ''))}
-            </span>
-            <span class="share-user-row__name">${esc(u.display_name)}</span>
-          </label>`;
-      }).join('')
-    : `<div class="share-empty">${t('tasks.shareDialogEmpty')}</div>`;
-
-  openSharedModal({
-    title: t('tasks.shareDialogTitle', { name: esc(list.name) }),
-    size: 'sm',
-    content: `
-      <form id="share-list-form" novalidate autocomplete="off">
-        <p class="share-help">${t('tasks.shareDialogHelp')}</p>
-        <div class="share-user-list" id="share-user-list">${userRows}</div>
-        <div id="share-form-error" class="login-error" hidden></div>
-        <div class="modal-panel__footer" style="padding:0;border:none;margin-top:var(--space-6)">
-          <button type="submit" class="btn btn--primary" id="share-submit"
-                  ${candidates.length ? '' : 'disabled'}>
-            ${t('common.save')}
-          </button>
-        </div>
-      </form>
-    `,
-    onSave(panel) {
-      panel.querySelector('#share-list-form')?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const errEl = panel.querySelector('#share-form-error');
-        const btn   = panel.querySelector('#share-submit');
-        errEl.hidden = true;
-        btn.disabled = true;
-
-        const ids = [...panel.querySelectorAll('.share-user-row__cb:checked')]
-          .map((cb) => Number(cb.dataset.userId));
-
-        try {
-          await api.put(`/personal-lists/${list.id}/shares`, { user_ids: ids });
-          // Update local state and re-render
-          const idx = state.taskLists.findIndex((l) => l.id === list.id);
-          if (idx >= 0) state.taskLists[idx].shared_user_ids = ids;
-          window.planium.showToast(t('tasks.shareSavedToast'), 'success');
-          closeModal();
-        } catch (err) {
-          errEl.textContent = err.message;
-          errEl.hidden = false;
-          btn.disabled = false;
-        }
-      });
-    },
-  });
-
-  if (window.lucide) window.lucide.createIcons();
 }
 
 // --------------------------------------------------------

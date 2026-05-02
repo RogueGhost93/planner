@@ -1079,6 +1079,17 @@ const MIGRATIONS = [
       `);
     },
   },
+  {
+    version: 39,
+    description: 'Add quick_done to task_lists (one-click status toggle opt-in)',
+    up: () => {
+      addColumnIfMissing(
+        'task_lists',
+        'quick_done',
+        'ALTER TABLE task_lists ADD COLUMN quick_done INTEGER NOT NULL DEFAULT 0;'
+      );
+    },
+  },
 ];
 
 /**

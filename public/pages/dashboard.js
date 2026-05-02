@@ -93,7 +93,19 @@ function setupPhoneWidgetOverflow(container) {
     });
     widget.querySelector('.widget__see-more')?.remove();
 
-    if (widget.classList.contains('widget--expanded')) continue;
+    if (widget.classList.contains('widget--expanded')) {
+      const collapseRow = document.createElement('div');
+      collapseRow.className = 'widget__see-more';
+      collapseRow.innerHTML = `<button class="widget__see-more-btn" type="button" aria-expanded="true">See less</button>`;
+      widget.appendChild(collapseRow);
+      collapseRow.querySelector('.widget__see-more-btn').addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        widget.classList.remove('widget--expanded');
+        collapseRow.remove();
+        setupPhoneWidgetOverflow(container);
+      });
+      continue;
+    }
 
     const targetHeight = parseFloat(window.getComputedStyle(widget).getPropertyValue('--widget-fixed-height')) || 350;
     const widgetTop = widget.getBoundingClientRect().top;
@@ -1035,7 +1047,9 @@ function renderPersonalListItems(list, items) {
   const itemsHtml = pending.length
     ? pending.map((it) => {
         const status = getPersonalWidgetItemStatus(it);
-        const nextStatus = PERSONAL_WIDGET_STATUS_CYCLE[status] ?? 'open';
+        const nextStatus = list?.quick_done
+          ? (status === 'done' ? 'open' : 'done')
+          : (PERSONAL_WIDGET_STATUS_CYCLE[status] ?? 'open');
         const statusIcon = PERSONAL_WIDGET_STATUS_ICON[status] ?? 'circle';
         const priority = it.priority && it.priority !== 'none' ? it.priority : null;
         const priorityLabel = priority ? (t(`tasks.priority${priority.charAt(0).toUpperCase()}${priority.slice(1)}`) ?? priority) : '';
@@ -3140,6 +3154,7 @@ function wireTasksWidget(container, dashData, refreshWidget) {
       const tabKey = dashboardStorageKey('dashboard-tasks-tab');
       if (localStorage.getItem(tabKey) === tab) return;
       localStorage.setItem(tabKey, tab);
+      widgetEl?.classList.remove('widget--expanded');
       softSwitchTab(tab);
       setupPhoneWidgetOverflow(container);
     });
